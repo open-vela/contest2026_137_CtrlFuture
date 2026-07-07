@@ -1,5 +1,5 @@
-#
-# vendor/openvela/boards/contest2026_137_board/Kconfig
+############################################################################
+# vendor/openvela/boards/contest2026_137_board/src/Makefile
 #
 # SPDX-License-Identifier: Apache-2.0
 #
@@ -18,11 +18,13 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 #
+############################################################################
 
-if ARCH_BOARD_CUSTOM
+include $(TOPDIR)/Make.defs
 
-config ARCH_BOARD_CONTEST2026_137_BOARD_TAG
-	string "Board tag"
-	default "contest2026_137_board"
+DEPPATH += --dep-path $(shell readlink -f $(TOPDIR)/$(CONFIG_ARCH_BOARD_CUSTOM_DIR))/src
+VPATH += $(shell readlink -f $(TOPDIR)/$(CONFIG_ARCH_BOARD_CUSTOM_DIR))/src
 
-endif
+CSRCS = board_bringup.c
+
+include $(TOPDIR)/boards/Board.mk
