@@ -1,0 +1,94 @@
+name: build
+
+on:
+  pull_request:
+    branches:
+      - dev-ai-contest-2026
+    paths-ignore:
+      - '**.md'
+      - 'logs/**'
+      - 'LICENSE'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        target: [nsh, nsh-qemu]
+      fail-fast: false
+    steps:
+      - name: Maximize build space
+        uses: easimon/maximize-build-space@v10
+        with:
+          root-reserve-mb: 4096
+          remove-dotnet: 'true'
+          remove-android: 'true'
+          remove-haskell: 'true'
+          remove-codeql: 'true'
+          remove-docker-images: 'true'
+
+      - name: Install repo tool
+        run: |
+          mkdir -p ~/bin
+          curl -s https://storage.googleapis.com/git-repo-downloads/repo > ~/bin/repo
+          chmod a+x ~/bin/repo
+
+      - name: Repo init
+        run: |
+          git config --global color.ui false
+          ~/bin/repo init \
+            -u https://github.com/open-vela/contest2026_137_CtrlFuture \
+            -b ${{ github.event.pull_request.base.ref }} \
+            -m contest2026_137_CtrlFuture.xml \
+            --depth=1 \
+            --groups=default,platform-linux
+
+      - name: Repo sync
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git config --global url."https://x-access-token:${GITHUB_TOKEN}@github.com/".insteadOf "https://github.com/"
+          ~/bin/repo sync -c -j$(nproc) --no-tags
+          df -h
+
+      - name: Checkout PR code
+        uses: actions/checkout@v4
+        with:
+          path: contest2026_137_CtrlFuture
+
+      - name: Move docker data to build volume
+        run: |
+          sudo systemctl stop docker
+          sudo mv /var/lib/docker $GITHUB_WORKSPACE/docker
+          sudo ln -s $GITHUB_WORKSPACE/docker /var/lib/docker
+          sudo systemctl start docker
+
+      - name: Clean up remaining disk space
+        run: |
+          sudo apt-get clean
+          sudo rm -rf /var/lib/apt/lists/*
+          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/share/boost "$AGENT_TOOLSDIRECTORY"
+          sudo rm -rf /etc/apt/sources.list.d/* /usr/local/lib/android /etc/mysql /etc/php
+          sudo -E apt-get -y purge azure-cli* ghc* zulu* hhvm* llvm* firefox* google* dotnet* aspnetcore* powershell* openjdk* adoptopenjdk* mysql* php* mongodb* moby* snap* || true
+          sudo -E apt-get -qq autoremove --purge
+          sudo -E apt-get -qq clean
+          df -h
+
+      - name: Docker pull
+        run: |
+          docker pull ghcr.io/open-vela/openvela-ci-linux_from_apache-nuttx:latest
+          df -h
+
+      - name: Build ${{ matrix.target }}
+        run: |
+          docker run --rm \
+            -v "$GITHUB_WORKSPACE":/workspace \
+            -w /workspace \
+            ghcr.io/open-vela/openvela-ci-linux_from_apache-nuttx:latest \
+            /bin/bash -c "./build.sh vendor/openvela/boards/contest2026_137_board/configs/${{ matrix.target }} -j$(nproc)"
+
+      - name: Upload firmware
+        uses: actions/upload-artifact@v4
+        with:
+          name: nuttx-${{ matrix.target }}
+          path: nuttx/nuttx.bin
