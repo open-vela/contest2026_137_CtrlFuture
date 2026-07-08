@@ -12,10 +12,10 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    # TODO: enable nsh (STM32N6) after stm32n6 chip driver is merged into NuttX
     strategy:
       matrix:
-        target: [nsh, nsh-qemu]
-      fail-fast: false
+        target: [nsh-qemu]
     steps:
       - name: Maximize build space
         uses: easimon/maximize-build-space@v10
