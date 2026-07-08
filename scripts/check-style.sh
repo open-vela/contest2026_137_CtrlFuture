@@ -15,7 +15,7 @@ if [ ! -x nuttx/tools/nxstyle ]; then
 fi
 
 FAIL=0
-FILES=$(find "$CONTEST_DIR/board" "$CONTEST_DIR/app" \
+FILES=$(find "$CONTEST_DIR/board" "$CONTEST_DIR/app" "$CONTEST_DIR/arch" \
     -name "*.c" -o -name "*.h" 2>/dev/null)
 
 for f in $FILES; do
