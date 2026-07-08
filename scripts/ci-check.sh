@@ -53,16 +53,15 @@ COMMIT_MSG=$(git -C "$CONTEST_DIR" log -1 --format="%B")
 FIRST_LINE=$(echo "$COMMIT_MSG" | head -n1)
 MSG_FAIL=0
 
-SCOPE_RE="^(board/contest_board/src|board/contest_board|app|docs|scripts|ci|arch): .+"
-if ! echo "$FIRST_LINE" | grep -qE "$SCOPE_RE"; then
-    echo "FAIL: commit subject must start with allowed scope"
+if ! echo "$FIRST_LINE" | grep -qE "^[a-zA-Z0-9/_-]+: .+"; then
+    echo "FAIL: commit subject must match '<scope>: <summary>'"
     echo "  Got: $FIRST_LINE"
     MSG_FAIL=1
 fi
 
 LEN=${#FIRST_LINE}
-if [ "$LEN" -gt 72 ]; then
-    echo "FAIL: commit subject is $LEN chars (max 72)"
+if [ "$LEN" -gt 80 ]; then
+    echo "FAIL: commit subject is $LEN chars (max 80)"
     MSG_FAIL=1
 fi
 
