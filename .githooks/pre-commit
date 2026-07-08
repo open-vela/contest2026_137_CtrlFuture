@@ -1,0 +1,34 @@
+#!/bin/bash
+# .githooks/pre-commit — nxstyle check on staged board files
+#
+# Install:
+#   git config core.hooksPath .githooks
+
+WORKSPACE="$(git rev-parse --show-toplevel)/.."
+NXSTYLE="$WORKSPACE/nuttx/tools/nxstyle"
+
+if [ ! -x "$NXSTYLE" ]; then
+  echo "nxstyle not found, building..."
+  make -C "$WORKSPACE/nuttx/tools" -f Makefile.host nxstyle 2>/dev/null
+fi
+
+if [ ! -x "$NXSTYLE" ]; then
+  echo "WARNING: cannot build nxstyle, skipping style check"
+  exit 0
+fi
+
+FAIL=0
+for f in $(git diff --cached --name-only --diff-filter=ACM | grep -E '\.(c|h)$'); do
+  OUTPUT=$("$NXSTYLE" "$f" 2>&1 | grep -v "Path relative" || true)
+  if [ -n "$OUTPUT" ]; then
+    echo "--- $f ---"
+    echo "$OUTPUT"
+    FAIL=1
+  fi
+done
+
+if [ $FAIL -ne 0 ]; then
+  echo ""
+  echo "nxstyle check failed. Fix errors or bypass with: git commit --no-verify"
+  exit 1
+fi
