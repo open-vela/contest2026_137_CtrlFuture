@@ -225,21 +225,27 @@ jobs:
       - name: QEMU smoke test
         if: matrix.target == 'nsh-qemu'
         run: |
-          timeout 15 bash -c "
-            echo 'help' | prebuilts/qemu/linux-x86_64/bin/qemu-system-arm \
-              -machine mps3-an547 \
-              -nographic \
-              -kernel nuttx/nuttx.bin \
-              2>/dev/null
-          " > /tmp/qemu-output.log 2>&1 || true
-          echo "--- QEMU output ---"
-          cat /tmp/qemu-output.log
-          if grep -q 'nsh>' /tmp/qemu-output.log; then
-            echo "PASS: NSH shell booted"
-          else
-            echo "::error::QEMU smoke test failed — NSH did not start"
-            exit 1
-          fi
+          docker run --rm \
+            -v "$GITHUB_WORKSPACE":/workspace \
+            -w /workspace \
+            ghcr.io/open-vela/openvela-ci-linux_from_apache-nuttx:latest \
+            /bin/bash -c "
+              timeout 15 bash -c \"
+                echo 'help' | prebuilts/qemu/linux-x86_64/bin/qemu-system-arm \
+                  -machine mps3-an547 \
+                  -nographic \
+                  -kernel nuttx/nuttx.bin \
+                  2>/dev/null
+              \" > /tmp/qemu-output.log 2>&1 || true
+              echo '--- QEMU output ---'
+              cat /tmp/qemu-output.log
+              if grep -q 'nsh>' /tmp/qemu-output.log; then
+                echo 'PASS: NSH shell booted'
+              else
+                echo '::error::QEMU smoke test failed - NSH did not start'
+                exit 1
+              fi
+            "
 
       - name: Check defconfig consistency
         if: matrix.target == 'nsh-qemu'
