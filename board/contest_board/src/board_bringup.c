@@ -33,15 +33,21 @@
 #include <nuttx/board.h>
 #include <nuttx/fs/fs.h>
 
+#ifdef CONFIG_ARCH_CHIP_STM32N6
+#  include "arm_internal.h"
+#endif
+
+#include <arch/board/board.h>
+
 /****************************************************************************
- * Private Functions
+ * Public Functions
  ****************************************************************************/
 
 /****************************************************************************
- * Name: board_bringup
+ * Name: stm32_bringup (STM32N6) / board_bringup (generic)
  *
  * Description:
- *   Bring up board features
+ *   Perform architecture-specific initialization — mount filesystems, etc.
  *
  ****************************************************************************/
 
@@ -50,8 +56,6 @@ static int board_bringup(void)
   int ret = OK;
 
 #ifdef CONFIG_FS_PROCFS
-  /* Mount the procfs file system */
-
   ret = nx_mount(NULL, "/proc", "procfs", 0, NULL);
   if (ret < 0)
     {
@@ -61,8 +65,6 @@ static int board_bringup(void)
 #endif
 
 #ifdef CONFIG_FS_TMPFS
-  /* Mount the tmp file system */
-
   ret = nx_mount(NULL, CONFIG_LIBC_TMPDIR, "tmpfs", 0, NULL);
   if (ret < 0)
     {
@@ -76,38 +78,40 @@ static int board_bringup(void)
 }
 
 /****************************************************************************
- * Public Functions
+ * Name: stm32_board_initialize
+ *
+ * Description:
+ *   STM32N6 arch layer calls this early in boot.  For QEMU/MPS3 builds
+ *   this symbol is not referenced by the arch layer.
+ *
  ****************************************************************************/
+
+#ifdef CONFIG_ARCH_CHIP_STM32N6
+void stm32_board_initialize(void)
+{
+}
+#endif
 
 /****************************************************************************
  * Name: board_late_initialize
  *
  * Description:
- *   If CONFIG_BOARD_LATE_INITIALIZE is selected, then an additional
- *   initialization call will be performed in the boot-up sequence to a
- *   function called board_late_initialize(). board_late_initialize() will be
- *   called immediately after up_initialize() is called and just before the
- *   initial application is started.  This additional initialization phase
- *   may be used, for example, to initialize board-specific device drivers.
+ *   Called after up_initialize(), just before the initial application starts.
  *
  ****************************************************************************/
 
 #ifdef CONFIG_BOARD_LATE_INITIALIZE
 void board_late_initialize(void)
 {
-  /* Perform board initialization */
-
   board_bringup();
 }
-#endif /* CONFIG_BOARD_LATE_INITIALIZE */
+#endif
 
 /****************************************************************************
  * Name: board_app_initialize
  *
  * Description:
- *   Perform application specific initialization.  This function is never
- *   called directly from application code, but only indirectly via the
- *   (non-standard) boardctl() interface using the command BOARDIOC_INIT.
+ *   Perform application specific initialization.
  *
  ****************************************************************************/
 
@@ -116,8 +120,6 @@ int board_app_initialize(uintptr_t arg)
   UNUSED(arg);
 
 #ifndef CONFIG_BOARD_LATE_INITIALIZE
-  /* Perform board initialization */
-
   return board_bringup();
 #else
   return OK;

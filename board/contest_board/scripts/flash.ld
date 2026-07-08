@@ -20,26 +20,23 @@
  *
  ****************************************************************************/
 
-#include "nuttx/config.h"
+/* The STM32N647X0 has no internal flash.  In DEV boot mode, code is loaded
+ * directly into SRAM by the ST-Link debugger at 0x34000400.  The first
+ * 1 KiB of SRAM is reserved for the boot ROM header.
+ */
 
 MEMORY
 {
-  flash (rx)  : ORIGIN = 0x00000000, LENGTH = 512K
-  sram1 (rwx) : ORIGIN = 0x01000000, LENGTH = 2M
-  sram2 (rwx) : ORIGIN = 0x22000000, LENGTH = 2M
+    sram (rwx) : ORIGIN = 0x34000400, LENGTH = 4193280
 }
 
 OUTPUT_ARCH(arm)
-EXTERN(_vectors)
-ENTRY(__start)
-
+ENTRY(_stext)
 SECTIONS
 {
     .text : {
         _stext = ABSOLUTE(.);
-#ifndef CONFIG_BUILD_PIC
         *(.vectors)
-#endif
         *(.text .text.*)
         *(.fixup)
         *(.gnu.warning)
@@ -47,76 +44,47 @@ SECTIONS
         *(.gnu.linkonce.t.*)
         *(.glue_7)
         *(.glue_7t)
+        *(.got)
         *(.gcc_except_table)
         *(.gnu.linkonce.r.*)
         _etext = ABSOLUTE(.);
-    } > flash
+    } > sram
 
-    .init_section : ALIGN(4) {
+    .init_section : {
         _sinit = ABSOLUTE(.);
         KEEP(*(SORT_BY_INIT_PRIORITY(.init_array.*) SORT_BY_INIT_PRIORITY(.ctors.*)))
         KEEP(*(.init_array EXCLUDE_FILE(*crtbegin.o *crtbegin?.o *crtend.o *crtend?.o) .ctors))
         _einit = ABSOLUTE(.);
-    } > flash
+    } > sram
 
-    .ARM.extab : ALIGN(4) {
+    .ARM.extab : {
         *(.ARM.extab*)
-    } > flash
+    } > sram
 
-    .ARM.exidx : ALIGN(4) {
-        __exidx_start = ABSOLUTE(.);
+    __exidx_start = ABSOLUTE(.);
+    .ARM.exidx : {
         *(.ARM.exidx*)
-        __exidx_end = ABSOLUTE(.);
-    } > flash
+    } > sram
+    __exidx_end = ABSOLUTE(.);
 
-    .tdata : {
-        _stdata = ABSOLUTE(.);
-        *(.tdata .tdata.* .gnu.linkonce.td.*);
-        _etdata = ABSOLUTE(.);
-    } > flash
-
-    .tbss : {
-        _stbss = ABSOLUTE(.);
-        *(.tbss .tbss.* .gnu.linkonce.tb.* .tcommon);
-        _etbss = ABSOLUTE(.);
-    } > flash
-
-    _eronly = LOADADDR(.data);
-
-    /* The RAM vector table (if present) should lie at the beginning of SRAM */
-
-    .ram_vectors : {
-        *(.ram_vectors)
-    } > sram1
-
-    .irq_stack : {
-        g_intstackalloc = .;
-        . += CONFIG_ARCH_INTERRUPTSTACK;
-        g_intstacktop = .;
-    } > sram1
-
-    .data : ALIGN(4) {
+    .data : {
+        _eronly = ABSOLUTE(.);
         _sdata = ABSOLUTE(.);
         *(.data .data.*)
         *(.gnu.linkonce.d.*)
         CONSTRUCTORS
         . = ALIGN(4);
         _edata = ABSOLUTE(.);
-    } > sram1 AT > flash
+    } > sram
 
-    .got :
-      {
-        *(.got*)
-      } > sram1
-
-    .bss : ALIGN(4) {
+    .bss : {
         _sbss = ABSOLUTE(.);
         *(.bss .bss.*)
         *(.gnu.linkonce.b.*)
         *(COMMON)
         . = ALIGN(4);
         _ebss = ABSOLUTE(.);
-    } > sram1
+    } > sram
 
     /* Stabs debugging sections. */
 
