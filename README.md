@@ -4,9 +4,13 @@
 
 ## 一、作品简介
 
-本项目为 STM32N647X0（Arm Cortex-M55, ARMv8.1-M）的 openvela/NuttX 板级适配。STM32N647 是 ST 最新一代 MCU，具备 800MHz 主频、4.2MB SRAM、Neural-ART NPU（600 Gops），但尚无 NuttX 官方芯片驱动。
+本项目为 STM32N647X0（Arm Cortex-M55, ARMv8.1-M）的 openvela/NuttX 板级适配。STM32N647 是 ST 最新一代 MCU，具备 800MHz 主频、4.2MB SRAM、Neural-ART NPU（600 Gops）。
 
-当前阶段采用 MPS3-AN547（同为 Cortex-M55 内核）作为底层芯片驱动，实现编译与 QEMU 验证，同时在板级文件中完整记录 STM32N647 硬件规格，为后续芯片驱动开发做准备。
+板级支持已实现**双目标条件编译**：
+- **STM32N6 真机**（`configs/nsh`）— 使用 STM32N6 芯片驱动，USART1 控制台，DEV boot 模式 SRAM 加载（0x34000400, 4.2MB）
+- **QEMU 仿真**（`configs/nsh-qemu`）— 使用 MPS3-AN547 芯片驱动，CMSDK UART0 控制台，flash + SRAM 布局
+
+两套配置通过 `CONFIG_ARCH_CHIP_STM32N6` 在 board.h、board_bringup.c、链接脚本、构建系统中统一切换。
 
 ## 二、选题方向
 
@@ -16,21 +20,24 @@
 
 ```
 contest2026_137_CtrlFuture/
-├── board/contest_board/          # 板级适配代码
-│   ├── configs/nsh/defconfig     # NuttX 配置（MPS3-AN547 + Cortex-M55）
-│   ├── include/board.h           # 板级头文件（含 STM32N647 硬件规格参考）
+├── board/contest_board/              # 板级适配代码
+│   ├── configs/
+│   │   ├── nsh/defconfig             # STM32N6 真机配置（USART1, 4.2MB SRAM）
+│   │   └── nsh-qemu/defconfig        # MPS3-AN547 QEMU 配置（CMSDK UART0, 2MB SRAM）
+│   ├── include/board.h               # 双目标：STM32N6 时钟树+引脚映射 / MPS SysTick
 │   ├── scripts/
-│   │   ├── Make.defs             # 编译规则（ARMv8-M 工具链）
-│   │   └── flash.ld              # 链接脚本
+│   │   ├── Make.defs                 # 编译规则（ARMv8-M 工具链, 条件选择链接脚本）
+│   │   ├── flash.ld                  # STM32N6 链接脚本（SRAM 0x34000400, DEV boot）
+│   │   └── flash-qemu.ld            # MPS3-AN547 链接脚本（flash 512K + sram 2M）
 │   ├── src/
-│   │   ├── board_bringup.c       # 板级初始化（三阶段启动 + procfs/tmpfs 挂载）
-│   │   ├── Makefile              # Make 构建
-│   │   └── CMakeLists.txt        # CMake 构建
-│   ├── Kconfig                   # Kconfig 板级配置
-│   └── CMakeLists.txt            # 顶层 CMake
-├── logs/                         # AI Coding 日志
-├── README.md                     # 本文件
-└── README.old                    # 原参赛仓库使用说明
+│   │   ├── board_bringup.c           # 板级初始化（三阶段 + STM32N6 条件编译）
+│   │   ├── Makefile                  # Make 构建
+│   │   └── CMakeLists.txt            # CMake 构建（条件链接脚本选择）
+│   ├── Kconfig                       # Kconfig 板级配置
+│   └── CMakeLists.txt                # 顶层 CMake
+├── logs/                             # AI Coding 日志
+├── README.md                         # 本文件
+└── README.old                        # 原参赛仓库使用说明
 ```
 
 ## 四、环境搭建与编译
@@ -49,10 +56,13 @@ repo sync -c -j8
 # 进入 openvela 工作区根目录（contest2026_137_CtrlFuture 的上一级）
 cd <openvela-workspace>
 
-# 编译
+# ---- STM32N6 真机固件 ----
 ./build.sh vendor/openvela/boards/contest2026_137_board/configs/nsh -j8
 
-# 清理重新编译
+# ---- QEMU 仿真固件 ----
+./build.sh vendor/openvela/boards/contest2026_137_board/configs/nsh-qemu -j8
+
+# 清理重新编译（以 nsh 为例）
 ./build.sh vendor/openvela/boards/contest2026_137_board/configs/nsh distclean
 ./build.sh vendor/openvela/boards/contest2026_137_board/configs/nsh -j8
 
@@ -62,8 +72,14 @@ cd <openvela-workspace>
 
 ### 4.3 QEMU 运行验证
 
+> 注意：必须使用 `nsh-qemu` 配置编译，`nsh` 配置为真机固件，无法在 QEMU 运行。
+
 ```bash
-# 使用预编译 QEMU 运行固件
+# 编译 QEMU 固件
+./build.sh vendor/openvela/boards/contest2026_137_board/configs/nsh-qemu distclean
+./build.sh vendor/openvela/boards/contest2026_137_board/configs/nsh-qemu -j8
+
+# 运行
 prebuilts/qemu/linux-x86_64/bin/qemu-system-arm \
   -machine mps3-an547 \
   -nographic \
@@ -81,24 +97,27 @@ prebuilts/qemu/linux-x86_64/bin/qemu-system-arm \
 ### 5.1 板级基础搭建
 
 - [x] 板级目录结构创建（board/contest_board）
-- [x] 最小系统 defconfig（基于 MPS3-AN547 Cortex-M55 芯片驱动）
-- [x] 板级头文件 board.h（STM32N647 硬件规格文档化）
-- [x] 链接脚本 flash.ld（内存布局定义）
-- [x] Make.defs / CMakeLists.txt 构建系统
-- [x] 三阶段板级初始化（board_bringup / board_late_initialize / board_app_initialize）
-- [x] 编译验证：clean build 通过（flash 42.9%, sram 0.63%）
-- [x] QEMU 验证：NSH 命令行启动，help/hello/ps 正常
+- [x] 双目标 defconfig（nsh: STM32N6 真机 / nsh-qemu: MPS3-AN547 QEMU）
+- [x] 板级头文件 board.h（STM32N6 时钟树 + 引脚映射 / MPS SysTick 双分支）
+- [x] 双链接脚本（flash.ld: STM32N6 SRAM DEV boot / flash-qemu.ld: MPS3 flash+sram）
+- [x] Make.defs / CMakeLists.txt 条件构建系统（按 CONFIG_ARCH_CHIP_STM32N6 选择）
+- [x] 三阶段板级初始化 + stm32_board_initialize() 支持
+- [x] STM32N6 芯片驱动集成（arch/arm/src/stm32n6）
+- [x] STM32N6 真机编译验证：clean build 通过
+- [x] QEMU 编译验证：clean build 通过
+- [x] QEMU NSH 验证：命令行启动，help/hello/ps 正常
 
 ### 5.2 STM32N6 芯片驱动（arch/arm/src/stm32n6）
 
-> NuttX 目前无 stm32n6 芯片架构支持，以下为完整适配所需开发的芯片级驱动。
+> NuttX 已包含 stm32n6 基础芯片架构支持，以下为在此基础上完善板级所需的芯片级驱动。
 
 #### 5.2.1 核心系统
 
-- [ ] RCC 时钟系统（HSI 64MHz, MSI 4MHz, HSE 16-48MHz, LSI 32kHz, LSE 32.768kHz, PLL1-PLL4）
+- [x] RCC 时钟系统 — 基础支持（HSI 64MHz, PLL1: M=4 N=50, IC1/4=200MHz CPU）
+- [ ] RCC 完善（MSI 4MHz, HSE 16-48MHz, LSI 32kHz, LSE 32.768kHz, PLL2-PLL4）
 - [ ] PWR 电源管理（SMPS 降压转换器, 电压缩放, Run/Sleep/Stop/Standby 低功耗模式）
 - [ ] SYSCFG 系统配置控制器
-- [ ] NVIC 中断控制器（嵌套向量中断）
+- [x] NVIC 中断控制器（ARMv8-M 通用支持）
 - [ ] EXTI 扩展中断/事件控制器
 - [ ] MPU 内存保护单元
 - [ ] TrustZone 安全域配置
@@ -108,7 +127,9 @@ prebuilts/qemu/linux-x86_64/bin/qemu-system-arm \
 
 #### 5.2.2 启动与存储
 
-- [ ] 启动模式配置（外部 XSPI Flash 启动 / Serial Boot / Development Boot）
+- [x] Development Boot 模式（SRAM 加载 @ 0x34000400, ST-Link 调试）
+- [ ] 外部 XSPI Flash 启动配置
+- [ ] Serial Boot 模式
 - [ ] XSPI1 接口驱动（扩展 SPI, 8/16-bit, 最高 200MHz）
 - [ ] XSPI2 接口驱动
 - [ ] XSPIM I/O 管理器
@@ -117,15 +138,17 @@ prebuilts/qemu/linux-x86_64/bin/qemu-system-arm \
 
 #### 5.2.3 GPIO 与基础外设
 
-- [ ] GPIO 驱动（最多 165 引脚, AF 复用功能映射）
+- [x] GPIO 驱动 — 基础支持（USART1 引脚 PE5/PE6 AF7）
+- [ ] GPIO 完善（全部 165 引脚 AF 复用功能映射）
 - [ ] GPDMA1 通用 DMA 控制器
 - [ ] HPDMA1 高性能 DMA 控制器
 - [ ] CRC 循环冗余校验单元
 
 #### 5.2.4 串行通信接口
 
-- [ ] USART 驱动（USART1/2/3/6/10, 全功能, ISO7816, IrDA, LIN）
-- [ ] UART 驱动（UART4/5/7/8/9, 基础异步）
+- [x] USART1 驱动（串口控制台, PE5-TX / PE6-RX AF7）
+- [ ] USART2/3/6/10 驱动（全功能 USART, ISO7816, IrDA, LIN）
+- [ ] UART4/5/7/8/9 驱动（基础异步 UART）
 - [ ] LPUART1 低功耗串口
 - [ ] SPI 驱动（SPI1-SPI6, 其中 4 路支持 I2S）
 - [ ] I2C 驱动（I2C1-I2C4, Fm+ SMBus/PMBus）
@@ -207,12 +230,14 @@ prebuilts/qemu/linux-x86_64/bin/qemu-system-arm \
 
 ### 5.3 板级集成与验证
 
-- [ ] 真实硬件启动验证（STM32N6 开发板）
-- [ ] 时钟树配置与校准（PLL1 → 800MHz CPU, PLL2 → 1GHz NPU）
-- [ ] 串口控制台适配（替换 CMSDK UART → STM32N6 USART）
-- [ ] 板级外设引脚映射（AF 复用功能表）
-- [ ] 电源管理配置（SMPS, 低功耗模式）
-- [ ] 板级设备树 / Kconfig 扩展
+- [ ] 真实硬件启动验证（STM32N6 开发板 + ST-Link DEV boot）
+- [x] 时钟树基础配置（PLL1: HSI/4×50 → 800MHz VCO → IC1/4 = 200MHz CPU）
+- [ ] 时钟树完善（PLL2 → 1GHz NPU, PLL3/PLL4 外设时钟）
+- [x] 串口控制台（USART1 PE5-TX/PE6-RX AF7）
+- [ ] 板级外设引脚映射完善（全部 AF 复用功能表）
+- [ ] 电源管理配置（SMPS, I/O 电压域, 低功耗模式）
+- [ ] 板级 Kconfig 扩展（外设使能选项）
+- [ ] CI 构建验证（STM32N6 + QEMU 双目标自动化测试）
 - [ ] 完整功能测试套件
 
 ## 六、STM32N647 硬件规格
@@ -224,7 +249,7 @@ prebuilts/qemu/linux-x86_64/bin/qemu-system-arm \
 | Flash | 无内部 Flash，从外部 XSPI Flash 启动 |
 | NPU | ST Neural-ART @ 1GHz, 600 Gops |
 | 时钟 | HSI 64MHz, HSE 16-48MHz, 4x PLL |
-| 通信 | USART×5, UART×5, LPUART, SPI×5, I2C×4, FDCAN×3 |
+| 通信 | USART×5, UART×5, LPUART, SPI×6, I2C×4, FDCAN×3 |
 | 高速 | USB OTG HS×2, Ethernet 1G, SDMMC×2 |
 | 封装 | VFBGA142-264, 最多 165 GPIO |
 
