@@ -1,4 +1,4 @@
-############################################################################
+##############################################################################
 # vendor/openvela/boards/contest2026_137_board/scripts/Make.defs
 #
 # SPDX-License-Identifier: Apache-2.0
@@ -18,14 +18,15 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 #
-############################################################################
+##############################################################################
 
 include $(TOPDIR)/.config
 include $(TOPDIR)/tools/Config.mk
 include $(TOPDIR)/arch/arm/src/armv8-m/Toolchain.defs
 
-LDSCRIPT = flash.ld
-ARCHSCRIPT += $(BOARD_DIR)$(DELIM)scripts$(DELIM)$(LDSCRIPT)
+ARCHSCRIPT += $(BOARD_DIR)$(DELIM)scripts$(DELIM)flash.ld
+
+ARCHPICFLAGS = -fpic -msingle-pic-base -mpic-register=r10
 
 CFLAGS := $(ARCHCFLAGS) $(ARCHOPTIMIZATION) $(ARCHCPUFLAGS) $(ARCHINCLUDES) $(ARCHDEFINES) $(EXTRAFLAGS)
 CPICFLAGS = $(ARCHPICFLAGS) $(CFLAGS)

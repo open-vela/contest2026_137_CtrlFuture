@@ -28,49 +28,66 @@
  ****************************************************************************/
 
 #include <nuttx/config.h>
+#ifndef __ASSEMBLY__
+#  include <stdint.h>
+#endif
 
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
 
-/* STM32N647 Target Hardware Reference
+#ifdef CONFIG_ARCH_CHIP_STM32N6
+
+/* Clocking *****************************************************************/
+
+/* Clock tree (PLL1 fed from internal HSI):
  *
- *   Chip            : STM32N647X0 (Arm Cortex-M55, ARMv8.1-M)
- *   Max CPU Clock   : 800 MHz (600 MHz normal, 800 MHz overdrive)
- *   SRAM            : 4.2 MB contiguous
- *   DTCM            : 128 KB with ECC
- *   ITCM            : 64 KB with ECC
- *   Backup SRAM     : 8 KB (VBAT domain)
- *   Internal Flash  : None (boots from external XSPI flash)
- *   NPU             : ST Neural-ART @ 1 GHz, 600 Gops
- *
- * Internal Oscillators:
- *   HSI             : 64 MHz
- *   MSI             : 4 MHz
- *   LSI             : 32 kHz
- *
- * External Oscillators:
- *   HSE             : 16-48 MHz
- *   LSE             : 32.768 kHz
- *
- * PLLs:
- *   PLL1 (system)   : up to 800 MHz CPU clock
- *   PLL2 (NPU)      : up to 1 GHz Neural-ART clock
- *   PLL3, PLL4      : kernel clocks (peripherals)
- *
- * Note: Currently running on MPS3-AN547 (Cortex-M55) QEMU reference
- *       platform while STM32N6 chip drivers are under development.
+ *   HSI 64 MHz / M=4 * N=50 = 800 MHz VCO
+ *     IC1  /4 = 200 MHz  -> CPU clock (CPUSW)
+ *     IC2  /8 = 100 MHz  \
+ *     IC6 /12 = 66.7 MHz  > SYSCLK components (SYSSW IC2_IC6_IC11)
+ *     IC11 /8 = 100 MHz  /
+ *   HPRE /2  = 50 MHz   -> HCLK
+ *   PPRE1 /1 = 50 MHz   -> PCLK1
+ *   PPRE2 /1 = 50 MHz   -> PCLK2
  */
 
-/* MPS3-AN547 SysTick clock for QEMU emulation */
+#define STM32_HSI_FREQUENCY     64000000ul
 
-#define MPS_SYSTICK_CLOCK   (32 * 1000 * 1000)
+#define STM32_PLL1_M            4
+#define STM32_PLL1_N            50
+#define STM32_PLL1_IC1_DIV      4
 
-#ifndef __ASSEMBLY__
+#define STM32_CPUCLK_FREQUENCY  200000000ul
+#define STM32_SYSCLK_FREQUENCY  (STM32_CPUCLK_FREQUENCY / 2)
+#define STM32_HCLK_FREQUENCY    (STM32_CPUCLK_FREQUENCY / 4)
+#define STM32_PCLK1_FREQUENCY   STM32_HCLK_FREQUENCY
+#define STM32_PCLK2_FREQUENCY   STM32_HCLK_FREQUENCY
+
+/* Timer input clock = SYSCLK (TIMPRE=0 default) */
+
+#define STM32_APB1_TIM_FREQUENCY STM32_SYSCLK_FREQUENCY
+#define STM32_APB2_TIM_FREQUENCY STM32_SYSCLK_FREQUENCY
+
+/* I/O voltage domains ******************************************************/
+
+#define BOARD_PWR_VDDIO  (PWR_SVMCR3_VDDIO2SV    | PWR_SVMCR3_VDDIO3SV | \
+                          PWR_SVMCR3_VDDIO2VRSEL | PWR_SVMCR3_VDDIO3VRSEL)
+
+/* Alternate function pin selections ****************************************/
+
+/* USART1: PE5=TX (AF7), PE6=RX (AF7) — Virtual COM Port via ST-Link */
+
+#define GPIO_USART1_TX   GPIO_USART1_TX_1
+#define GPIO_USART1_RX   GPIO_USART1_RX_1
+
+#endif /* CONFIG_ARCH_CHIP_STM32N6 */
 
 /****************************************************************************
  * Public Data
  ****************************************************************************/
+
+#ifndef __ASSEMBLY__
 
 #undef EXTERN
 #if defined(__cplusplus)
@@ -85,10 +102,14 @@ extern "C"
  * Public Function Prototypes
  ****************************************************************************/
 
+#ifdef CONFIG_ARCH_CHIP_STM32N6
+void stm32_board_initialize(void);
+#endif
+
 #undef EXTERN
 #if defined(__cplusplus)
 }
 #endif
-#endif /* __ASSEMBLY__ */
 
+#endif /* __ASSEMBLY__ */
 #endif /* __BOARDS_CONTEST2026_137_BOARD_INCLUDE_BOARD_H */
