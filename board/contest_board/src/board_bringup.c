@@ -96,7 +96,7 @@ void stm32_board_initialize(void)
  * Name: board_late_initialize
  *
  * Description:
- *   Called after up_initialize(), just before the initial application starts.
+ *   Called after up_initialize(), before the initial app starts.
  *
  ****************************************************************************/
 
