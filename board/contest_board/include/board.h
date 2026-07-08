@@ -81,6 +81,12 @@
 #define GPIO_USART1_TX   GPIO_USART1_TX_1
 #define GPIO_USART1_RX   GPIO_USART1_RX_1
 
+#else /* !CONFIG_ARCH_CHIP_STM32N6 — QEMU/MPS3 build */
+
+/* MPS3-AN547 SysTick clock for QEMU emulation (25 MHz REFCLK) */
+
+#define MPS_SYSTICK_CLOCK   25000000ul
+
 #endif /* CONFIG_ARCH_CHIP_STM32N6 */
 
 /****************************************************************************
