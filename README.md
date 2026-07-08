@@ -237,7 +237,9 @@ prebuilts/qemu/linux-x86_64/bin/qemu-system-arm \
 - [ ] 板级外设引脚映射完善（全部 AF 复用功能表）
 - [ ] 电源管理配置（SMPS, I/O 电压域, 低功耗模式）
 - [ ] 板级 Kconfig 扩展（外设使能选项）
-- [ ] CI 构建验证（STM32N6 + QEMU 双目标自动化测试）
+- [x] CI 构建验证（QEMU 目标，STM32N6 待芯片驱动合入上游 NuttX 后启用）
+- [ ] CI 守护完善（nxstyle 编码规范、QEMU 冒烟测试、二进制体积守护）
+- [ ] Pre-commit hook（本地开发守护）
 - [ ] 完整功能测试套件
 
 ## 六、STM32N647 硬件规格
