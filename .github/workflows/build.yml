@@ -10,6 +10,72 @@ on:
       - 'LICENSE'
 
 jobs:
+  style-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout PR code
+        uses: actions/checkout@v4
+
+      - name: Checkout NuttX nxstyle source
+        uses: actions/checkout@v4
+        with:
+          repository: open-vela/nuttx
+          ref: dev-ai-contest-2026
+          path: nuttx
+          sparse-checkout: tools
+          sparse-checkout-cone-mode: false
+
+      - name: Build nxstyle
+        run: |
+          cd nuttx/tools
+          make -f Makefile.host nxstyle
+          echo "$PWD" >> $GITHUB_PATH
+
+      - name: Run nxstyle on board files
+        run: |
+          FAIL=0
+          for f in $(find board/ app/ -name "*.c" -o -name "*.h" 2>/dev/null); do
+            OUTPUT=$(nxstyle "$f" 2>&1 | grep -v "Path relative" || true)
+            if [ -n "$OUTPUT" ]; then
+              echo "--- $f ---"
+              echo "$OUTPUT"
+              FAIL=1
+            fi
+          done
+          if [ $FAIL -ne 0 ]; then
+            echo "::error::nxstyle check failed"
+            exit 1
+          fi
+          echo "nxstyle check passed"
+
+      - name: Check line width (78 columns)
+        run: |
+          FAIL=0
+          for f in $(find board/ app/ -name "*.c" -o -name "*.h" 2>/dev/null); do
+            LONG=$(awk 'length > 78 {printf "%s:%d: line too long (%d > 78)\n", FILENAME, NR, length}' "$f" || true)
+            if [ -n "$LONG" ]; then
+              echo "$LONG"
+              FAIL=1
+            fi
+          done
+          if [ $FAIL -ne 0 ]; then
+            echo "::error::Lines exceed 78 columns"
+            exit 1
+          fi
+          echo "Line width check passed"
+
+      - name: Check no execute permission on sources
+        run: |
+          FAIL=0
+          for f in $(find board/ app/ -name "*.c" -o -name "*.h" 2>/dev/null); do
+            if [ -x "$f" ]; then
+              echo "::error file=$f::Execute permission on source file"
+              FAIL=1
+            fi
+          done
+          if [ $FAIL -ne 0 ]; then exit 1; fi
+          echo "Permission check passed"
+
   build:
     runs-on: ubuntu-latest
     # TODO: enable nsh (STM32N6) after stm32n6 chip driver is merged into NuttX
@@ -86,6 +152,43 @@ jobs:
             -w /workspace \
             ghcr.io/open-vela/openvela-ci-linux_from_apache-nuttx:latest \
             /bin/bash -c "./build.sh vendor/openvela/boards/contest2026_137_board/configs/${{ matrix.target }} -j$(nproc)"
+
+      - name: Binary size guard
+        run: |
+          SIZE=$(stat -c%s nuttx/nuttx.bin)
+          MAX_SIZE=1048576
+          echo "Binary size: $SIZE bytes (limit: $MAX_SIZE)"
+          if [ "$SIZE" -gt "$MAX_SIZE" ]; then
+            echo "::error::Binary size $SIZE exceeds limit $MAX_SIZE"
+            exit 1
+          fi
+
+      - name: Memory usage report
+        run: |
+          docker run --rm \
+            -v "$GITHUB_WORKSPACE":/workspace \
+            -w /workspace \
+            ghcr.io/open-vela/openvela-ci-linux_from_apache-nuttx:latest \
+            /bin/bash -c "source build/envsetup.sh 2>/dev/null; arm-none-eabi-size nuttx/nuttx || true"
+
+      - name: QEMU smoke test
+        if: matrix.target == 'nsh-qemu'
+        run: |
+          timeout 15 bash -c "
+            echo 'help' | prebuilts/qemu/linux-x86_64/bin/qemu-system-arm \
+              -machine mps3-an547 \
+              -nographic \
+              -kernel nuttx/nuttx.bin \
+              2>/dev/null
+          " > /tmp/qemu-output.log 2>&1 || true
+          echo "--- QEMU output ---"
+          cat /tmp/qemu-output.log
+          if grep -q 'nsh>' /tmp/qemu-output.log; then
+            echo "PASS: NSH shell booted"
+          else
+            echo "::error::QEMU smoke test failed — NSH did not start"
+            exit 1
+          fi
 
       - name: Upload firmware
         uses: actions/upload-artifact@v4
