@@ -1,9 +1,9 @@
 #!/bin/bash
 # .githooks/commit-msg — validate commit message format
 #
-# Rules enforced (CLAUDE.md + openvela checkpatch):
-#   1. <scope>: <summary> format with allowed scopes
-#   2. Subject line <= 72 chars
+# Rules enforced (aligned with Apache NuttX / openvela checkpatch):
+#   1. <scope>: <summary> format (colon-delimited prefix)
+#   2. Subject line <= 80 chars
 #   3. Signed-off-by trailer required
 #   4. No Gerrit Change-Id
 #   5. No AI Co-Authored-By markers
@@ -20,18 +20,16 @@ FIRST_LINE=$(echo "$CLEAN_MSG" | head -n1)
 FAIL=0
 
 # --- Scope format ---
-SCOPE_RE="^(board/contest_board/src|board/contest_board|app|docs|scripts|ci|arch): .+"
-if ! echo "$FIRST_LINE" | grep -qE "$SCOPE_RE"; then
+if ! echo "$FIRST_LINE" | grep -qE "^[a-zA-Z0-9/_-]+: .+"; then
     echo "commit-msg: subject must match '<scope>: <summary>'"
-    echo "  Allowed scopes: board/contest_board: board/contest_board/src: app: docs: scripts: ci: arch:"
     echo "  Got: $FIRST_LINE"
     FAIL=1
 fi
 
 # --- Subject length ---
 LEN=${#FIRST_LINE}
-if [ "$LEN" -gt 72 ]; then
-    echo "commit-msg: subject is $LEN chars (max 72)"
+if [ "$LEN" -gt 80 ]; then
+    echo "commit-msg: subject is $LEN chars (max 80)"
     FAIL=1
 fi
 

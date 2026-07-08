@@ -86,13 +86,13 @@ jobs:
           for sha in $(git log --format="%H" "$BASE".."$HEAD"); do
             MSG=$(git log -1 --format="%B" "$sha")
             FIRST=$(echo "$MSG" | head -n1)
-            if ! echo "$FIRST" | grep -qE "^(board/contest_board/src|board/contest_board|app|docs|scripts|ci|arch): .+"; then
+            if ! echo "$FIRST" | grep -qE "^[a-zA-Z0-9/_-]+: .+"; then
               echo "::error::$sha: invalid scope: $FIRST"
               FAIL=1
             fi
             LEN=${#FIRST}
-            if [ "$LEN" -gt 72 ]; then
-              echo "::error::$sha: subject $LEN chars (max 72)"
+            if [ "$LEN" -gt 80 ]; then
+              echo "::error::$sha: subject $LEN chars (max 80)"
               FAIL=1
             fi
             if ! echo "$MSG" | grep -qE "^Signed-off-by: .+ <.+>"; then
