@@ -72,22 +72,22 @@
 
 > 目标: NPU 推理、Camera 图像采集、显示输出、安全启动。
 
-| # | 模块 | ADR | 依赖 |
-|---|------|-----|------|
-| 25 | HPDMA1 高性能 DMA | [025](adr/ADR-025.md) | 011 |
-| 26 | 高级定时器（TIM1/TIM8） | [026](adr/ADR-026.md) | 005 |
-| 27 | 通用定时器 | [027](adr/ADR-027.md) | 005 |
-| 28 | 低功耗定时器（LPTIM1-5） | [028](adr/ADR-028.md) | 005, 009 |
-| 29 | ADC 驱动 | [029](adr/ADR-029.md) | 005, 006, 011 |
-| 30 | DTS 温度传感器 | [030](adr/ADR-030.md) | 005 |
-| 31 | LTDC LCD 控制器 | [031](adr/ADR-031.md) | 005, 006, 007, 025 |
-| 32 | GPU2D / DMA2D | [032](adr/ADR-032.md) | 031 |
-| 33 | DCMIPP 摄像头管线 | [033](adr/ADR-033.md) | 005, 006, 025 |
-| 34 | CSI-2 MIPI 接口 | [034](adr/ADR-034.md) | 033 |
-| 35 | H.264 编码器 | [035](adr/ADR-035.md) | 033 |
-| 36 | Neural-ART NPU | [036](adr/ADR-036.md) | 005, 007, 008, 025 |
-| 37 | 加密加速器（SAES, HASH, RNG） | [037](adr/ADR-037.md) | 005 |
-| 38 | Secure Boot | [038](adr/ADR-038.md) | 037, 019 |
+| # | 模块 | ADR | 依赖 | 验证 |
+|---|------|-----|------|------|
+| 25 | HPDMA1 高性能 DMA | [025](adr/ADR-025.md) | 011 | MEASURED |
+| 26 | 高级定时器（TIM1/TIM8） | [026](adr/ADR-026.md) | 005 | MEASURED |
+| 27 | 通用定时器 | [027](adr/ADR-027.md) | 005 | MEASURED |
+| 28 | 低功耗定时器（LPTIM1-5） | [028](adr/ADR-028.md) | 005, 009 | MEASURED |
+| 29 | ADC 驱动 | [029](adr/ADR-029.md) | 005, 006, 011 | MEASURED |
+| 30 | DTS 温度传感器 | [030](adr/ADR-030.md) | 005 | MEASURED |
+| 31 | LTDC LCD 控制器 | [031](adr/ADR-031.md) | 005, 006, 007, 025 | MEASURED |
+| 32 | GPU2D / DMA2D | [032](adr/ADR-032.md) | 031 | MEASURED |
+| 33 | DCMIPP 摄像头管线 | [033](adr/ADR-033.md) | 005, 006, 025 | MEASURED |
+| 34 | CSI-2 MIPI 接口 | [034](adr/ADR-034.md) | 033 | MEASURED |
+| 35 | H.264 编码器 | [035](adr/ADR-035.md) | 033 | MEASURED |
+| 36 | Neural-ART NPU | [036](adr/ADR-036.md) | 005, 007, 008, 025 | MEASURED |
+| 37 | 加密加速器（SAES, HASH, RNG） | [037](adr/ADR-037.md) | 005 | BUILD |
+| 38 | Secure Boot | [038](adr/ADR-038.md) | 037, 019 | MEASURED |
 
 ---
 
@@ -128,6 +128,23 @@ P0                          P1                          P2          P3
             XSPI Boot                                  024 FDCAN
               │
               └───────── 038 Secure Boot ← 037 Crypto
+
+P4 (高级功能)
+───
+025 HPDMA ← 011 DMA
+  │
+  ├──→ 031 LTDC ← 005,006,007 ──→ 032 GPU2D/DMA2D
+  │      │
+  ├──→ 033 DCMIPP ← 005,006 ──→ 034 CSI-2 ──→ 035 H.264
+  │
+  └──→ 036 NPU ← 005,007,008
+
+026 高级定时器 ← 005
+027 通用定时器 ← 005
+028 低功耗定时器 ← 005,009
+029 ADC ← 005,006,011
+030 DTS 温度传感器 ← 005
+037 加密加速器 ← 005 ──→ 038 Secure Boot ← 019
 ```
 
 ## 风险登记
