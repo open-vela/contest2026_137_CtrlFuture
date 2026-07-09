@@ -175,9 +175,9 @@ jobs:
 
       - name: Symlink chip driver and patch Kconfig
         run: |
-          ln -s "$GITHUB_WORKSPACE/contest2026_137_CtrlFuture/arch/arm/stm32n6/src" \
+          ln -s ../../../../contest2026_137_CtrlFuture/arch/arm/stm32n6/src \
                 nuttx/arch/arm/src/stm32n6
-          ln -s "$GITHUB_WORKSPACE/contest2026_137_CtrlFuture/arch/arm/stm32n6/include" \
+          ln -s ../../../../contest2026_137_CtrlFuture/arch/arm/stm32n6/include \
                 nuttx/arch/arm/include/stm32n6
           git -C nuttx apply \
             "$GITHUB_WORKSPACE/contest2026_137_CtrlFuture/arch/arm/stm32n6/kconfig-stm32n6.patch"
