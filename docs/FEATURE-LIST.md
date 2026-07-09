@@ -69,7 +69,7 @@
 - [ ] TIM6/TIM7/TIM18 基本定时器
 - [ ] TIM15/TIM16/TIM17 通用定时器（16-bit, 高级控制子集）
 - [ ] LPTIM1-LPTIM5 低功耗定时器（5 路, 最高 240MHz）
-- [ ] SysTick 系统节拍定时器
+- [x] SysTick 系统节拍定时器
 - [ ] RTC 实时时钟（亚秒精度, 硬件日历）
 - [ ] IWDG 独立看门狗
 - [ ] WWDG 系统窗口看门狗
@@ -133,8 +133,8 @@
 - [ ] 电源管理配置（SMPS, I/O 电压域, 低功耗模式）
 - [ ] 板级 Kconfig 扩展（外设使能选项）
 - [x] CI 构建验证（QEMU 目标，STM32N6 待芯片驱动合入上游 NuttX 后启用）
-- [ ] CI 守护完善（nxstyle 编码规范、QEMU 冒烟测试、二进制体积守护）
-- [ ] Pre-commit hook（本地开发守护）
+- [x] CI 守护完善（nxstyle 编码规范、QEMU 冒烟测试、二进制体积守护）
+- [x] Pre-commit hook（本地开发守护）
 - [ ] 完整功能测试套件
 
 ## 3. 交叉引用
