@@ -78,7 +78,7 @@ static int board_bringup(void)
 }
 
 /****************************************************************************
- * Name: stm32_board_initialize
+ * Name: stm32_boardinitialize
  *
  * Description:
  *   STM32N6 arch layer calls this early in boot.  For QEMU/MPS3 builds
@@ -87,7 +87,7 @@ static int board_bringup(void)
  ****************************************************************************/
 
 #ifdef CONFIG_ARCH_CHIP_STM32N6
-void stm32_board_initialize(void)
+void stm32_boardinitialize(void)
 {
 }
 #endif
