@@ -47,8 +47,8 @@ P?
 
 ## 文件
 
-- `arch/stm32n6/src/stm32n6_xxx.c` — 驱动实现
-- `arch/stm32n6/src/stm32n6_xxx.h` — 头文件
+- `arch/arm/stm32n6/src/stm32n6_xxx.c` — 驱动实现
+- `arch/arm/stm32n6/src/stm32n6_xxx.h` — 头文件
 - `board/contest_board/src/stm32n6_xxx.c` — 板级注册（如需要）
 
 ## 参考
