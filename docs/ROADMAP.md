@@ -22,9 +22,9 @@
 
 | # | 模块 | ADR | 依赖 | 验证 | 状态 |
 |---|------|-----|------|------|------|
-| 1 | CI 集成（symlink + Kconfig patch） | [001](adr/ADR-001.md) | — | BUILD | 骨架完成 |
-| 2 | 最小启动（RCC/GPIO/USART1/IRQ/heap） | [002](adr/ADR-002.md) | — | BUILD | 骨架完成 |
-| 3 | SysTick 系统节拍 | [003](adr/ADR-003.md) | 002 | QEMU | PENDING |
+| 1 | CI 集成（symlink + Kconfig patch） | [001](adr/ADR-001.md) | — | BUILD | **DONE** |
+| 2 | 最小启动（RCC/GPIO/USART1/IRQ/heap） | [002](adr/ADR-002.md) | — | BUILD | **DONE** |
+| 3 | SysTick 系统节拍 | [003](adr/ADR-003.md) | 002 | BUILD | **DONE** |
 | 4 | 真机串口验证 | [004](adr/ADR-004.md) | 002, 003 | MEASURED | PENDING |
 
 ## P1: 基础外设

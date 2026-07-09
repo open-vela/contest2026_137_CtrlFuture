@@ -5,13 +5,30 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
-- 本地守护脚本：ci-check.sh / check-style.sh / check-memory.sh / qemu-smoke.sh
-- 工程最佳实践文档（docs/BEST-PRACTICES.md）
-- Pre-commit hook（nxstyle 自动检查）
-- CI 守护：nxstyle 编码规范检查、QEMU 冒烟测试、二进制体积守护
+- STM32N6 chip driver under arch/arm/stm32n6/ (NuttX upstream layout)
+  - RCC clock config (HSI 64MHz), GPIO, USART1 serial, NVIC IRQ
+  - SysTick system timer, heap allocator, start code
+- ADR template (11-field) and 38 module ADR skeletons (docs/adr/)
+- ROADMAP with phase plan and dependency graph (docs/ROADMAP.md)
+- Feature list extracted from README (docs/FEATURE-LIST.md)
+- 38 GitHub issues mapped to ADR-001 through ADR-038
 
 ### Changed
-- README 进度更新（CI 守护完善项）
+- Restructured chip driver from arch/stm32n6/ to arch/arm/stm32n6/
+- CI build.yml updated for arch/arm/stm32n6 symlink paths
+- Fixed stm32_boardinitialize function name (removed extra underscore)
+- Fixed up_putc return type to match NuttX declaration (void)
+- Removed spurious CONFIG_ARCH_CHIP_STM32=y from nsh defconfig
+- Removed duplicate CONFIG_ARM_M_SYSTICK=y from nsh-qemu defconfig
+- ADR-001, ADR-002, ADR-003 completed with full implementation details
+
+### Fixed
+- Linker error: getreg32/putreg32 undefined (missing arm_internal.h)
+- Linker error: stm32_boardinitialize undefined (wrong function name)
+- Linker error: up_putc undefined (missing implementation)
+- Linker error: up_timer_initialize undefined (missing SysTick driver)
+- Warning: up_prioritize_irq implicit declaration (added forward decl)
+- Warning: stm32_boardinitialize implicit declaration (added forward decl)
 
 ## [0.2.0] - 2026-07-08
 
