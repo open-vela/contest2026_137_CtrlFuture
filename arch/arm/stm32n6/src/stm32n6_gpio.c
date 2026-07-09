@@ -1,0 +1,156 @@
+/****************************************************************************
+ * arch/arm/src/stm32n6/stm32n6_gpio.c
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to you under the Apache License, Version
+ * 2.0 (the "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+ * implied.  See the License for the specific language governing
+ * permissions and limitations under the License.
+ *
+ ****************************************************************************/
+
+/****************************************************************************
+ * Included Files
+ ****************************************************************************/
+
+#include <nuttx/config.h>
+
+#include <stdint.h>
+
+#include "arm_internal.h"
+#include "stm32n6_gpio.h"
+#include "hardware/stm32_memorymap.h"
+
+/****************************************************************************
+ * Pre-processor Definitions
+ ****************************************************************************/
+
+/* GPIO register offsets */
+
+#define GPIO_MODER_OFFSET    0x00
+#define GPIO_OTYPER_OFFSET   0x04
+#define GPIO_OSPEEDR_OFFSET  0x08
+#define GPIO_PUPDR_OFFSET    0x0c
+#define GPIO_AFRL_OFFSET     0x20
+#define GPIO_AFRH_OFFSET     0x24
+
+/****************************************************************************
+ * Private Data
+ ****************************************************************************/
+
+static const uintptr_t g_gpiobase[] =
+{
+  STM32_GPIOA_BASE,
+  STM32_GPIOB_BASE,
+  STM32_GPIOC_BASE,
+  STM32_GPIOD_BASE,
+  STM32_GPIOE_BASE,
+  STM32_GPIOF_BASE,
+  STM32_GPIOG_BASE,
+  STM32_GPIOH_BASE,
+};
+
+/****************************************************************************
+ * Public Functions
+ ****************************************************************************/
+
+/****************************************************************************
+ * Name: stm32n6_configgpio
+ *
+ * Description:
+ *   Configure a GPIO pin based on encoded pin attributes.
+ *
+ ****************************************************************************/
+
+int stm32n6_configgpio(uint32_t cfgset)
+{
+  unsigned int port;
+  unsigned int pin;
+  unsigned int mode;
+  unsigned int af;
+  unsigned int speed;
+  unsigned int pupd;
+  unsigned int otype;
+  uintptr_t base;
+  uint32_t regval;
+
+  port  = (cfgset & GPIO_PORT_MASK) >> GPIO_PORT_SHIFT;
+  pin   = (cfgset & GPIO_PIN_MASK)  >> GPIO_PIN_SHIFT;
+  mode  = (cfgset & GPIO_MODE_MASK) >> GPIO_MODE_SHIFT;
+  af    = (cfgset & GPIO_AF_MASK)   >> GPIO_AF_SHIFT;
+  speed = (cfgset >> GPIO_SPEED_SHIFT) & 0x3;
+  pupd  = (cfgset >> GPIO_PUPD_SHIFT)  & 0x3;
+  otype = (cfgset >> GPIO_OTYPE_SHIFT) & 0x1;
+
+  if (port >= sizeof(g_gpiobase) / sizeof(g_gpiobase[0]))
+    {
+      return -1;
+    }
+
+  base = g_gpiobase[port];
+
+  /* Set mode (2 bits per pin) */
+
+  regval  = getreg32(base + GPIO_MODER_OFFSET);
+  regval &= ~(3u << (pin * 2));
+  regval |= (mode << (pin * 2));
+  putreg32(regval, base + GPIO_MODER_OFFSET);
+
+  /* Set output type (1 bit per pin) */
+
+  regval  = getreg32(base + GPIO_OTYPER_OFFSET);
+  regval &= ~(1u << pin);
+  regval |= (otype << pin);
+  putreg32(regval, base + GPIO_OTYPER_OFFSET);
+
+  /* Set speed (2 bits per pin) */
+
+  regval  = getreg32(base + GPIO_OSPEEDR_OFFSET);
+  regval &= ~(3u << (pin * 2));
+  regval |= (speed << (pin * 2));
+  putreg32(regval, base + GPIO_OSPEEDR_OFFSET);
+
+  /* Set pull-up/down (2 bits per pin) */
+
+  regval  = getreg32(base + GPIO_PUPDR_OFFSET);
+  regval &= ~(3u << (pin * 2));
+  regval |= (pupd << (pin * 2));
+  putreg32(regval, base + GPIO_PUPDR_OFFSET);
+
+  /* Set alternate function (4 bits per pin) */
+
+  if (mode == 2)
+    {
+      uintptr_t afr_reg;
+      unsigned int afr_shift;
+
+      if (pin < 8)
+        {
+          afr_reg   = base + GPIO_AFRL_OFFSET;
+          afr_shift = pin * 4;
+        }
+      else
+        {
+          afr_reg   = base + GPIO_AFRH_OFFSET;
+          afr_shift = (pin - 8) * 4;
+        }
+
+      regval  = getreg32(afr_reg);
+      regval &= ~(0xfu << afr_shift);
+      regval |= (af << afr_shift);
+      putreg32(regval, afr_reg);
+    }
+
+  return 0;
+}

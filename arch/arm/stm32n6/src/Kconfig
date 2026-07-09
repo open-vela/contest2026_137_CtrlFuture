@@ -1,0 +1,47 @@
+#
+# For a description of the syntax of this configuration file,
+# see the file kconfig-language.txt in the NuttX tools repository.
+#
+
+if ARCH_CHIP_STM32N6
+
+menu "STM32N6 Chip Selection"
+
+choice
+	prompt "STM32N6 Chip Configuration"
+	default ARCH_CHIP_STM32N647X0
+
+config ARCH_CHIP_STM32N647X0
+	bool "STM32N647X0"
+	select ARCH_CORTEXM55
+	select ARCH_HAVE_MPU
+	select ARCH_HAVE_FPU
+	select ARM_HAVE_MVE
+
+endchoice
+
+endmenu
+
+menu "STM32N6 Peripheral Selection"
+
+config STM32_USART1
+	bool "USART1"
+	default n
+	select USART1_SERIALDRIVER
+	select ARCH_HAVE_SERIAL_TERMIOS
+
+config STM32_USART2
+	bool "USART2"
+	default n
+	select USART2_SERIALDRIVER
+	select ARCH_HAVE_SERIAL_TERMIOS
+
+config STM32_USART3
+	bool "USART3"
+	default n
+	select USART3_SERIALDRIVER
+	select ARCH_HAVE_SERIAL_TERMIOS
+
+endmenu
+
+endif
