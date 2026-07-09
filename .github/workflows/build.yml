@@ -129,20 +129,20 @@ jobs:
 
   build:
     runs-on: ubuntu-latest
-    # TODO: enable nsh (STM32N6) after stm32n6 chip driver is merged into NuttX
     strategy:
       matrix:
-        target: [nsh-qemu]
+        target: [nsh, nsh-qemu]
     steps:
-      - name: Maximize build space
-        uses: easimon/maximize-build-space@v10
+      - name: Free disk space
+        uses: jlumbroso/free-disk-space@main
         with:
-          root-reserve-mb: 4096
-          remove-dotnet: 'true'
-          remove-android: 'true'
-          remove-haskell: 'true'
-          remove-codeql: 'true'
-          remove-docker-images: 'true'
+          tool-cache: true
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: false
+          docker-images: false
+          swap-storage: false
 
       - name: Install repo tool
         run: |
@@ -173,23 +173,14 @@ jobs:
         with:
           path: contest2026_137_CtrlFuture
 
-      - name: Move docker data to build volume
+      - name: Symlink chip driver and patch Kconfig
         run: |
-          sudo systemctl stop docker
-          sudo mv /var/lib/docker $GITHUB_WORKSPACE/docker
-          sudo ln -s $GITHUB_WORKSPACE/docker /var/lib/docker
-          sudo systemctl start docker
-
-      - name: Clean up remaining disk space
-        run: |
-          sudo apt-get clean
-          sudo rm -rf /var/lib/apt/lists/*
-          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/share/boost "$AGENT_TOOLSDIRECTORY"
-          sudo rm -rf /etc/apt/sources.list.d/* /usr/local/lib/android /etc/mysql /etc/php
-          sudo -E apt-get -y purge azure-cli* ghc* zulu* hhvm* llvm* firefox* google* dotnet* aspnetcore* powershell* openjdk* adoptopenjdk* mysql* php* mongodb* moby* snap* || true
-          sudo -E apt-get -qq autoremove --purge
-          sudo -E apt-get -qq clean
-          df -h
+          ln -s "$GITHUB_WORKSPACE/contest2026_137_CtrlFuture/arch/arm/stm32n6/src" \
+                nuttx/arch/arm/src/stm32n6
+          ln -s "$GITHUB_WORKSPACE/contest2026_137_CtrlFuture/arch/arm/stm32n6/include" \
+                nuttx/arch/arm/include/stm32n6
+          git -C nuttx apply \
+            "$GITHUB_WORKSPACE/contest2026_137_CtrlFuture/arch/arm/stm32n6/kconfig-stm32n6.patch"
 
       - name: Docker pull
         run: |
@@ -248,16 +239,16 @@ jobs:
             "
 
       - name: Check defconfig consistency
-        if: matrix.target == 'nsh-qemu'
+        if: matrix.target == 'nsh'
         run: |
           docker run --rm \
             -v "$GITHUB_WORKSPACE":/workspace \
             -w /workspace \
             ghcr.io/open-vela/openvela-ci-linux_from_apache-nuttx:latest \
-            /bin/bash -c "./build.sh vendor/openvela/boards/contest2026_137_board/configs/nsh-qemu savedefconfig"
-          if ! diff -q nuttx/defconfig contest2026_137_CtrlFuture/board/contest_board/configs/nsh-qemu/defconfig >/dev/null 2>&1; then
+            /bin/bash -c "./build.sh vendor/openvela/boards/contest2026_137_board/configs/nsh savedefconfig"
+          if ! diff -q nuttx/defconfig contest2026_137_CtrlFuture/board/contest_board/configs/nsh/defconfig >/dev/null 2>&1; then
             echo "::warning::defconfig has drifted from savedefconfig output"
-            diff nuttx/defconfig contest2026_137_CtrlFuture/board/contest_board/configs/nsh-qemu/defconfig || true
+            diff nuttx/defconfig contest2026_137_CtrlFuture/board/contest_board/configs/nsh/defconfig || true
           else
             echo "PASS: defconfig consistent"
           fi
