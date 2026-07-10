@@ -22,6 +22,33 @@ endchoice
 
 endmenu
 
+menu "STM32N6 Clock Configuration"
+
+config STM32N6_USE_HSE
+	bool "Use HSE external oscillator"
+	default n
+	---help---
+		Enable HSE (external high-speed oscillator) as clock source.
+		If not set, HSI (64MHz internal RC) is used.
+
+config STM32N6_HSE_FREQUENCY
+	int "HSE frequency (Hz)"
+	default 32000000
+	depends on STM32N6_USE_HSE
+	---help---
+		Frequency of the external HSE oscillator in Hz.
+
+config STM32N6_USE_PLL1
+	bool "Enable PLL1 for system clock"
+	default n
+	depends on STM32N6_USE_HSE
+	---help---
+		Configure PLL1 to generate 800MHz from HSE, with AHB DIV4
+		giving 200MHz conservative system clock. If not set, system
+		runs directly from HSI or HSE.
+
+endmenu
+
 menu "STM32N6 Peripheral Selection"
 
 config STM32_USART1

@@ -30,44 +30,34 @@
 
 #include "arm_internal.h"
 #include "stm32n6_rcc.h"
-#include "hardware/stm32_memorymap.h"
+#include "hardware/stm32_rcc.h"
 
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
 
-/* RCC register offsets (subset for minimum boot) */
+/* Default clock frequencies (HSI mode, no PLL) */
 
-#define STM32_RCC_CR_OFFSET         0x0000
-#define STM32_RCC_SR_OFFSET         0x0004
-#define STM32_RCC_CFGR1_OFFSET      0x0018
-#define STM32_RCC_APB2ENR_OFFSET    0x026c
-#define STM32_RCC_AHB4ENR_OFFSET    0x025c
+#define STM32_HSI_FREQUENCY      64000000ul  /* 64 MHz internal RC */
 
-#define STM32_RCC_CR             (STM32_RCC_BASE + STM32_RCC_CR_OFFSET)
-#define STM32_RCC_SR             (STM32_RCC_BASE + STM32_RCC_SR_OFFSET)
-#define STM32_RCC_APB2ENR        (STM32_RCC_BASE + STM32_RCC_APB2ENR_OFFSET)
-#define STM32_RCC_AHB4ENR        (STM32_RCC_BASE + STM32_RCC_AHB4ENR_OFFSET)
+/* PLL1 configuration: HSE 32MHz -> 800MHz VCO
+ * DIVM=1 (prescaler=1), DIVN=25 (mult=25), DIVP=1 (no division)
+ * VCO = 32MHz / 1 * 25 = 800MHz
+ * PLL1P = 800MHz / 1 = 800MHz
+ * Conservative default: AHB DIV4 -> 200MHz SYSCLK
+ */
 
-/* RCC_CR bits (CMSIS stm32n647xx.h) */
+#define PLL1_DIVM               1
+#define PLL1_DIVN               25
+#define PLL1_DIVP               1
 
-#define RCC_CR_HSION             (1 << 3)
-#define RCC_CR_HSEON             (1 << 4)
-#define RCC_CR_PLL1ON            (1 << 8)
+/* AHB prescaler: SYSCLK / DIV4 for conservative 200MHz */
 
-/* RCC_SR bits (CMSIS stm32n647xx.h) */
+#define RCC_CFGR1_HPRE_DIV4     (9 << 4)   /* AHB = SYSCLK / 4 */
 
-#define RCC_SR_HSIRDY            (1 << 3)
-#define RCC_SR_HSERDY            (1 << 4)
-#define RCC_SR_PLL1RDY           (1 << 8)
+/* Timeout for clock ready flags (100ms at ~64MHz loop rate) */
 
-/* RCC_APB2ENR bits */
-
-#define RCC_APB2ENR_USART1EN     (1 << 4)
-
-/* RCC_AHB4ENR bits */
-
-#define RCC_AHB4ENR_GPIOEEN      (1 << 4)
+#define CLOCK_READY_TIMEOUT     (100 * CONFIG_BOARD_LOOPSPERMSEC)
 
 /****************************************************************************
  * Private Functions
@@ -90,6 +80,95 @@ static inline void rcc_enablehsi(void)
     }
 }
 
+#ifdef CONFIG_STM32N6_USE_HSE
+static inline int rcc_enablehse(void)
+{
+  uint32_t regval;
+  volatile int timeout;
+
+  /* Set HSEON in CR (bit 4) */
+
+  regval  = getreg32(STM32_RCC_CR);
+  regval |= RCC_CR_HSEON;
+  putreg32(regval, STM32_RCC_CR);
+
+  /* Wait for HSERDY in SR (bit 4) with timeout */
+
+  timeout = CLOCK_READY_TIMEOUT;
+
+  while ((getreg32(STM32_RCC_SR) & RCC_SR_HSERDY) == 0)
+    {
+      if (--timeout <= 0)
+        {
+          return -1;
+        }
+    }
+
+  return 0;
+}
+#endif
+
+#ifdef CONFIG_STM32N6_USE_PLL1
+static inline int rcc_configpll1(void)
+{
+  uint32_t regval;
+  volatile int timeout;
+
+  /* Configure PLL1 source and prescaler: HSE, DIVM */
+
+  regval = (RCC_PLL1CFGR1_PLL1SRC_HSE) |
+           (PLL1_DIVM << RCC_PLL1CFGR1_DIVM1_SHIFT);
+  putreg32(regval, STM32_RCC_PLL1CFGR1);
+
+  /* Configure PLL1 multiplier: DIVN */
+
+  regval = (PLL1_DIVN - 1) << RCC_PLL1CFGR2_DIVN1_SHIFT;
+  putreg32(regval, STM32_RCC_PLL1CFGR2);
+
+  /* Configure PLL1 output divider: DIVP */
+
+  regval = (PLL1_DIVP - 1) << RCC_PLL1CFGR3_DIVP1_SHIFT;
+  putreg32(regval, STM32_RCC_PLL1CFGR3);
+
+  /* Enable PLL1 */
+
+  regval  = getreg32(STM32_RCC_CR);
+  regval |= RCC_CR_PLL1ON;
+  putreg32(regval, STM32_RCC_CR);
+
+  /* Wait for PLL1RDY with timeout */
+
+  timeout = CLOCK_READY_TIMEOUT;
+
+  while ((getreg32(STM32_RCC_SR) & RCC_SR_PLL1RDY) == 0)
+    {
+      if (--timeout <= 0)
+        {
+          return -1;
+        }
+    }
+
+  return 0;
+}
+
+static inline void rcc_switchsysclk(void)
+{
+  uint32_t regval;
+
+  /* Set system clock source to PLL1 */
+
+  regval  = getreg32(STM32_RCC_CFGR1);
+  regval &= ~RCC_CFGR1_SW_MASK;
+  regval |= RCC_CFGR1_SW_PLL1;
+
+  /* Set AHB prescaler for conservative 200MHz (800MHz / 4) */
+
+  regval &= ~(0xf << 4);
+  regval |= RCC_CFGR1_HPRE_DIV4;
+  putreg32(regval, STM32_RCC_CFGR1);
+}
+#endif
+
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
@@ -98,8 +177,9 @@ static inline void rcc_enablehsi(void)
  * Name: stm32n6_clockconfig
  *
  * Description:
- *   Minimum clock setup: enable HSI 64 MHz as system clock.
- *   PLL configuration will be added when more peripherals need it.
+ *   Configure system clock. If PLL1 is enabled via Kconfig, this sets up
+ *   HSE -> PLL1 -> 800MHz with AHB DIV4 (200MHz conservative default).
+ *   Otherwise falls back to HSI 64MHz.
  *
  ****************************************************************************/
 
@@ -107,7 +187,37 @@ void stm32n6_clockconfig(void)
 {
   uint32_t regval;
 
+  /* Always start with HSI as fallback */
+
   rcc_enablehsi();
+
+#ifdef CONFIG_STM32N6_USE_HSE
+  /* Enable HSE and wait for ready */
+
+  if (rcc_enablehse() < 0)
+    {
+      /* HSE failed, stay on HSI */
+
+      goto enable_peripherals;
+    }
+#endif
+
+#ifdef CONFIG_STM32N6_USE_PLL1
+  /* Configure and enable PLL1, switch system clock */
+
+  if (rcc_configpll1() < 0)
+    {
+      /* PLL1 failed, stay on HSI */
+
+      goto enable_peripherals;
+    }
+
+  rcc_switchsysclk();
+#endif
+
+#if defined(CONFIG_STM32N6_USE_HSE) || defined(CONFIG_STM32N6_USE_PLL1)
+enable_peripherals:
+#endif
 
   /* Enable GPIOE clock (for USART1 pins PE5/PE6) */
 
@@ -120,4 +230,60 @@ void stm32n6_clockconfig(void)
   regval  = getreg32(STM32_RCC_APB2ENR);
   regval |= RCC_APB2ENR_USART1EN;
   putreg32(regval, STM32_RCC_APB2ENR);
+}
+
+/****************************************************************************
+ * Name: stm32n6_get_sysclk
+ *
+ * Description:
+ *   Return the current SYSCLK frequency in Hz.
+ *
+ ****************************************************************************/
+
+uint32_t stm32n6_get_sysclk(void)
+{
+#ifdef CONFIG_STM32N6_USE_PLL1
+  return 800000000ul / 4;  /* PLL1 800MHz / AHB DIV4 = 200MHz */
+#else
+  return STM32_HSI_FREQUENCY;
+#endif
+}
+
+/****************************************************************************
+ * Name: stm32n6_get_hclk
+ *
+ * Description:
+ *   Return the AHB bus (HCLK) frequency in Hz.
+ *
+ ****************************************************************************/
+
+uint32_t stm32n6_get_hclk(void)
+{
+  return stm32n6_get_sysclk();  /* Same as SYSCLK for now */
+}
+
+/****************************************************************************
+ * Name: stm32n6_get_pclk1
+ *
+ * Description:
+ *   Return the APB1 bus frequency in Hz.
+ *
+ ****************************************************************************/
+
+uint32_t stm32n6_get_pclk1(void)
+{
+  return stm32n6_get_hclk();  /* APB1 = HCLK for now */
+}
+
+/****************************************************************************
+ * Name: stm32n6_get_pclk2
+ *
+ * Description:
+ *   Return the APB2 bus frequency in Hz.
+ *
+ ****************************************************************************/
+
+uint32_t stm32n6_get_pclk2(void)
+{
+  return stm32n6_get_hclk();  /* APB2 = HCLK for now */
 }
