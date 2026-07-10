@@ -14,7 +14,7 @@ Read GPIO Register
     ${addr}=    Evaluate    ${base} + ${offset}
     ${val}=     Execute Command    sysbus ReadDoubleWord ${addr}
     ${val}=     Strip String    ${val}
-    [Return]    ${val}
+    RETURN    ${val}
 
 Write GPIO Register
     [Arguments]    ${base}    ${offset}    ${value}

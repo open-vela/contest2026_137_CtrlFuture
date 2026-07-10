@@ -10,7 +10,7 @@ Read EXTI Register
     ${addr}=    Evaluate    ${EXTI_BASE} + ${offset}
     ${val}=     Execute Command    sysbus ReadDoubleWord ${addr}
     ${val}=     Strip String    ${val}
-    [Return]    ${val}
+    RETURN    ${val}
 
 Write EXTI Register
     [Arguments]    ${offset}    ${value}

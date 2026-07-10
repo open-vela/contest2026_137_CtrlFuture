@@ -10,7 +10,7 @@ Read SDMMC Register
     ${addr}=    Evaluate    ${SDMMC_BASE} + ${offset}
     ${val}=     Execute Command    sysbus ReadDoubleWord ${addr}
     ${val}=     Strip String    ${val}
-    [Return]    ${val}
+    RETURN    ${val}
 
 Write SDMMC Register
     [Arguments]    ${offset}    ${value}

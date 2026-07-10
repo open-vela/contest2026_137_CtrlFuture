@@ -10,7 +10,7 @@ Read GPDMA Register
     ${addr}=    Evaluate    ${GPDMA_BASE} + ${offset}
     ${val}=     Execute Command    sysbus ReadDoubleWord ${addr}
     ${val}=     Strip String    ${val}
-    [Return]    ${val}
+    RETURN    ${val}
 
 Write GPDMA Register
     [Arguments]    ${offset}    ${value}

@@ -10,7 +10,7 @@ Read IWDG Register
     ${addr}=    Evaluate    ${IWDG_BASE} + ${offset}
     ${val}=     Execute Command    sysbus ReadDoubleWord ${addr}
     ${val}=     Strip String    ${val}
-    [Return]    ${val}
+    RETURN    ${val}
 
 Write IWDG Register
     [Arguments]    ${offset}    ${value}

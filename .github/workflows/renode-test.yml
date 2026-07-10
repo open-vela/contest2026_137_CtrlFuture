@@ -5,6 +5,7 @@ on:
     branches: [develop]
   pull_request:
     branches: [dev-ai-contest-2026]
+  workflow_dispatch:
 
 jobs:
   renode-regression:
@@ -34,34 +35,55 @@ jobs:
         with:
           dotnet-version: '8.0.x'
 
-      - name: Install Python dependencies
+      - name: Install ARM toolchain and Python deps
         run: |
-          pip install robotframework psutil
+          sudo apt-get update
+          sudo apt-get install -y gcc-arm-none-eabi
+          pip install robotframework==6.1 psutil
 
       - name: Install Renode source
         run: |
-          git clone --depth 1 https://github.com/renode/renode.git renode
+          git clone --recursive https://github.com/renode/renode.git renode
+          cd renode && git checkout 40c62fb && git submodule update --init --recursive
 
       - name: Setup symlinks
         run: |
-          cd contest2026_137_CtrlFuture
-          ln -sf ../../nuttx/arch/arm/src/stm32n6 arch/arm/stm32n6/src
-          ln -sf ../../nuttx/arch/arm/include/stm32n6 arch/arm/stm32n6/include
+          # nuttx/arch/arm/src/stm32n6 -> workspace root (4 levels up)
+          ln -sf ../../../../contest2026_137_CtrlFuture/arch/arm/stm32n6/src \
+                nuttx/arch/arm/src/stm32n6
+          # nuttx/arch/arm/include/stm32n6 -> workspace root (4 levels up)
+          ln -sf ../../../../contest2026_137_CtrlFuture/arch/arm/stm32n6/include \
+                nuttx/arch/arm/include/stm32n6
+          # vendor/openvela/boards/contest2026_137_board -> workspace root (3 levels up)
+          mkdir -p vendor/openvela/boards
+          ln -sf ../../../contest2026_137_CtrlFuture/board/contest_board \
+                vendor/openvela/boards/contest2026_137_board
+          # packages/demos/contest2026_137_* -> workspace root (2 levels up)
+          mkdir -p packages/demos
+          ln -sf ../../contest2026_137_CtrlFuture/app/hello_app \
+                packages/demos/contest2026_137_hello_app
+          ln -sf ../../contest2026_137_CtrlFuture/app/edgesight \
+                packages/demos/contest2026_137_edgesight
+          # Verify all symlinks resolve
+          ls nuttx/arch/arm/src/stm32n6/ >/dev/null
+          ls nuttx/arch/arm/include/stm32n6/ >/dev/null
+          ls vendor/openvela/boards/contest2026_137_board/ >/dev/null
+
+      - name: Apply Kconfig patch for STM32N6
+        run: |
+          git -C nuttx apply \
+            "$GITHUB_WORKSPACE/contest2026_137_CtrlFuture/arch/arm/stm32n6/kconfig-stm32n6.patch"
 
       - name: Copy C# models to Renode source
         run: |
           cp contest2026_137_CtrlFuture/tests/renode/peripherals/*.cs \
-             renode/src/Infrastructure/src/Emulator/Peripherals/Peripherals/Miscellaneous/ 2>/dev/null || true
+             renode/src/Infrastructure/src/Emulator/Peripherals/Peripherals/Miscellaneous/
+          ls renode/src/Infrastructure/src/Emulator/Peripherals/Peripherals/Miscellaneous/STM32N6_*.cs
 
       - name: Build Renode
         run: |
           cd renode
           ./build.sh --no-gui
-
-      - name: Build NuttX nsh
-        run: |
-          cd contest2026_137_CtrlFuture
-          ./build.sh vendor/openvela/boards/contest2026_137_board/configs/nsh -j8
 
       - name: Run Robot tests
         run: |

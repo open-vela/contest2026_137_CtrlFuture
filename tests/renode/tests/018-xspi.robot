@@ -10,7 +10,7 @@ Read XSPI Register
     ${addr}=    Evaluate    ${XSPI_BASE} + ${offset}
     ${val}=     Execute Command    sysbus ReadDoubleWord ${addr}
     ${val}=     Strip String    ${val}
-    [Return]    ${val}
+    RETURN    ${val}
 
 Write XSPI Register
     [Arguments]    ${offset}    ${value}

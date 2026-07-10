@@ -10,7 +10,7 @@ Read I2C Register
     ${addr}=    Evaluate    ${I2C1_BASE} + ${offset}
     ${val}=     Execute Command    sysbus ReadDoubleWord ${addr}
     ${val}=     Strip String    ${val}
-    [Return]    ${val}
+    RETURN    ${val}
 
 Write I2C Register
     [Arguments]    ${offset}    ${value}

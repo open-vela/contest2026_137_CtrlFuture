@@ -10,7 +10,7 @@ Read RTC Register
     ${addr}=    Evaluate    ${RTC_BASE} + ${offset}
     ${val}=     Execute Command    sysbus ReadDoubleWord ${addr}
     ${val}=     Strip String    ${val}
-    [Return]    ${val}
+    RETURN    ${val}
 
 Write RTC Register
     [Arguments]    ${offset}    ${value}
