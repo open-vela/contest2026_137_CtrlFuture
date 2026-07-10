@@ -123,11 +123,15 @@ rcc: Miscellaneous.STM32N6_RCC @ sysbus 0x46028000
 // Tag unimplemented peripherals to suppress "unhandled access" warnings
 sysbus:
     init:
-        // APB1 peripherals
-        Tag <0x40000000, 0x4000FFFF> "APB1_PERIPH"
-        // APB2 peripherals (except USART1)
-        Tag <0x42000000, 0x42000FFF> "APB2_PERIPH"
-        Tag <0x42002000, 0x4200FFFF> "APB2_PERIPH2"
+        // APB1 peripherals (except RTC, IWDG, USART2/3, UART4/5/7/8)
+        Tag <0x40000000, 0x400027FF> "APB1_PERIPH_A1"
+        Tag <0x40002C00, 0x40002FFF> "APB1_PERIPH_A2"
+        Tag <0x40003400, 0x400043FF> "APB1_PERIPH_A3"
+        Tag <0x40005400, 0x400077FF> "APB1_PERIPH_B"
+        Tag <0x40008000, 0x4000FFFF> "APB1_PERIPH_C"
+        // APB2 peripherals (except USART1/6, UART9/10)
+        Tag <0x42000000, 0x42000FFF> "APB2_PERIPH_A"
+        Tag <0x42002000, 0x4200FFFF> "APB2_PERIPH_B"
         // AHB1 peripherals
         Tag <0x40020000, 0x4003FFFF> "AHB1_PERIPH"
         // AHB2 peripherals
