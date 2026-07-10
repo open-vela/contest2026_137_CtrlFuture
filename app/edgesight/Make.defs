@@ -1,0 +1,10 @@
+############################################################################
+# app/edgesight/Make.defs
+#
+# SPDX-License-Identifier: Apache-2.0
+#
+############################################################################
+
+ifneq ($(CONFIG_APP_EDGESIGHT),)
+CONFIGURED_APPS += $(APPDIR)/edgesight
+endif
