@@ -22,11 +22,11 @@ Write RCC Register
     Execute Command    sysbus WriteDoubleWord ${addr} ${value}
 
 *** Test Cases ***
-CR Reset Value
+CR After Boot HSI Enabled
     Start STM32N6
     ${val}=    Read RCC Register    ${CR_OFFSET}
-    # Reset: all clock OFF -> 0x00
-    Should Be Equal As Integers    ${val}    0x00
+    # Firmware sets HSION (bit 3) during boot -> 0x08
+    Should Be Equal As Integers    ${val}    0x08
 
 HSION Sets HSIRDY
     Start STM32N6
