@@ -40,6 +40,62 @@
 
 /* Clocking *****************************************************************/
 
+#define STM32_HSI_FREQUENCY     64000000ul
+
+#ifdef CONFIG_EDGESIGHT_CLOCK_800MHZ
+
+/* Full-speed clock tree for EdgeSight (requires SMPS overdrive):
+ *
+ *   PLL1: HSI(64MHz) / M=2 * N=25 = 800 MHz
+ *     IC1  /1 = 800 MHz  -> CPU clock
+ *     IC2  /2 = 400 MHz  -> AXI bus
+ *     IC6  /2 = 400 MHz  -> NPU (or PLL2/1=1000MHz for full NPU speed)
+ *     IC11 /2 = 400 MHz  -> AXISRAM3/4/5/6
+ *   AHB prescaler /2 = 200 MHz -> HCLK
+ *   APB1..5 /1 = 200 MHz -> PCLKx
+ *
+ *   PLL2: HSI(64MHz) / M=8 * N=125 = 1000 MHz -> NPU via IC6
+ *   PLL4: HSI(64MHz) / M=32 * N=40 = 80 MHz   -> peripheral clocks
+ *
+ *   SDMMC: IC4 = PLL1/4 = 200 MHz
+ *   DCMIPP: IC17 = PLL2/3 = 333 MHz
+ *   XSPI1/2: HCLK = 200 MHz
+ */
+
+#define STM32_PLL1_M            2
+#define STM32_PLL1_N            25
+#define STM32_PLL1_P1           1
+#define STM32_PLL1_P2           1
+#define STM32_PLL1_IC1_DIV      1
+#define STM32_PLL1_IC2_DIV      2
+#define STM32_PLL1_IC4_DIV      4
+
+#define STM32_PLL2_M            8
+#define STM32_PLL2_N            125
+#define STM32_PLL2_P1           1
+#define STM32_PLL2_P2           1
+
+#define STM32_PLL4_M            32
+#define STM32_PLL4_N            40
+#define STM32_PLL4_P1           1
+#define STM32_PLL4_P2           1
+
+#define STM32_CPUCLK_FREQUENCY  800000000ul
+#define STM32_AXI_FREQUENCY     400000000ul
+#define STM32_NPU_FREQUENCY     1000000000ul
+#define STM32_HCLK_FREQUENCY    200000000ul
+#define STM32_SYSCLK_FREQUENCY  400000000ul
+#define STM32_PCLK1_FREQUENCY   200000000ul
+#define STM32_PCLK2_FREQUENCY   200000000ul
+#define STM32_PCLK4_FREQUENCY   200000000ul
+#define STM32_PCLK5_FREQUENCY   200000000ul
+
+#define STM32_SDMMC_FREQUENCY   200000000ul
+#define STM32_XSPI_FREQUENCY    200000000ul
+#define STM32_DCMIPP_FREQUENCY  333333333ul
+
+#else /* Conservative 200 MHz boot (default, no SMPS overdrive needed) */
+
 /* Clock tree (PLL1 fed from internal HSI):
  *
  *   HSI 64 MHz / M=4 * N=50 = 800 MHz VCO
@@ -52,8 +108,6 @@
  *   PPRE2 /1 = 50 MHz   -> PCLK2
  */
 
-#define STM32_HSI_FREQUENCY     64000000ul
-
 #define STM32_PLL1_M            4
 #define STM32_PLL1_N            50
 #define STM32_PLL1_IC1_DIV      4
@@ -63,6 +117,8 @@
 #define STM32_HCLK_FREQUENCY    (STM32_CPUCLK_FREQUENCY / 4)
 #define STM32_PCLK1_FREQUENCY   STM32_HCLK_FREQUENCY
 #define STM32_PCLK2_FREQUENCY   STM32_HCLK_FREQUENCY
+
+#endif /* CONFIG_EDGESIGHT_CLOCK_800MHZ */
 
 /* Timer input clock = SYSCLK (TIMPRE=0 default) */
 
