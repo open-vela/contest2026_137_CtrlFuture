@@ -2,6 +2,40 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.5.0] - 2026-07-10
+
+### Added
+- EdgeSight application skeleton (app/edgesight/) with full pipeline architecture
+  - fall_detect.c/h: pose-keypoint-based fall detection algorithm (3-metric fusion)
+  - postprocess.c/h: YOLO NMS + MoveNet heatmap parsing routines
+  - edgesight_main.c: 7-step pipeline orchestrator (camera→NPU→detect→display→record→network)
+  - camera_hal.h: DCMIPP dual-pipeline (display + NN) abstraction
+  - npu_hal.h: stedgeai NPU runtime abstraction (dual-model)
+  - display_hal.h: LTDC dual-layer + GPU2D rendering abstraction
+  - recorder_hal.h: H.264 VENC + SD card event recording abstraction
+  - network_hal.h: Ethernet + MQTT alert publishing abstraction
+  - memory_map.h: STM32N6 SRAM/Flash buffer allocation plan
+  - test_fall_detect.c: 5-scenario unit test (ALL PASS on host)
+  - Kconfig, Makefile, CMakeLists.txt, Make.defs, README.md
+- ST official reference code analysis report (docs/st-reference-analysis.md)
+- 800MHz clock configuration in board.h (CONFIG_EDGESIGHT_CLOCK_800MHZ)
+- EdgeSight defconfig (board/contest_board/configs/edgesight/)
+- Manifest linkfile for edgesight app
+
+### Analysis Complete
+- STM32CubeN6 HAL drivers: all EdgeSight peripherals covered
+- VENC_RTSP_Server example: H.264 + Ethernet + RTSP + Audio + 800MHz
+- ObjectDetection example: Camera + ISP + NPU + Display full pipeline
+- stedgeai toolchain: generate command + NPU deploy format understood
+- AI models confirmed: YOLO-X nano (1.6MB) + MoveNet Lightning (2.7MB)
+- Both models have pre-compiled NPU binaries ready for deployment
+
+### Technical Decisions
+- Dual-model serial inference: YOLO detect → crop → MoveNet pose → rule-based fall
+- Fall detection: torso angle + COG height + bbox ratio, 3-frame confirmation
+- NPU/Camera/VENC: integrate ST proprietary libs (not rewrite)
+- Ethernet/SDMMC/XSPI/LTDC: NuttX native drivers (reference STM32H7)
+
 ## [0.4.0] - 2026-07-09
 
 ### Added
