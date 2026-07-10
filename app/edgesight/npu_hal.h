@@ -52,8 +52,8 @@ struct npu_context_s
   bool initialized;
   bool model_loaded[NPU_MODEL_MAX];
   struct npu_model_info_s info[NPU_MODEL_MAX];
-  void *runtime_ctx;    /* stedgeai runtime context */
-  void *network_ctx[NPU_MODEL_MAX]; /* per-model context */
+  void *runtime_ctx;                   /* stedgeai runtime context */
+  void *network_ctx[NPU_MODEL_MAX];    /* per-model context */
 };
 
 /* Inference result */
