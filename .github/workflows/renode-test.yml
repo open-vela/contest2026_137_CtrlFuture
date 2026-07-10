@@ -99,6 +99,8 @@ jobs:
           ./build.sh --no-gui
 
       - name: Run Robot tests
+        env:
+          NUTTX_ELF: ${{ github.workspace }}/nuttx/nuttx
         run: |
           mkdir -p contest2026_137_CtrlFuture/tests/renode/results
           renode/renode-test contest2026_137_CtrlFuture/tests/renode/tests/*.robot \

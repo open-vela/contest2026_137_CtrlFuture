@@ -1,7 +1,7 @@
 *** Variables ***
 ${UART}         sysbus.usart1
 ${PLATFORM}     ${CURDIR}/../../stm32n647x0.repl
-${ELF}          ${CURDIR}/../../../../nuttx/nuttx
+${ELF}          %{NUTTX_ELF=${CURDIR}/../../../../nuttx/nuttx}
 
 *** Keywords ***
 Create STM32N6 Machine
