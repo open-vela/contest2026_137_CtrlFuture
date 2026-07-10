@@ -171,8 +171,15 @@ static void stm32n6_shutdown(struct uart_dev_s *dev)
 static int stm32n6_attach(struct uart_dev_s *dev)
 {
   struct stm32n6_uart_s *priv = dev->priv;
+  int ret;
 
-  return irq_attach(priv->irq, stm32n6_interrupt, dev);
+  ret = irq_attach(priv->irq, stm32n6_interrupt, dev);
+  if (ret == OK)
+    {
+      up_enable_irq(priv->irq);
+    }
+
+  return ret;
 }
 
 static void stm32n6_detach(struct uart_dev_s *dev)

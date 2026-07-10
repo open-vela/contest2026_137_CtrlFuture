@@ -163,9 +163,13 @@ void up_irqinitialize(void)
   irq_attach(STM32_IRQ_SVCALL, arm_svcall, NULL);
   irq_attach(STM32_IRQ_HARDFAULT, arm_hardfault, NULL);
 
-  /* Set PendSV to lowest priority; SVCALL to high priority */
+  /* Set PendSV and SysTick to lowest priority;
+   * SVCALL to high priority.
+   */
 
   up_prioritize_irq(STM32_IRQ_PENDSV,
+                    NVIC_SYSH_PRIORITY_MIN);
+  up_prioritize_irq(STM32_IRQ_SYSTICK,
                     NVIC_SYSH_PRIORITY_MIN);
   up_prioritize_irq(STM32_IRQ_SVCALL,
                     NVIC_SYSH_SVCALL_PRIORITY);
@@ -272,7 +276,6 @@ int up_prioritize_irq(int irq, int priority)
 
   if (irq < STM32_IRQ_FIRST)
     {
-      irq -= 4;
       regaddr = NVIC_SYSH_PRIORITY(irq);
     }
   else
