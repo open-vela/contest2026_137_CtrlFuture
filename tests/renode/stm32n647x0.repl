@@ -7,7 +7,7 @@
 // ADR-002: Minimum boot (RCC/GPIO/USART1/IRQ/heap/start)
 
 cpu: CPU.CortexM @ sysbus
-    cpuType: "cortex-m33"
+    cpuType: "cortex-m55"
     nvic: nvic
 
 nvic: IRQControllers.NVIC @ sysbus 0xE000E000
@@ -32,19 +32,14 @@ gpioPortE: GPIOPort.STM32_GPIOPort @ sysbus <0x46021000, +0x400>
     numberOfAFs: 16
 
 // RCC @ 0x46028000 (AHB4 + 0x8000), size 0x400
-// Using MappedMemory: STM32N6 RCC offsets (AHB4ENR=0x25C, APB2ENR=0x26C)
-// differ from H7 model. MappedMemory supports read-modify-write natively.
-rcc: Memory.MappedMemory @ sysbus 0x46028000
-    size: 0x400
+// C# model: STM32N6_RCC (CR/SR ON->RDY mirror, peripheral clock enables)
+rcc: Miscellaneous.STM32N6_RCC @ sysbus 0x46028000
 
 // SysTick is built into NVIC (systickFrequency above)
 
 // Tag unimplemented peripherals to suppress "unhandled access" warnings
 sysbus:
     init:
-        // Pre-set hardware ready flags so polling loops exit immediately
-        // RCC_CR @ 0x46028000: HSIRDY (bit 2) = 1
-        WriteByte 0x46028000 0x05
         // APB1 peripherals
         Tag <0x40000000, 0x4000FFFF> "APB1_PERIPH"
         // APB2 peripherals (except USART1)

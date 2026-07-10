@@ -39,18 +39,27 @@
 /* RCC register offsets (subset for minimum boot) */
 
 #define STM32_RCC_CR_OFFSET         0x0000
+#define STM32_RCC_SR_OFFSET         0x0004
 #define STM32_RCC_CFGR1_OFFSET      0x0018
 #define STM32_RCC_APB2ENR_OFFSET    0x026c
 #define STM32_RCC_AHB4ENR_OFFSET    0x025c
 
 #define STM32_RCC_CR             (STM32_RCC_BASE + STM32_RCC_CR_OFFSET)
+#define STM32_RCC_SR             (STM32_RCC_BASE + STM32_RCC_SR_OFFSET)
 #define STM32_RCC_APB2ENR        (STM32_RCC_BASE + STM32_RCC_APB2ENR_OFFSET)
 #define STM32_RCC_AHB4ENR        (STM32_RCC_BASE + STM32_RCC_AHB4ENR_OFFSET)
 
-/* RCC_CR bits */
+/* RCC_CR bits (CMSIS stm32n647xx.h) */
 
-#define RCC_CR_HSION             (1 << 0)
-#define RCC_CR_HSIRDY            (1 << 2)
+#define RCC_CR_HSION             (1 << 3)
+#define RCC_CR_HSEON             (1 << 4)
+#define RCC_CR_PLL1ON            (1 << 8)
+
+/* RCC_SR bits (CMSIS stm32n647xx.h) */
+
+#define RCC_SR_HSIRDY            (1 << 3)
+#define RCC_SR_HSERDY            (1 << 4)
+#define RCC_SR_PLL1RDY           (1 << 8)
 
 /* RCC_APB2ENR bits */
 
@@ -68,11 +77,15 @@ static inline void rcc_enablehsi(void)
 {
   uint32_t regval;
 
+  /* Set HSION in CR (bit 3) */
+
   regval  = getreg32(STM32_RCC_CR);
   regval |= RCC_CR_HSION;
   putreg32(regval, STM32_RCC_CR);
 
-  while ((getreg32(STM32_RCC_CR) & RCC_CR_HSIRDY) == 0)
+  /* Wait for HSIRDY in SR (bit 3) */
+
+  while ((getreg32(STM32_RCC_SR) & RCC_SR_HSIRDY) == 0)
     {
     }
 }
