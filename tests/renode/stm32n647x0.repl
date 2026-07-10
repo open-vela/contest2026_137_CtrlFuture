@@ -27,8 +27,30 @@ usart1: UART.STM32F7_USART @ sysbus 0x42001000
     frequency: 64000000
     IRQ -> nvic@159
 
-// GPIO Port E @ 0x46021000 (AHB4 + 0x1000)
+// GPIO Ports A-Q @ AHB4 + offset (each 0x400 bytes)
+gpioPortA: GPIOPort.STM32_GPIOPort @ sysbus <0x46020000, +0x400>
+    numberOfAFs: 16
+gpioPortB: GPIOPort.STM32_GPIOPort @ sysbus <0x46020400, +0x400>
+    numberOfAFs: 16
+gpioPortC: GPIOPort.STM32_GPIOPort @ sysbus <0x46020800, +0x400>
+    numberOfAFs: 16
+gpioPortD: GPIOPort.STM32_GPIOPort @ sysbus <0x46020C00, +0x400>
+    numberOfAFs: 16
 gpioPortE: GPIOPort.STM32_GPIOPort @ sysbus <0x46021000, +0x400>
+    numberOfAFs: 16
+gpioPortF: GPIOPort.STM32_GPIOPort @ sysbus <0x46021400, +0x400>
+    numberOfAFs: 16
+gpioPortG: GPIOPort.STM32_GPIOPort @ sysbus <0x46021800, +0x400>
+    numberOfAFs: 16
+gpioPortH: GPIOPort.STM32_GPIOPort @ sysbus <0x46021C00, +0x400>
+    numberOfAFs: 16
+gpioPortN: GPIOPort.STM32_GPIOPort @ sysbus <0x46023400, +0x400>
+    numberOfAFs: 16
+gpioPortO: GPIOPort.STM32_GPIOPort @ sysbus <0x46023800, +0x400>
+    numberOfAFs: 16
+gpioPortP: GPIOPort.STM32_GPIOPort @ sysbus <0x46023C00, +0x400>
+    numberOfAFs: 16
+gpioPortQ: GPIOPort.STM32_GPIOPort @ sysbus <0x46024000, +0x400>
     numberOfAFs: 16
 
 // RCC @ 0x46028000 (AHB4 + 0x8000), size 0x400
@@ -56,9 +78,9 @@ sysbus:
         // APB4 peripherals (except LPUART1)
         Tag <0x46000000, 0x46000BFF> "APB4_PERIPH"
         Tag <0x46000D00, 0x4600FFFF> "APB4_PERIPH2"
-        // AHB4 peripherals (except GPIOE, RCC)
-        Tag <0x46020000, 0x46020FFF> "GPIOA-D"
-        Tag <0x46022000, 0x46027FFF> "GPIO-other"
+        // AHB4 peripherals (except GPIO A-Q, RCC)
+        Tag <0x46022000, 0x460233FF> "AHB4_GPIO_GAP1"
+        Tag <0x46024400, 0x46027FFF> "AHB4_GPIO_GAP2"
         Tag <0x46028400, 0x4603FFFF> "AHB4_PERIPH"
         // APB5 peripherals
         Tag <0x48000000, 0x4800FFFF> "APB5_PERIPH"
