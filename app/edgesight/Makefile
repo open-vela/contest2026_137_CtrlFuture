@@ -14,6 +14,6 @@ MODULE    = $(CONFIG_APP_EDGESIGHT)
 
 MAINSRC = edgesight_main.c
 
-CSRCS  = fall_detect.c
+CSRCS  = fall_detect.c postprocess.c
 
 include $(APPDIR)/Application.mk
