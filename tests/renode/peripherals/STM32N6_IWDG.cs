@@ -4,12 +4,18 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 // STM32N6 IWDG (Independent Watchdog) model for Renode.
+// Register layout matches CMSIS IWDG_TypeDef (stm32n647xx.h).
 //
 // Registers:
-//   KR  @ 0x00: Key register (write-only)
-//   PR  @ 0x04: Prescaler (RW, requires unlock)
-//   RLR @ 0x08: Reload value (RW, requires unlock)
-//   SR  @ 0x0C: Status flags (read-only)
+//   KR   @ 0x00: Key register (write-only)
+//   PR   @ 0x04: Prescaler (RW, requires unlock)
+//   RLR  @ 0x08: Reload value (RW, requires unlock)
+//   SR   @ 0x0C: Status flags (read-only)
+//   WINR @ 0x10: Window register (RW, requires unlock)
+//   EWCR @ 0x14: Early wakeup control
+//   ICR  @ 0x18: Interrupt clear (write-only)
+//
+// SR bits: PVU(0), RVU(1), WVU(2), EWU(3), ONF(8), EWIF(15)
 //
 
 using Antmicro.Renode.Core;
@@ -32,7 +38,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         {
             // KR @ 0x00: Key register (write-only)
             // 0xCCCC = start watchdog
-            // 0x5555 = unlock PR/RLR
+            // 0x5555 = unlock PR/RLR/WINR
             // 0xAAAA = reload
             Registers.KR.Define(this)
                 .WithValueField(0, 16, FieldMode.Write, name: "KR",
@@ -52,7 +58,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                         }
                     });
 
-            // PR @ 0x04: Prescaler
+            // PR @ 0x04: Prescaler [2:0]
             Registers.PR.Define(this)
                 .WithValueField(0, 3, name: "PR",
                     valueProviderCallback: _ => prescaler,
@@ -61,7 +67,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                         if (unlocked) prescaler = (uint)val;
                     });
 
-            // RLR @ 0x08: Reload value
+            // RLR @ 0x08: Reload value [11:0]
             Registers.RLR.Define(this)
                 .WithValueField(0, 12, name: "RLR",
                     valueProviderCallback: _ => reload,
@@ -71,9 +77,12 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                     });
 
             // SR @ 0x0C: Status register (read-only)
-            // Bit 0: PVU (prescaler value update)
-            // Bit 1: RVU (reload value update)
-            // Bit 2: WVU (window value update)
+            // PVU (bit 0): prescaler value update
+            // RVU (bit 1): reload value update
+            // WVU (bit 2): window value update
+            // EWU (bit 3): early wakeup register update
+            // ONF (bit 8): watchdog enabled flag
+            // EWIF (bit 15): early wakeup interrupt flag
             Registers.SR.Define(this)
                 .WithFlag(0, FieldMode.Read,
                     valueProviderCallback: _ => false, name: "PVU")
@@ -81,13 +90,57 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                     valueProviderCallback: _ => false, name: "RVU")
                 .WithFlag(2, FieldMode.Read,
                     valueProviderCallback: _ => false, name: "WVU")
-                .WithReservedBits(3, 29);
+                .WithFlag(3, FieldMode.Read,
+                    valueProviderCallback: _ => false, name: "EWU")
+                .WithReservedBits(4, 4)
+                .WithFlag(8, FieldMode.Read,
+                    valueProviderCallback: _ => enabled, name: "ONF")
+                .WithReservedBits(9, 6)
+                .WithFlag(15, FieldMode.Read,
+                    valueProviderCallback: _ => false, name: "EWIF")
+                .WithReservedBits(16, 16);
+
+            // WINR @ 0x10: Window register [11:0]
+            Registers.WINR.Define(this)
+                .WithValueField(0, 12, name: "WINR",
+                    valueProviderCallback: _ => window,
+                    writeCallback: (_, val) =>
+                    {
+                        if (unlocked) window = (uint)val;
+                    });
+
+            // EWCR @ 0x14: Early wakeup control
+            // EWIT [11:0]: early wakeup comparison value
+            // EWIE (bit 15): early wakeup interrupt enable
+            Registers.EWCR.Define(this)
+                .WithValueField(0, 12, name: "EWIT",
+                    valueProviderCallback: _ => ewit,
+                    writeCallback: (_, val) => ewit = (uint)val)
+                .WithReservedBits(12, 3)
+                .WithFlag(15, name: "EWIE",
+                    valueProviderCallback: _ => ewie,
+                    writeCallback: (_, val) => ewie = val);
+
+            // ICR @ 0x18: Interrupt clear (write-only)
+            // EWIC (bit 15): early wakeup interrupt clear
+            Registers.ICR.Define(this)
+                .WithValueField(0, 32, FieldMode.Write, name: "ICR",
+                    writeCallback: (_, val) =>
+                    {
+                        if ((val & (1 << 15)) != 0)
+                        {
+                            // Clear EWIF - no-op since we never set it
+                        }
+                    });
         }
 
         private bool unlocked;
         private bool enabled;
         private uint prescaler;
         private uint reload;
+        private uint window;
+        private uint ewit;
+        private bool ewie;
 
         private enum Registers : long
         {
@@ -95,6 +148,9 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             PR = 0x04,
             RLR = 0x08,
             SR = 0x0C,
+            WINR = 0x10,
+            EWCR = 0x14,
+            ICR = 0x18,
         }
     }
 }

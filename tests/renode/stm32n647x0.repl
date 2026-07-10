@@ -98,6 +98,10 @@ i2c1: Miscellaneous.STM32N6_I2C @ sysbus 0x40005400
 // XSPI1 @ 0x48020000 (AHB5 + 0x0000)
 xspi1: Miscellaneous.STM32N6_XSPI @ sysbus 0x48020000
 
+// XSPI2 memory-mapped flash @ 0x70000000 (32MB)
+xspi2_flash: Memory.MappedMemory @ sysbus 0x70000000
+    size: 0x2000000
+
 // SDMMC1 @ 0x48040000 (AHB5 + 0x20000)
 sdmmc1: Miscellaneous.STM32N6_SDMMC @ sysbus 0x48040000
 
