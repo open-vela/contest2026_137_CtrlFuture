@@ -215,6 +215,7 @@ static void edgesight_loop(struct edgesight_app_s *app)
               if (!app->recording)
                 {
                   /* recorder_hal_start(&app->recorder, app->fall_count); */
+
                   app->recording = true;
                 }
 
@@ -256,6 +257,7 @@ static void edgesight_loop(struct edgesight_app_s *app)
       stats.alert_active = (app->fall_ctx.state == FALL_STATE_FALLEN);
 
       /* display_hal_draw_stats(&app->display, &stats); */
+
       /* display_hal_swap(&app->display); */
 
       /* Step 6: Feed frame to recorder if active */
