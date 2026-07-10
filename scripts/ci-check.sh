@@ -48,7 +48,26 @@ else
 fi
 
 echo ""
-echo "=== 4. Commit message 格式检查 ==="
+echo "=== 4. License 检查 ==="
+LICENSE_FAIL=0
+for f in $(find $FIND_DIRS -name "*.c" -o -name "*.h" 2>/dev/null); do
+    if ! grep -q "Licensed to the Apache Software Foundation" "$f"; then
+        echo "$f: missing ASF license header"
+        LICENSE_FAIL=1
+    fi
+    if ! grep -q "SPDX-License-Identifier: Apache-2.0" "$f"; then
+        echo "$f: WARNING: missing SPDX-License-Identifier (recommended)"
+    fi
+done
+if [ $LICENSE_FAIL -eq 0 ]; then
+    echo "PASS: license headers (ASF required, SPDX recommended)"
+else
+    echo "FAIL: all .c/.h files must contain ASF license header"
+    exit 1
+fi
+
+echo ""
+echo "=== 5. Commit message 格式检查 ==="
 COMMIT_MSG=$(git -C "$CONTEST_DIR" log -1 --format="%B")
 FIRST_LINE=$(echo "$COMMIT_MSG" | head -n1)
 MSG_FAIL=0
@@ -93,7 +112,7 @@ else
 fi
 
 echo ""
-echo "=== 5. 中文字符检查 (源文件) ==="
+echo "=== 6. 中文字符检查 (源文件) ==="
 CN_FAIL=0
 for f in $(find $FIND_DIRS -name "*.c" -o -name "*.h" 2>/dev/null); do
     if grep -Pn '[\x{4e00}-\x{9fff}]' "$f"; then
@@ -108,19 +127,19 @@ else
 fi
 
 echo ""
-echo "=== 6. STM32N6 真机编译 ==="
+echo "=== 7. STM32N6 真机编译 ==="
 ./build.sh "$BOARD/configs/nsh" distclean 2>/dev/null || true
 ./build.sh "$BOARD/configs/nsh" -j$(nproc)
 echo "PASS: nsh build"
 
 echo ""
-echo "=== 7. QEMU 编译 ==="
+echo "=== 8. QEMU 编译 ==="
 ./build.sh "$BOARD/configs/nsh-qemu" distclean 2>/dev/null || true
 ./build.sh "$BOARD/configs/nsh-qemu" -j$(nproc)
 echo "PASS: nsh-qemu build"
 
 echo ""
-echo "=== 8. 二进制体积守护 ==="
+echo "=== 9. 二进制体积守护 ==="
 SIZE=$(stat -c%s nuttx/nuttx.bin)
 MAX_SIZE=1048576  # 1MB
 echo "Binary size: $SIZE bytes (limit: $MAX_SIZE)"
@@ -131,15 +150,15 @@ fi
 echo "PASS: size check"
 
 echo ""
-echo "=== 9. 内存使用报告 ==="
+echo "=== 10. 内存使用报告 ==="
 arm-none-eabi-size nuttx/nuttx 2>/dev/null || echo "(cross-toolchain not in PATH, skip)"
 
 echo ""
-echo "=== 10. QEMU 冒烟测试 ==="
+echo "=== 11. QEMU 冒烟测试 ==="
 bash "$CONTEST_DIR/scripts/qemu-smoke.sh"
 
 echo ""
-echo "=== 11. defconfig 一致性 ==="
+echo "=== 12. defconfig 一致性 ==="
 ./build.sh "$BOARD/configs/nsh" savedefconfig 2>/dev/null
 if ! diff -q nuttx/defconfig "$CONTEST_DIR/board/contest_board/configs/nsh/defconfig" >/dev/null 2>&1; then
     echo "WARNING: defconfig has drifted — review changes"
