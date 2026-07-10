@@ -329,6 +329,7 @@ bool fall_detect_process(struct fall_detector_s *ctx,
         break;
 
       case FALL_STATE_FALLEN:
+
         /* Stay in fallen state until manually reset */
 
         break;
