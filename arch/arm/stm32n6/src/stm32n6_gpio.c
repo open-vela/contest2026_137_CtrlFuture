@@ -26,6 +26,7 @@
 
 #include <nuttx/config.h>
 
+#include <stdbool.h>
 #include <stdint.h>
 
 #include "arm_internal.h"
@@ -42,6 +43,9 @@
 #define GPIO_OTYPER_OFFSET   0x04
 #define GPIO_OSPEEDR_OFFSET  0x08
 #define GPIO_PUPDR_OFFSET    0x0c
+#define GPIO_IDR_OFFSET      0x10
+#define GPIO_ODR_OFFSET      0x14
+#define GPIO_BSRR_OFFSET     0x18
 #define GPIO_AFRL_OFFSET     0x20
 #define GPIO_AFRH_OFFSET     0x24
 
@@ -51,14 +55,17 @@
 
 static const uintptr_t g_gpiobase[] =
 {
-  STM32_GPIOA_BASE,
-  STM32_GPIOB_BASE,
-  STM32_GPIOC_BASE,
-  STM32_GPIOD_BASE,
-  STM32_GPIOE_BASE,
-  STM32_GPIOF_BASE,
-  STM32_GPIOG_BASE,
-  STM32_GPIOH_BASE,
+  STM32_GPIOA_BASE,   /* 0: GPIOA */
+  STM32_GPIOB_BASE,   /* 1: GPIOB */
+  STM32_GPIOC_BASE,   /* 2: GPIOC */
+  STM32_GPIOD_BASE,   /* 3: GPIOD */
+  STM32_GPIOE_BASE,   /* 4: GPIOE */
+  STM32_GPIOF_BASE,   /* 5: GPIOF */
+  STM32_GPIOG_BASE,   /* 6: GPIOG */
+  STM32_GPIOH_BASE,   /* 7: GPIOH */
+  STM32_GPIOI_BASE,   /* 8: GPIOI */
+  STM32_GPIOJ_BASE,   /* 9: GPIOJ */
+  STM32_GPIOZ_BASE,   /* 10: GPIOZ */
 };
 
 /****************************************************************************
@@ -153,4 +160,64 @@ int stm32n6_configgpio(uint32_t cfgset)
     }
 
   return 0;
+}
+
+/****************************************************************************
+ * Name: stm32n6_gpioread
+ *
+ * Description:
+ *   Read the current state of a GPIO pin.
+ *
+ ****************************************************************************/
+
+bool stm32n6_gpioread(uint32_t pinset)
+{
+  unsigned int port;
+  unsigned int pin;
+  uintptr_t base;
+
+  port = (pinset & GPIO_PORT_MASK) >> GPIO_PORT_SHIFT;
+  pin  = (pinset & GPIO_PIN_MASK)  >> GPIO_PIN_SHIFT;
+
+  if (port >= sizeof(g_gpiobase) / sizeof(g_gpiobase[0]))
+    {
+      return false;
+    }
+
+  base = g_gpiobase[port];
+  return (getreg32(base + GPIO_IDR_OFFSET) & (1u << pin)) != 0;
+}
+
+/****************************************************************************
+ * Name: stm32n6_gpiowrite
+ *
+ * Description:
+ *   Set or clear a GPIO pin using the bit-set/reset register.
+ *
+ ****************************************************************************/
+
+void stm32n6_gpiowrite(uint32_t pinset, bool value)
+{
+  unsigned int port;
+  unsigned int pin;
+  uintptr_t base;
+
+  port = (pinset & GPIO_PORT_MASK) >> GPIO_PORT_SHIFT;
+  pin  = (pinset & GPIO_PIN_MASK)  >> GPIO_PIN_SHIFT;
+
+  if (port >= sizeof(g_gpiobase) / sizeof(g_gpiobase[0]))
+    {
+      return;
+    }
+
+  base = g_gpiobase[port];
+
+  if (value)
+    {
+      putreg32(1u << pin, base + GPIO_BSRR_OFFSET);
+    }
+  else
+    {
+      putreg32(1u << (pin + 16), base + GPIO_BSRR_OFFSET);
+    }
 }

@@ -99,6 +99,9 @@
 #define GPIO_PORTF           (5ul << GPIO_PORT_SHIFT)
 #define GPIO_PORTG           (6ul << GPIO_PORT_SHIFT)
 #define GPIO_PORTH           (7ul << GPIO_PORT_SHIFT)
+#define GPIO_PORTI           (8ul << GPIO_PORT_SHIFT)
+#define GPIO_PORTJ           (9ul << GPIO_PORT_SHIFT)
+#define GPIO_PORTZ           (10ul << GPIO_PORT_SHIFT)
 
 /* Pin */
 
@@ -121,5 +124,7 @@
  ****************************************************************************/
 
 int stm32n6_configgpio(uint32_t cfgset);
+bool stm32n6_gpioread(uint32_t pinset);
+void stm32n6_gpiowrite(uint32_t pinset, bool value);
 
 #endif /* __ARCH_ARM_SRC_STM32N6_STM32N6_GPIO_H */
