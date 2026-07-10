@@ -95,6 +95,12 @@ gpdma1: Miscellaneous.STM32N6_GPDMA @ sysbus 0x40020000
 // I2C1 @ 0x40005400 (APB1 + 0x5400)
 i2c1: Miscellaneous.STM32N6_I2C @ sysbus 0x40005400
 
+// XSPI1 @ 0x48020000 (AHB5 + 0x0000)
+xspi1: Miscellaneous.STM32N6_XSPI @ sysbus 0x48020000
+
+// SDMMC1 @ 0x48040000 (AHB5 + 0x20000)
+sdmmc1: Miscellaneous.STM32N6_SDMMC @ sysbus 0x48040000
+
 // GPIO Ports A-Q @ AHB4 + offset (each 0x400 bytes)
 gpioPortA: GPIOPort.STM32_GPIOPort @ sysbus <0x46020000, +0x400>
     numberOfAFs: 16
@@ -157,8 +163,8 @@ sysbus:
         Tag <0x46028400, 0x4603FFFF> "AHB4_PERIPH"
         // APB5 peripherals
         Tag <0x48000000, 0x4800FFFF> "APB5_PERIPH"
-        // AHB5 peripherals
-        Tag <0x48020000, 0x4803FFFF> "AHB5_PERIPH"
+        // AHB5 peripherals (except XSPI1, SDMMC1)
+        Tag <0x48021000, 0x4803FFFF> "AHB5_PERIPH"
         // Internal SRAM2
         Tag <0x34420000, 0x34FFFFFF> "SRAM2"
         // FMC/QUADSPI
