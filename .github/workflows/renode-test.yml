@@ -74,6 +74,19 @@ jobs:
           git -C nuttx apply \
             "$GITHUB_WORKSPACE/contest2026_137_CtrlFuture/arch/arm/stm32n6/kconfig-stm32n6.patch"
 
+      - name: Build NuttX nsh
+        run: |
+          docker pull ghcr.io/open-vela/openvela-ci-linux_from_apache-nuttx:latest
+          docker run --rm \
+            -v "$GITHUB_WORKSPACE":/workspace \
+            -w /workspace/nuttx \
+            ghcr.io/open-vela/openvela-ci-linux_from_apache-nuttx:latest \
+            /bin/bash -c "
+              ./tools/configure.sh ../contest2026_137_CtrlFuture/board/contest_board/configs/nsh
+              make -j\$(nproc)
+            "
+          ls -la nuttx/nuttx
+
       - name: Copy C# models to Renode source
         run: |
           cp contest2026_137_CtrlFuture/tests/renode/peripherals/*.cs \
