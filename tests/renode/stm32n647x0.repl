@@ -131,6 +131,10 @@ gpioPortP: GPIOPort.STM32_GPIOPort @ sysbus <0x46023C00, +0x400>
 gpioPortQ: GPIOPort.STM32_GPIOPort @ sysbus <0x46024000, +0x400>
     numberOfAFs: 16
 
+// PWR @ 0x46024800 (AHB4 + 0x4800), size 0x80
+// C# model: STM32N6_PWR (VOSCR voltage scaling)
+pwr: Miscellaneous.STM32N6_PWR @ sysbus 0x46024800
+
 // RCC @ 0x46028000 (AHB4 + 0x8000), size 0x400
 // C# model: STM32N6_RCC (CR/SR ON->RDY mirror, peripheral clock enables)
 rcc: Miscellaneous.STM32N6_RCC @ sysbus 0x46028000

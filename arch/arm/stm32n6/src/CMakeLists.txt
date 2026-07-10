@@ -28,6 +28,7 @@ set(SRCS
     stm32n6_irq.c
     stm32n6_allocateheap.c
     stm32n6_gpio.c
-    stm32n6_timerisr.c)
+    stm32n6_timerisr.c
+    stm32n6_pwr.c)
 
 target_sources(arch PRIVATE ${SRCS})
