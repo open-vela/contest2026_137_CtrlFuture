@@ -31,21 +31,21 @@
 
 > 目标: 完整时钟树、全引脚 GPIO、DMA、SPI/I2C 总线、看门狗。
 
-| # | 模块 | ADR | 依赖 | 验证 |
-|---|------|-----|------|------|
-| 5 | RCC 时钟树完善 | [005](adr/ADR-005.md) | 004 | MEASURED |
-| 6 | GPIO 完善（165 引脚 AF） | [006](adr/ADR-006.md) | 005 | BUILD |
-| 7 | Cache 配置（ICACHE + DCACHE） | [007](adr/ADR-007.md) | 005 | MEASURED |
-| 8 | TCM 配置（DTCM + ITCM） | [008](adr/ADR-008.md) | 005 | MEASURED |
-| 9 | PWR 电源管理 | [009](adr/ADR-009.md) | 005 | MEASURED |
-| 10 | EXTI 扩展中断 | [010](adr/ADR-010.md) | 006 | QEMU |
-| 11 | GPDMA1 通用 DMA | [011](adr/ADR-011.md) | 005, 007 | MEASURED |
-| 12 | 额外 USART/UART | [012](adr/ADR-012.md) | 005, 006 | MEASURED |
-| 13 | SPI 驱动（SPI1-6） | [013](adr/ADR-013.md) | 006, 011 | MEASURED |
-| 14 | I2C 驱动（I2C1-4） | [014](adr/ADR-014.md) | 006, 011 | MEASURED |
-| 15 | 看门狗（IWDG/WWDG） | [015](adr/ADR-015.md) | 005 | MEASURED |
-| 16 | RTC 实时时钟 | [016](adr/ADR-016.md) | 005 | MEASURED |
-| 17 | MPU 内存保护 | [017](adr/ADR-017.md) | 007, 008 | QEMU |
+| # | 模块 | ADR | 依赖 | 验证 | 状态 |
+|---|------|-----|------|------|------|
+| 5 | RCC 时钟树完善 | [005](adr/ADR-005.md) | 004 | MEASURED | **DONE** |
+| 6 | GPIO 完善（165 引脚 AF） | [006](adr/ADR-006.md) | 005 | BUILD | |
+| 7 | Cache 配置（ICACHE + DCACHE） | [007](adr/ADR-007.md) | 005 | MEASURED | |
+| 8 | TCM 配置（DTCM + ITCM） | [008](adr/ADR-008.md) | 005 | MEASURED | |
+| 9 | PWR 电源管理 | [009](adr/ADR-009.md) | 005 | MEASURED | |
+| 10 | EXTI 扩展中断 | [010](adr/ADR-010.md) | 006 | QEMU | |
+| 11 | GPDMA1 通用 DMA | [011](adr/ADR-011.md) | 005, 007 | MEASURED | |
+| 12 | 额外 USART/UART | [012](adr/ADR-012.md) | 005, 006 | MEASURED | |
+| 13 | SPI 驱动（SPI1-6） | [013](adr/ADR-013.md) | 006, 011 | MEASURED | |
+| 14 | I2C 驱动（I2C1-4） | [014](adr/ADR-014.md) | 006, 011 | MEASURED | |
+| 15 | 看门狗（IWDG/WWDG） | [015](adr/ADR-015.md) | 005 | MEASURED | |
+| 16 | RTC 实时时钟 | [016](adr/ADR-016.md) | 005 | MEASURED | |
+| 17 | MPU 内存保护 | [017](adr/ADR-017.md) | 007, 008 | QEMU | |
 
 ## P2: 存储
 
