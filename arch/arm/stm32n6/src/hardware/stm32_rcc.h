@@ -105,9 +105,9 @@
 
 /* RCC_CR bits (CMSIS stm32n647xx.h) */
 
-#define RCC_CR_HSION             (1 << 3)   /* Internal high-speed osc enable */
-#define RCC_CR_HSIRDY            (1 << 2)   /* HSI ready (read-only in some revisions) */
-#define RCC_CR_HSEON             (1 << 4)   /* External high-speed osc enable */
+#define RCC_CR_HSION             (1 << 3)   /* HSI enable */
+#define RCC_CR_HSIRDY            (1 << 2)   /* HSI ready */
+#define RCC_CR_HSEON             (1 << 4)   /* HSE enable */
 #define RCC_CR_PLL1ON            (1 << 8)   /* PLL1 enable */
 #define RCC_CR_PLL2ON            (1 << 9)   /* PLL2 enable */
 #define RCC_CR_PLL3ON            (1 << 10)  /* PLL3 enable */
