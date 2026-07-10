@@ -29,6 +29,12 @@
 #include <sched.h>
 
 #include "fall_detect.h"
+#include "postprocess.h"
+#include "camera_hal.h"
+#include "npu_hal.h"
+#include "display_hal.h"
+#include "recorder_hal.h"
+#include "network_hal.h"
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -48,11 +54,20 @@ struct edgesight_app_s
 
   struct fall_detector_s fall_ctx;
 
+  /* HAL contexts */
+
+  struct camera_context_s camera;
+  struct npu_context_s npu;
+  struct display_context_s display;
+  struct recorder_context_s recorder;
+  struct network_context_s network;
+
   /* Pipeline state flags */
 
   volatile bool running;
   volatile bool camera_ready;
   volatile bool npu_busy;
+  volatile bool recording;
 
   /* Statistics */
 
@@ -139,50 +154,123 @@ static int edgesight_ai_init(void)
 
 static void edgesight_loop(struct edgesight_app_s *app)
 {
+  struct detection_output_s detections;
   struct pose_result_s pose;
   struct fall_output_s fall_out;
+  struct npu_inference_result_s npu_result;
+  struct display_stats_s stats;
+  uint32_t i;
 
   while (app->running)
     {
-      /* Step 1: Capture frame from camera
-       * TODO: CMW_CAMERA_Start(DCMIPP_PIPE2, nn_input, SNAPSHOT)
+      /* Step 1: Capture frame from camera (NN pipe, snapshot mode)
+       * camera_hal_start(&app->camera, 1, nn_buffer, CAM_MODE_SNAPSHOT);
+       * Wait for frame callback...
        */
 
-      /* Step 2: Run person detection (YOLO)
-       * TODO: stai_network_run(yolo_ctx, STAI_MODE_SYNC)
+      /* Step 2: Run person detection (YOLO-X nano) */
+
+      /* npu_hal_run(&app->npu, NPU_MODEL_DETECT, nn_buffer, &npu_result);
+       * postprocess_yolo(npu_result.output_buffers,
+       *                  npu_result.output_sizes,
+       *                  npu_result.output_count,
+       *                  app->npu.info[NPU_MODEL_DETECT].input_width,
+       *                  app->npu.info[NPU_MODEL_DETECT].input_height,
+       *                  &detections);
+       * app->inference_ms = npu_result.inference_time_ms;
        */
 
-      /* Step 3: For each detected person, run pose estimation
-       * TODO: crop person ROI -> stai_network_run(pose_ctx, SYNC)
-       */
+      /* Placeholder: no detections until HW is ready */
 
-      /* Step 4: Fall detection on pose output */
+      detections.count = 0;
 
-      /* Simulated pose data for skeleton testing */
+      /* Step 3: For each detected person, run pose estimation */
 
-      memset(&pose, 0, sizeof(pose));
-
-      if (fall_detect_process(&app->fall_ctx, &pose, &fall_out))
+      for (i = 0; i < detections.count; i++)
         {
-          app->fall_count++;
-          printf("[edgesight] FALL DETECTED! count=%lu conf=%.2f "
-                 "angle=%.1f\n",
-                 (unsigned long)app->fall_count,
-                 (double)fall_out.confidence,
-                 (double)fall_out.torso_angle);
+          /* TODO: Crop person ROI from camera frame */
 
-          /* TODO: Trigger recording */
+          /* npu_hal_run(&app->npu, NPU_MODEL_POSE, crop_buf, &npu_result);
+           * postprocess_movenet(npu_result.output_buffers[0],
+           *                     npu_result.output_sizes[0],
+           *                     &detections.detections[i],
+           *                     &pose);
+           */
 
-          /* TODO: Send MQTT alert */
+          memset(&pose, 0, sizeof(pose));
 
-          /* TODO: Display red alert on LCD */
+          /* Step 4: Fall detection */
+
+          if (fall_detect_process(&app->fall_ctx, &pose, &fall_out))
+            {
+              app->fall_count++;
+              printf("[edgesight] FALL DETECTED! count=%lu conf=%.2f "
+                     "angle=%.1f\n",
+                     (unsigned long)app->fall_count,
+                     (double)fall_out.confidence,
+                     (double)fall_out.torso_angle);
+
+              /* Trigger event recording */
+
+              if (!app->recording)
+                {
+                  /* recorder_hal_start(&app->recorder, app->fall_count); */
+                  app->recording = true;
+                }
+
+              /* Send MQTT alert */
+
+              /* struct alert_message_s alert = {
+               *   .level = ALERT_LEVEL_CRITICAL,
+               *   .confidence = fall_out.confidence,
+               *   .torso_angle = fall_out.torso_angle,
+               *   .frame_number = app->frame_count,
+               *   .description = "Fall detected"
+               * };
+               * network_hal_send_alert(&app->network, &alert);
+               */
+
+              /* Display alert */
+
+              /* display_hal_show_alert(&app->display, "FALL DETECTED"); */
+            }
         }
 
-      /* Step 5: Update display
-       * TODO: GPU2D render detection boxes + stats
+      /* Step 5: Update display */
+
+      /* display_hal_clear_fg(&app->display);
+       * for (i = 0; i < detections.count; i++) {
+       *   struct display_bbox_s bbox = {
+       *     .x = detections.detections[i].x_center * screen_w,
+       *     ...
+       *   };
+       *   display_hal_draw_bbox(&app->display, &bbox);
+       * }
        */
 
+      memset(&stats, 0, sizeof(stats));
+      stats.fps = (app->frame_count > 0) ? 30 : 0;
+      stats.inference_ms = app->inference_ms;
+      stats.persons_detected = detections.count;
+      stats.fall_count = app->fall_count;
+      stats.alert_active = (app->fall_ctx.state == FALL_STATE_FALLEN);
+
+      /* display_hal_draw_stats(&app->display, &stats); */
+      /* display_hal_swap(&app->display); */
+
+      /* Step 6: Feed frame to recorder if active */
+
+      /* if (app->recording) {
+       *   recorder_hal_feed_frame(&app->recorder, yuv_frame, frame_size);
+       * }
+       */
+
+      /* Step 7: Network keepalive */
+
+      /* network_hal_poll(&app->network); */
+
       app->frame_count++;
+      app->detect_count += detections.count;
 
       /* Yield to other tasks */
 
