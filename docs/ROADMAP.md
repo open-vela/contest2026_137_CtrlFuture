@@ -34,7 +34,7 @@
 | # | 模块 | ADR | 依赖 | 验证 | 状态 |
 |---|------|-----|------|------|------|
 | 5 | RCC 时钟树完善 | [005](adr/ADR-005.md) | 004 | MEASURED | **DONE** |
-| 6 | GPIO 完善（165 引脚 AF） | [006](adr/ADR-006.md) | 005 | BUILD | |
+| 6 | GPIO 完善（165 引脚 AF） | [006](adr/ADR-006.md) | 005 | BUILD | **DONE** |
 | 7 | Cache 配置（ICACHE + DCACHE） | [007](adr/ADR-007.md) | 005 | MEASURED | |
 | 8 | TCM 配置（DTCM + ITCM） | [008](adr/ADR-008.md) | 005 | MEASURED | |
 | 9 | PWR 电源管理 | [009](adr/ADR-009.md) | 005 | MEASURED | |
