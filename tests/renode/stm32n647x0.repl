@@ -88,6 +88,9 @@ rtc: Miscellaneous.STM32N6_RTC @ sysbus 0x40002800
 
 // EXTI @ 0x46000400 (APB4 + 0x0400)
 exti: Miscellaneous.STM32N6_EXTI @ sysbus 0x46000400
+
+// GPDMA1 @ 0x40020000 (AHB1 + 0x0000)
+gpdma1: Miscellaneous.STM32N6_GPDMA @ sysbus 0x40020000
 // GPIO Ports A-Q @ AHB4 + offset (each 0x400 bytes)
 gpioPortA: GPIOPort.STM32_GPIOPort @ sysbus <0x46020000, +0x400>
     numberOfAFs: 16
@@ -132,8 +135,8 @@ sysbus:
         // APB2 peripherals (except USART1/6, UART9/10)
         Tag <0x42000000, 0x42000FFF> "APB2_PERIPH_A"
         Tag <0x42002000, 0x4200FFFF> "APB2_PERIPH_B"
-        // AHB1 peripherals
-        Tag <0x40020000, 0x4003FFFF> "AHB1_PERIPH"
+        // AHB1 peripherals (except GPDMA1)
+        Tag <0x40021000, 0x4003FFFF> "AHB1_PERIPH"
         // AHB2 peripherals
         Tag <0x42020000, 0x4203FFFF> "AHB2_PERIPH"
         // APB3 peripherals
