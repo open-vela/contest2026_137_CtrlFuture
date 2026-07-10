@@ -1,0 +1,60 @@
+/****************************************************************************
+ * app/edgesight/Kconfig
+ ****************************************************************************/
+
+config APP_EDGESIGHT
+	tristate "EdgeSight AI Edge Sentinel"
+	default n
+	---help---
+		EdgeSight: AI-powered fall detection and surveillance terminal.
+		Uses NPU for person detection and pose estimation,
+		with multi-modal sensor fusion for decision making.
+
+if APP_EDGESIGHT
+
+config EDGESIGHT_PRIORITY
+	int "EdgeSight main task priority"
+	default 100
+
+config EDGESIGHT_STACKSIZE
+	int "EdgeSight main task stack size"
+	default 4096
+
+config EDGESIGHT_ENABLE_DISPLAY
+	bool "Enable LCD display output"
+	default y
+	---help---
+		Enable LTDC + GPU2D display rendering.
+
+config EDGESIGHT_ENABLE_RECORDING
+	bool "Enable H.264 event recording"
+	default y
+	---help---
+		Enable H.264 hardware encoding and SD card recording.
+
+config EDGESIGHT_ENABLE_NETWORK
+	bool "Enable network services"
+	default y
+	---help---
+		Enable MQTT alerts and RTSP streaming.
+
+config EDGESIGHT_ENABLE_AUDIO
+	bool "Enable audio detection"
+	default n
+	---help---
+		Enable microphone input and sound event classification.
+
+config EDGESIGHT_FALL_CONSECUTIVE_FRAMES
+	int "Consecutive frames to confirm fall"
+	default 3
+	---help---
+		Number of consecutive suspicious frames required
+		before triggering a fall alert.
+
+config EDGESIGHT_FALL_TORSO_ANGLE
+	int "Torso angle threshold (degrees)"
+	default 55
+	---help---
+		Torso angle from vertical above which a fall is suspected.
+
+endif # APP_EDGESIGHT
