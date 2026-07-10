@@ -1,0 +1,15 @@
+# STM32N6 Renode Smoke Test
+# Verifies: NuttX boot → NSH prompt on USART1
+using sysbus
+mach create "stm32n6"
+machine LoadPlatformDescription @tests/renode/stm32n647x0.repl
+
+sysbus LoadELF @nuttx/nuttx
+
+# Log UART output to file
+emulation CreateUartPtyTerminal "term" "/tmp/renode_uart_pty" true
+connector Connect sysbus.usart1 term
+
+showAnalyzer sysbus.usart1
+
+start

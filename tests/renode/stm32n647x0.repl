@@ -1,0 +1,79 @@
+// STM32N647X0 Renode Platform Definition
+//
+// Cortex-M55 @ 64MHz (HSI), 4.2MB SRAM
+// Register definitions derived from stm32n647xx.h (CMSIS)
+//
+// Used for: NuttX NSH boot verification
+// ADR-002: Minimum boot (RCC/GPIO/USART1/IRQ/heap/start)
+
+cpu: CPU.CortexM @ sysbus
+    cpuType: "cortex-m33"
+    nvic: nvic
+
+nvic: IRQControllers.NVIC @ sysbus 0xE000E000
+    systickFrequency: 64000000
+    priorityMask: 0xF0
+    IRQ -> cpu@0
+
+// SRAM: 0x34000000 - 0x3441FFFF (4.2MB)
+// In DEV boot mode, code starts at 0x34000400 (first 1KB = boot ROM header)
+sram: Memory.MappedMemory @ sysbus 0x34000000
+    size: 0x420000
+
+// USART1 @ 0x42001000 (APB2 + 0x1000)
+// IRQ 159 (USART1_IRQn)
+// PE5=TX (AF7), PE6=RX (AF7)
+usart1: UART.STM32F7_USART @ sysbus 0x42001000
+    frequency: 64000000
+    IRQ -> nvic@159
+
+// GPIO Port E @ 0x46021000 (AHB4 + 0x1000)
+gpioPortE: GPIOPort.STM32_GPIOPort @ sysbus <0x46021000, +0x400>
+    numberOfAFs: 16
+
+// RCC @ 0x46028000 (AHB4 + 0x8000), size 0x400
+// Using MappedMemory: STM32N6 RCC offsets (AHB4ENR=0x25C, APB2ENR=0x26C)
+// differ from H7 model. MappedMemory supports read-modify-write natively.
+rcc: Memory.MappedMemory @ sysbus 0x46028000
+    size: 0x400
+
+// SysTick is built into NVIC (systickFrequency above)
+
+// Tag unimplemented peripherals to suppress "unhandled access" warnings
+sysbus:
+    init:
+        // Pre-set hardware ready flags so polling loops exit immediately
+        // RCC_CR @ 0x46028000: HSIRDY (bit 2) = 1
+        WriteByte 0x46028000 0x05
+        // APB1 peripherals
+        Tag <0x40000000, 0x4000FFFF> "APB1_PERIPH"
+        // APB2 peripherals (except USART1)
+        Tag <0x42000000, 0x42000FFF> "APB2_PERIPH"
+        Tag <0x42002000, 0x4200FFFF> "APB2_PERIPH2"
+        // AHB1 peripherals
+        Tag <0x40020000, 0x4003FFFF> "AHB1_PERIPH"
+        // AHB2 peripherals
+        Tag <0x42020000, 0x4203FFFF> "AHB2_PERIPH"
+        // APB3 peripherals
+        Tag <0x44000000, 0x4400FFFF> "APB3_PERIPH"
+        // AHB3 peripherals
+        Tag <0x44020000, 0x4403FFFF> "AHB3_PERIPH"
+        // APB4 peripherals (except LPUART1)
+        Tag <0x46000000, 0x46000BFF> "APB4_PERIPH"
+        Tag <0x46000D00, 0x4600FFFF> "APB4_PERIPH2"
+        // AHB4 peripherals (except GPIOE, RCC)
+        Tag <0x46020000, 0x46020FFF> "GPIOA-D"
+        Tag <0x46022000, 0x46027FFF> "GPIO-other"
+        Tag <0x46028400, 0x4603FFFF> "AHB4_PERIPH"
+        // APB5 peripherals
+        Tag <0x48000000, 0x4800FFFF> "APB5_PERIPH"
+        // AHB5 peripherals
+        Tag <0x48020000, 0x4803FFFF> "AHB5_PERIPH"
+        // Internal SRAM2
+        Tag <0x34420000, 0x34FFFFFF> "SRAM2"
+        // FMC/QUADSPI
+        Tag <0x90000000, 0x9FFFFFFF> "FMC"
+        // ARM FPB (Flash Patch and Breakpoint) debug registers
+        Tag <0xE0002000, 0xE0002FFF> "FPB_STUB"
+        // ARM ITM/DWT debug registers
+        Tag <0xE0001000, 0xE0001FFF> "ITM_STUB"
