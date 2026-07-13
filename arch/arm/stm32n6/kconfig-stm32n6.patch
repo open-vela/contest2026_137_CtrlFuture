@@ -12,6 +12,8 @@ index 3c5b394b867..2f9e4f7aeed 100644
 +	select ARCH_HAVE_MPU
 +	select ARCH_HAVE_FPU
 +	select ARM_HAVE_MVE
++	select ARMV8M_HAVE_ICACHE
++	select ARMV8M_HAVE_DCACHE
 +	---help---
 +		STMicro STM32N6 architectures (ARM Cortex-M55).
 +

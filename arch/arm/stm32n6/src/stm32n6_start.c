@@ -25,6 +25,7 @@
  ****************************************************************************/
 
 #include <nuttx/config.h>
+#include <nuttx/cache.h>
 #include <nuttx/init.h>
 
 #include <stdint.h>
@@ -112,6 +113,15 @@ void __start(void)
   /* Configure clocks */
 
   stm32n6_clockconfig();
+
+  /* Enable instruction and data caches */
+
+#ifdef CONFIG_ARMV8M_ICACHE
+  up_enable_icache();
+#endif
+#ifdef CONFIG_ARMV8M_DCACHE
+  up_enable_dcache();
+#endif
 
   /* Configure the UART for early debug output */
 
