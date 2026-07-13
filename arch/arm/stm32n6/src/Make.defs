@@ -57,3 +57,27 @@ endif
 ifneq ($(filter y,$(CONFIG_STM32_SPI1) $(CONFIG_STM32_SPI2)),)
   CHIP_CSRCS += stm32n6_spi.c
 endif
+
+ifeq ($(CONFIG_STM32_SDMMC1),y)
+  CHIP_CSRCS += stm32n6_sdmmc.c
+endif
+
+ifeq ($(CONFIG_STM32_XSPI1),y)
+  CHIP_CSRCS += stm32n6_xspi.c
+endif
+
+ifeq ($(CONFIG_STM32_EMAC),y)
+  CHIP_CSRCS += stm32n6_ethernet.c
+endif
+
+ifeq ($(CONFIG_STM32_SAI1),y)
+  CHIP_CSRCS += stm32n6_sai.c
+endif
+
+ifeq ($(CONFIG_STM32_FDCAN1),y)
+  CHIP_CSRCS += stm32n6_fdcan.c
+endif
+
+ifeq ($(CONFIG_STM32_OTG),y)
+  CHIP_CSRCS += stm32n6_otg.c
+endif

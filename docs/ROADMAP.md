@@ -51,22 +51,22 @@
 
 > 目标: 从外部 Flash 启动，SD 卡文件系统。
 
-| # | 模块 | ADR | 依赖 | 验证 |
-|---|------|-----|------|------|
-| 18 | XSPI 接口驱动 | [018](adr/ADR-018.md) | 005, 006, 011 | MEASURED |
-| 19 | XSPI Flash 启动 | [019](adr/ADR-019.md) | 018 | MEASURED |
-| 20 | SDMMC 驱动 | [020](adr/ADR-020.md) | 005, 006, 011 | MEASURED |
-| 21 | FMC 存储控制器 | [021](adr/ADR-021.md) | 005, 006 | MEASURED |
+| # | 模块 | ADR | 依赖 | 验证 | 状态 |
+|---|------|-----|------|------|------|
+| 18 | XSPI 接口驱动 | [018](adr/ADR-018.md) | 005, 006, 011 | MEASURED | **DONE** |
+| 19 | XSPI Flash 启动 | [019](adr/ADR-019.md) | 018 | MEASURED | |
+| 20 | SDMMC 驱动 | [020](adr/ADR-020.md) | 005, 006, 011 | MEASURED | **DONE** |
+| 21 | FMC 存储控制器 | [021](adr/ADR-021.md) | 005, 006 | MEASURED | |
 
 ## P3: 通信
 
 > 目标: 网络连接、USB 设备。
 
-| # | 模块 | ADR | 依赖 | 验证 |
-|---|------|-----|------|------|
-| 22 | Ethernet GMAC (1G) | [022](adr/ADR-022.md) | 005, 006, 011, 007 | MEASURED |
-| 23 | USB OTG HS | [023](adr/ADR-023.md) | 005, 006, 009 | MEASURED |
-| 24 | FDCAN | [024](adr/ADR-024.md) | 005, 006 | MEASURED |
+| # | 模块 | ADR | 依赖 | 验证 | 状态 |
+|---|------|-----|------|------|------|
+| 22 | Ethernet GMAC (1G) | [022](adr/ADR-022.md) | 005, 006, 011, 007 | MEASURED | **DONE** |
+| 23 | USB OTG HS | [023](adr/ADR-023.md) | 005, 006, 009 | MEASURED | **DONE** |
+| 24 | FDCAN | [024](adr/ADR-024.md) | 005, 006 | MEASURED | **DONE** |
 
 ## P4: 高级功能
 

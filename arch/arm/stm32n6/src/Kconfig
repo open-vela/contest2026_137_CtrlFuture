@@ -134,6 +134,48 @@ config STM32_SPI2
 	---help---
 		Enable SPI2 master mode driver.
 
+config STM32_SDMMC1
+	bool "SDMMC1 (SD Card)"
+	default n
+	select MMCSD
+	---help---
+		Enable SDMMC1 driver for SD card storage.
+
+config STM32_XSPI1
+	bool "XSPI1 (External SPI Flash)"
+	default n
+	---help---
+		Enable XSPI1 driver for external NOR/NAND Flash.
+
+config STM32_EMAC
+	bool "Ethernet MAC (GMAC)"
+	default n
+	select NET
+	select NETDEV
+	---help---
+		Enable Ethernet GMAC driver for network connectivity.
+
+config STM32_SAI1
+	bool "SAI1 (Serial Audio Interface)"
+	default n
+	select AUDIO
+	---help---
+		Enable SAI1 driver for audio input/output.
+
+config STM32_FDCAN1
+	bool "FDCAN1 (CAN Bus)"
+	default n
+	select CAN
+	---help---
+		Enable FDCAN1 driver for CAN bus communication.
+
+config STM32_OTG
+	bool "USB OTG HS"
+	default n
+	select USBDEV
+	---help---
+		Enable USB OTG HS device controller.
+
 endmenu
 
 endif
