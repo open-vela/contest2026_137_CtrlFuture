@@ -80,6 +80,20 @@ config STM32_IWDG
 		Enable the Independent Watchdog (IWDG) peripheral for
 		system hang detection. Uses LSI 32kHz clock.
 
+config STM32_I2C1
+	bool "I2C1"
+	default n
+	select I2C
+	---help---
+		Enable I2C1 master mode driver (interrupt-driven).
+
+config STM32_I2C2
+	bool "I2C2"
+	default n
+	select I2C
+	---help---
+		Enable I2C2 master mode driver (interrupt-driven).
+
 endmenu
 
 endif

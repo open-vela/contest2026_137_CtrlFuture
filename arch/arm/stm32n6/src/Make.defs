@@ -37,3 +37,7 @@ endif
 ifeq ($(CONFIG_STM32_IWDG),y)
   CHIP_CSRCS += stm32n6_iwdg.c
 endif
+
+ifneq ($(filter y,$(CONFIG_STM32_I2C1) $(CONFIG_STM32_I2C2)),)
+  CHIP_CSRCS += stm32n6_i2c.c
+endif
