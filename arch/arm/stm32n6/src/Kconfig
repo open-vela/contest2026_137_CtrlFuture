@@ -73,6 +73,13 @@ config STM32_USART3
 	select USART3_SERIALDRIVER
 	select ARCH_HAVE_SERIAL_TERMIOS
 
+config STM32_IWDG
+	bool "IWDG (Independent Watchdog)"
+	default n
+	---help---
+		Enable the Independent Watchdog (IWDG) peripheral for
+		system hang detection. Uses LSI 32kHz clock.
+
 endmenu
 
 endif

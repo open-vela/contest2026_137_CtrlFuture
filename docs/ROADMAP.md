@@ -43,7 +43,7 @@
 | 12 | 额外 USART/UART | [012](adr/ADR-012.md) | 005, 006 | MEASURED | |
 | 13 | SPI 驱动（SPI1-6） | [013](adr/ADR-013.md) | 006, 011 | MEASURED | |
 | 14 | I2C 驱动（I2C1-4） | [014](adr/ADR-014.md) | 006, 011 | MEASURED | |
-| 15 | 看门狗（IWDG/WWDG） | [015](adr/ADR-015.md) | 005 | MEASURED | |
+| 15 | 看门狗（IWDG/WWDG） | [015](adr/ADR-015.md) | 005 | MEASURED | **DONE** |
 | 16 | RTC 实时时钟 | [016](adr/ADR-016.md) | 005 | MEASURED | |
 | 17 | MPU 内存保护 | [017](adr/ADR-017.md) | 007, 008 | QEMU | |
 

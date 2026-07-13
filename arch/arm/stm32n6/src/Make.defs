@@ -33,3 +33,7 @@ endif
 ifeq ($(CONFIG_VIDEO_FB),y)
   CHIP_CSRCS += stm32n6_ltdc.c
 endif
+
+ifeq ($(CONFIG_STM32_IWDG),y)
+  CHIP_CSRCS += stm32n6_iwdg.c
+endif
