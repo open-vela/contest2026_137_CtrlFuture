@@ -19,6 +19,8 @@ config ARCH_CHIP_STM32N647X0
 	select ARM_HAVE_MVE
 	select ARMV8M_HAVE_ICACHE
 	select ARMV8M_HAVE_DCACHE
+	select ARMV8M_HAVE_ITCM
+	select ARMV8M_HAVE_DTCM
 
 endchoice
 

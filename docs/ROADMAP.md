@@ -36,7 +36,7 @@
 | 5 | RCC 时钟树完善 | [005](adr/ADR-005.md) | 004 | MEASURED | **DONE** |
 | 6 | GPIO 完善（165 引脚 AF） | [006](adr/ADR-006.md) | 005 | BUILD | **DONE** |
 | 7 | Cache 配置（ICACHE + DCACHE） | [007](adr/ADR-007.md) | 005 | MEASURED | **DONE** |
-| 8 | TCM 配置（DTCM + ITCM） | [008](adr/ADR-008.md) | 005 | MEASURED | |
+| 8 | TCM 配置（DTCM + ITCM） | [008](adr/ADR-008.md) | 005 | MEASURED | **DONE** |
 | 9 | PWR 电源管理 | [009](adr/ADR-009.md) | 005 | MEASURED | **DONE** |
 | 10 | EXTI 扩展中断 | [010](adr/ADR-010.md) | 006 | QEMU | |
 | 11 | GPDMA1 通用 DMA | [011](adr/ADR-011.md) | 005, 007 | MEASURED | |

@@ -2,7 +2,7 @@ diff --git a/arch/arm/Kconfig b/arch/arm/Kconfig
 index 3c5b394b867..9d280cf8203 100644
 --- a/arch/arm/Kconfig
 +++ b/arch/arm/Kconfig
-@@ -551,6 +551,17 @@ config ARCH_CHIP_STM32U5
+@@ -551,6 +551,19 @@ config ARCH_CHIP_STM32U5
  	---help---
  		STMicro STM32 U5 architectures (ARM Cortex-M33).
  
@@ -14,13 +14,15 @@ index 3c5b394b867..9d280cf8203 100644
 +	select ARM_HAVE_MVE
 +	select ARMV8M_HAVE_ICACHE
 +	select ARMV8M_HAVE_DCACHE
++	select ARMV8M_HAVE_ITCM
++	select ARMV8M_HAVE_DTCM
 +	---help---
 +		STMicro STM32N6 architectures (ARM Cortex-M55).
 +
  config ARCH_CHIP_STM32WB
  	bool "STMicro STM32 WB"
  	select ARCH_CORTEXM4
-@@ -1135,6 +1146,7 @@ config ARCH_CHIP
+@@ -1135,6 +1148,7 @@ config ARCH_CHIP
  	default "stm32h5"	if ARCH_CHIP_STM32H5
  	default "stm32l5"	if ARCH_CHIP_STM32L5
  	default "stm32u5"	if ARCH_CHIP_STM32U5
@@ -28,7 +30,7 @@ index 3c5b394b867..9d280cf8203 100644
  	default "stm32wb"	if ARCH_CHIP_STM32WB
  	default "stm32wl5"	if ARCH_CHIP_STM32WL5
  	default "str71x"	if ARCH_CHIP_STR71X
-@@ -1631,6 +1643,9 @@ endif
+@@ -1631,6 +1645,9 @@ endif
  if ARCH_CHIP_STM32U5
  source "arch/arm/src/stm32u5/Kconfig"
  endif
