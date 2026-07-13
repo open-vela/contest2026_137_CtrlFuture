@@ -15,16 +15,18 @@ nvic: IRQControllers.NVIC @ sysbus 0xE000E000
     priorityMask: 0xF0
     IRQ -> cpu@0
 
-// ITCM: 64KB @ 0x00000000 (instruction tight-coupled memory)
+// ITCM: 64KB @ 0x00000000 (instruction tightly-coupled memory)
+// STM32N647 FLEXRAM: 400KB shared between ITCM (64-256KB) and DTCM
 itcm: Memory.MappedMemory @ sysbus 0x00000000
     size: 0x10000
 
-// DTCM: 128KB @ 0x20000000 (data tight-coupled memory)
+// DTCM: 128KB @ 0x20000000 (data tightly-coupled memory)
 dtcm: Memory.MappedMemory @ sysbus 0x20000000
     size: 0x20000
 
-// SRAM: 0x34000000 - 0x3441FFFF (4.2MB)
-// In DEV boot mode, code starts at 0x34000400 (first 1KB = boot ROM header)
+// SRAM1_AXI (secure): 1MB @ 0x34000000
+// STM32N647 LRUN mode: code+data in SRAM, DEV boot header at 0x34000000 (1KB)
+// NuttX nsh config: code starts at 0x34000400, 4.2MB total
 sram: Memory.MappedMemory @ sysbus 0x34000000
     size: 0x420000
 
