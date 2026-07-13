@@ -111,6 +111,15 @@ config STM32_RTC
 		Uses LSI ~32kHz clock source. Provides time for
 		file system timestamps and alarm functionality.
 
+config STM32_GPDMA
+	bool "GPDMA (General Purpose DMA)"
+	default n
+	select DMA
+	---help---
+		Enable the GPDMA (General Purpose DMA) controller for
+		memory-to-memory, memory-to-peripheral, and
+		peripheral-to-memory transfers.
+
 endmenu
 
 endif

@@ -49,3 +49,7 @@ endif
 ifeq ($(CONFIG_STM32_EXTI),y)
   CHIP_CSRCS += stm32n6_exti.c
 endif
+
+ifeq ($(CONFIG_STM32_GPDMA),y)
+  CHIP_CSRCS += stm32n6_dma.c
+endif
