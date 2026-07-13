@@ -81,3 +81,7 @@ endif
 ifeq ($(CONFIG_STM32_OTG),y)
   CHIP_CSRCS += stm32n6_otg.c
 endif
+
+ifeq ($(CONFIG_STM32_RNG),y)
+  CHIP_CSRCS += stm32n6_rng.c
+endif

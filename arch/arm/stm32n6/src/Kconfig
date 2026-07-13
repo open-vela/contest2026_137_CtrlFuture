@@ -176,6 +176,14 @@ config STM32_OTG
 	---help---
 		Enable USB OTG HS device controller.
 
+config STM32_RNG
+	bool "RNG (Random Number Generator)"
+	default n
+	select ARCH_HAVE_RNG
+	---help---
+		Enable the STM32N6 hardware random number generator.
+		Provides /dev/random and optionally /dev/urandom.
+
 endmenu
 
 endif

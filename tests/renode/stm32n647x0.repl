@@ -158,6 +158,9 @@ npu: Miscellaneous.STM32N6_NPU @ sysbus 0x480E0000
 // SAES (Crypto) @ 0x42006000 (APB2 + 0x6000, secure-only, not in CMSIS _BASE_NS)
 cryp: Miscellaneous.STM32N6_CRYP @ sysbus 0x42006000
 
+// RNG (Random Number Generator) @ 0x44020000 (AHB3 + 0x0000)
+rng: Miscellaneous.STM32N6_RNG @ sysbus 0x44020000
+
 // OTP (via BSEC) @ 0x46009000 (APB4 + 0x9000)
 otp: Miscellaneous.STM32N6_OTP @ sysbus 0x46009000
 
@@ -224,8 +227,8 @@ sysbus:
         Tag <0x42020000, 0x4203FFFF> "AHB2_PERIPH"
         // APB3 peripherals
         Tag <0x44000000, 0x4400FFFF> "APB3_PERIPH"
-        // AHB3 peripherals
-        Tag <0x44020000, 0x4403FFFF> "AHB3_PERIPH"
+        // AHB3 peripherals (except RNG @ 0x44020000)
+        Tag <0x44020100, 0x4403FFFF> "AHB3_PERIPH"
         // APB4 peripherals (except LPTIM2-5, RTC, IWDG, BSEC/OTP, DTS)
         Tag <0x46000000, 0x460023FF> "APB4_PERIPH_A"
         Tag <0x46003100, 0x46003FFF> "APB4_PERIPH_B"

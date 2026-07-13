@@ -84,4 +84,8 @@
 #define STM32_GPIOQ_BASE       (STM32_AHB4_BASE + 0x4000)
 #define STM32_RCC_BASE         (STM32_AHB4_BASE + 0x8000)
 
+/* AHB3 peripherals */
+
+#define STM32_RNG_BASE         (STM32_AHB3_BASE + 0x0000)
+
 #endif /* __ARCH_ARM_SRC_STM32N6_HARDWARE_STM32_MEMORYMAP_H */

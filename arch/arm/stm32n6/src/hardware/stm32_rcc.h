@@ -65,9 +65,9 @@
 
 /* Bus clock enable registers */
 
-#define STM32_RCC_AHB1ENR_OFFSET    0x0240  /* AHB1 periph clock enable */
-#define STM32_RCC_AHB2ENR_OFFSET    0x0244  /* AHB2 periph clock enable */
-#define STM32_RCC_AHB3ENR_OFFSET    0x0248  /* AHB3 periph clock enable */
+#define STM32_RCC_AHB1ENR_OFFSET    0x0250  /* AHB1 periph clock enable */
+#define STM32_RCC_AHB2ENR_OFFSET    0x0254  /* AHB2 periph clock enable */
+#define STM32_RCC_AHB3ENR_OFFSET    0x0258  /* AHB3 periph clock enable */
 #define STM32_RCC_AHB4ENR_OFFSET    0x025c  /* AHB4 periph clock enable */
 #define STM32_RCC_AHB5ENR_OFFSET    0x0260  /* AHB5 periph clock enable */
 #define STM32_RCC_APB1ENR_OFFSET    0x0264  /* APB1 periph clock enable */
@@ -206,6 +206,10 @@
 /* APB2ENR bits: USART1 enable */
 
 #define RCC_APB2ENR_USART1EN     (1 << 4)
+
+/* AHB3ENR bits: RNG enable */
+
+#define RCC_AHB3ENR_RNGEN       (1 << 0)
 
 /* AHB1ENR bits: DMA enables */
 

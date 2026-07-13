@@ -39,4 +39,8 @@ if(CONFIG_VIDEO_FB)
   list(APPEND SRCS stm32n6_ltdc.c)
 endif()
 
+if(CONFIG_STM32_RNG)
+  list(APPEND SRCS stm32n6_rng.c)
+endif()
+
 target_sources(arch PRIVATE ${SRCS})
