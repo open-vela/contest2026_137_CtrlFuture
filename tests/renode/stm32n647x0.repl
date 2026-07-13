@@ -117,6 +117,48 @@ fdcan1: Miscellaneous.STM32N6_FDCAN @ sysbus 0x4000A000
 // USB OTG HS @ 0x40040000 (AHB2)
 otg: Miscellaneous.STM32N6_OTG @ sysbus 0x40040000
 
+// LTDC (LCD-TFT Display Controller) @ 0x50001000 (APB5)
+ltdc: Miscellaneous.STM32N6_LTDC @ sysbus 0x50001000
+
+// DCMIPP (Camera Pipeline) @ 0x50005000 (APB5)
+dcmipp: Miscellaneous.STM32N6_DCMIPP @ sysbus 0x50005000
+
+// HPDMA1 (High-Performance DMA) @ 0x40021000 (AHB1, after GPDMA1)
+hpdma1: Miscellaneous.STM32N6_HPDMA @ sysbus 0x40021000
+
+// TIM1 (Advanced Timer) @ 0x40012C00 (APB2)
+tim1: Miscellaneous.STM32N6_TIM @ sysbus 0x40012C00
+
+// TIM2 (General Purpose Timer) @ 0x40000000 (APB1)
+tim2: Miscellaneous.STM32N6_TIM @ sysbus 0x40000000
+
+// LPTIM1 @ 0x40002400 (APB1 + 0x2400)
+lptim1: Miscellaneous.STM32N6_LPTIM @ sysbus 0x40002400
+
+// ADC1 @ 0x40026000 (AHB1 + 0x6000)
+adc1: Miscellaneous.STM32N6_ADC @ sysbus 0x40026000
+
+// DTS @ 0x40011800 (APB1 + 0x11800)
+dts: Miscellaneous.STM32N6_DTS @ sysbus 0x40011800
+
+// DMA2D (Chrom-ART) @ 0x4002B000 (AHB1 + 0xB000)
+dma2d: Miscellaneous.STM32N6_DMA2D @ sysbus 0x4002B000
+
+// CSI-2 MIPI @ 0x50006000 (APB5 + 0x6000)
+csi: Miscellaneous.STM32N6_CSI @ sysbus 0x50006000
+
+// H.264 Video Encoder @ 0x50008000 (APB5 + 0x8000)
+venc: Miscellaneous.STM32N6_VENC @ sysbus 0x50008000
+
+// Neural-ART NPU @ 0x48050000 (AHB5 + 0x30000)
+npu: Miscellaneous.STM32N6_NPU @ sysbus 0x48050000
+
+// SAES (Crypto) @ 0x42006000 (APB2 + 0x6000)
+cryp: Miscellaneous.STM32N6_CRYP @ sysbus 0x42006000
+
+// OTP @ 0x40029000 (AHB1, after EMAC)
+otp: Miscellaneous.STM32N6_OTP @ sysbus 0x40029000
+
 // GPIO Ports A-Q @ AHB4 + offset (each 0x400 bytes)
 gpioPortA: GPIOPort.STM32_GPIOPort @ sysbus <0x46020000, +0x400>
     numberOfAFs: 16
