@@ -150,6 +150,66 @@ static struct uart_dev_s g_usart1port =
 
 #endif
 
+#ifdef CONFIG_STM32_USART2
+
+static char g_usart2rxbuffer[64];
+static char g_usart2txbuffer[64];
+
+static struct stm32n6_uart_s g_usart2priv =
+{
+  .base  = STM32_USART2_BASE,
+  .irq   = STM32_IRQ_USART2,
+  .baud  = CONFIG_USART2_BAUD,
+};
+
+static struct uart_dev_s g_usart2port =
+{
+  .recv  =
+    {
+      .size   = sizeof(g_usart2rxbuffer),
+      .buffer = g_usart2rxbuffer,
+    },
+  .xmit  =
+    {
+      .size   = sizeof(g_usart2txbuffer),
+      .buffer = g_usart2txbuffer,
+    },
+  .ops   = &g_uart_ops,
+  .priv  = &g_usart2priv,
+};
+
+#endif
+
+#ifdef CONFIG_STM32_USART3
+
+static char g_usart3rxbuffer[64];
+static char g_usart3txbuffer[64];
+
+static struct stm32n6_uart_s g_usart3priv =
+{
+  .base  = STM32_USART3_BASE,
+  .irq   = STM32_IRQ_USART3,
+  .baud  = CONFIG_USART3_BAUD,
+};
+
+static struct uart_dev_s g_usart3port =
+{
+  .recv  =
+    {
+      .size   = sizeof(g_usart3rxbuffer),
+      .buffer = g_usart3rxbuffer,
+    },
+  .xmit  =
+    {
+      .size   = sizeof(g_usart3txbuffer),
+      .buffer = g_usart3txbuffer,
+    },
+  .ops   = &g_uart_ops,
+  .priv  = &g_usart3priv,
+};
+
+#endif
+
 /****************************************************************************
  * Private Functions
  ****************************************************************************/
@@ -319,6 +379,16 @@ void arm_earlyserialinit(void)
   g_usart1port.isconsole = true;
 #  endif
 #endif
+#ifdef CONFIG_STM32_USART2
+#  ifdef CONFIG_USART2_SERIAL_CONSOLE
+  g_usart2port.isconsole = true;
+#  endif
+#endif
+#ifdef CONFIG_STM32_USART3
+#  ifdef CONFIG_USART3_SERIAL_CONSOLE
+  g_usart3port.isconsole = true;
+#  endif
+#endif
 }
 #endif
 
@@ -337,6 +407,18 @@ void arm_serialinit(void)
   uart_register("/dev/console", &g_usart1port);
 #  endif
   uart_register("/dev/ttyS0", &g_usart1port);
+#endif
+#ifdef CONFIG_STM32_USART2
+#  ifdef CONFIG_USART2_SERIAL_CONSOLE
+  uart_register("/dev/console", &g_usart2port);
+#  endif
+  uart_register("/dev/ttyS1", &g_usart2port);
+#endif
+#ifdef CONFIG_STM32_USART3
+#  ifdef CONFIG_USART3_SERIAL_CONSOLE
+  uart_register("/dev/console", &g_usart3port);
+#  endif
+  uart_register("/dev/ttyS2", &g_usart3port);
 #endif
 }
 

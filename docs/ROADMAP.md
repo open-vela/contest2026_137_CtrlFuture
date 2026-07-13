@@ -40,7 +40,7 @@
 | 9 | PWR 电源管理 | [009](adr/ADR-009.md) | 005 | MEASURED | **DONE** |
 | 10 | EXTI 扩展中断 | [010](adr/ADR-010.md) | 006 | QEMU | **DONE** |
 | 11 | GPDMA1 通用 DMA | [011](adr/ADR-011.md) | 005, 007 | MEASURED | **DONE** |
-| 12 | 额外 USART/UART | [012](adr/ADR-012.md) | 005, 006 | MEASURED | |
+| 12 | 额外 USART/UART | [012](adr/ADR-012.md) | 005, 006 | MEASURED | **DONE** |
 | 13 | SPI 驱动（SPI1-6） | [013](adr/ADR-013.md) | 006, 011 | MEASURED | |
 | 14 | I2C 驱动（I2C1-4） | [014](adr/ADR-014.md) | 006, 011 | MEASURED | **DONE** |
 | 15 | 看门狗（IWDG/WWDG） | [015](adr/ADR-015.md) | 005 | MEASURED | **DONE** |
