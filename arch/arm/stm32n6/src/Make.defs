@@ -53,3 +53,7 @@ endif
 ifeq ($(CONFIG_STM32_GPDMA),y)
   CHIP_CSRCS += stm32n6_dma.c
 endif
+
+ifneq ($(filter y,$(CONFIG_STM32_SPI1) $(CONFIG_STM32_SPI2)),)
+  CHIP_CSRCS += stm32n6_spi.c
+endif

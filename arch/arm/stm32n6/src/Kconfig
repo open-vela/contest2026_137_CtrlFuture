@@ -120,6 +120,20 @@ config STM32_GPDMA
 		memory-to-memory, memory-to-peripheral, and
 		peripheral-to-memory transfers.
 
+config STM32_SPI1
+	bool "SPI1"
+	default n
+	select SPI
+	---help---
+		Enable SPI1 master mode driver.
+
+config STM32_SPI2
+	bool "SPI2"
+	default n
+	select SPI
+	---help---
+		Enable SPI2 master mode driver.
+
 endmenu
 
 endif
