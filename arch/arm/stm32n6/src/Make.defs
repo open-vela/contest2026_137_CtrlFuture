@@ -38,6 +38,14 @@ ifeq ($(CONFIG_STM32_IWDG),y)
   CHIP_CSRCS += stm32n6_iwdg.c
 endif
 
+ifeq ($(CONFIG_STM32_RTC),y)
+  CHIP_CSRCS += stm32n6_rtc.c
+endif
+
 ifneq ($(filter y,$(CONFIG_STM32_I2C1) $(CONFIG_STM32_I2C2)),)
   CHIP_CSRCS += stm32n6_i2c.c
+endif
+
+ifeq ($(CONFIG_STM32_EXTI),y)
+  CHIP_CSRCS += stm32n6_exti.c
 endif

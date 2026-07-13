@@ -94,6 +94,23 @@ config STM32_I2C2
 	---help---
 		Enable I2C2 master mode driver (interrupt-driven).
 
+config STM32_EXTI
+	bool "EXTI (Extended Interrupt)"
+	default n
+	---help---
+		Enable the EXTI (Extended Interrupt and Event) controller
+		driver. Supports GPIO pin edge-triggered interrupts for
+		buttons, external events, and wakeup sources.
+
+config STM32_RTC
+	bool "RTC (Real-Time Clock)"
+	default n
+	select RTC_DATETIME
+	---help---
+		Enable the RTC peripheral for calendar date/time.
+		Uses LSI ~32kHz clock source. Provides time for
+		file system timestamps and alarm functionality.
+
 endmenu
 
 endif
