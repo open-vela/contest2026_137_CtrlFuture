@@ -2,7 +2,7 @@
 Resource        resources/stm32n6-common.robot
 
 *** Variables ***
-${SAI_BASE}     0x40015C00
+${SAI_BASE}     0x42005800
 
 *** Keywords ***
 Read SAI Register

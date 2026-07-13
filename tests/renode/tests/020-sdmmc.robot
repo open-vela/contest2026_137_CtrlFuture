@@ -2,7 +2,7 @@
 Resource        resources/stm32n6-common.robot
 
 *** Variables ***
-${SDMMC_BASE}   0x48040000
+${SDMMC_BASE}   0x48027000
 
 *** Keywords ***
 Read SDMMC Register

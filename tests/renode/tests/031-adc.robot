@@ -2,7 +2,7 @@
 Resource        resources/stm32n6-common.robot
 
 *** Variables ***
-${ADC_BASE}     0x40026000
+${ADC_BASE}     0x40022000
 
 *** Keywords ***
 Read ADC Register

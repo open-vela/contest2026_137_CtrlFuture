@@ -2,7 +2,7 @@
 Resource        resources/stm32n6-common.robot
 
 *** Variables ***
-${OTP_BASE}     0x40029000
+${OTP_BASE}     0x46009000
 
 *** Keywords ***
 Read OTP Register

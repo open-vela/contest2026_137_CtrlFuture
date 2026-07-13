@@ -2,7 +2,7 @@
 Resource        resources/stm32n6-common.robot
 
 *** Variables ***
-${GPDMA_BASE}   0x40020000
+${GPDMA_BASE}   0x40021000
 
 *** Keywords ***
 Read GPDMA Register

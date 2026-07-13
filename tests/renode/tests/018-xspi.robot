@@ -2,7 +2,7 @@
 Resource        resources/stm32n6-common.robot
 
 *** Variables ***
-${XSPI_BASE}    0x48020000
+${XSPI_BASE}    0x48025000
 
 *** Keywords ***
 Read XSPI Register

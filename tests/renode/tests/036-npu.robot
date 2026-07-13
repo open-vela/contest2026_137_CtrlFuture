@@ -2,7 +2,7 @@
 Resource        resources/stm32n6-common.robot
 
 *** Variables ***
-${NPU_BASE}     0x48050000
+${NPU_BASE}     0x480E0000
 
 *** Keywords ***
 Read NPU Register

@@ -2,7 +2,7 @@
 Resource        resources/stm32n6-common.robot
 
 *** Variables ***
-${EMAC_BASE}    0x40028000
+${EMAC_BASE}    0x48036000
 
 *** Keywords ***
 Read EMAC Register

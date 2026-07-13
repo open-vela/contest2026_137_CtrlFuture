@@ -2,7 +2,7 @@
 Resource        resources/stm32n6-common.robot
 
 *** Variables ***
-${DMA2D_BASE}   0x4002B000
+${DMA2D_BASE}   0x48021000
 
 *** Keywords ***
 Read DMA2D Register

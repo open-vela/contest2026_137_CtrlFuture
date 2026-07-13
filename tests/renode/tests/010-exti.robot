@@ -2,7 +2,7 @@
 Resource        resources/stm32n6-common.robot
 
 *** Variables ***
-${EXTI_BASE}    0x46000400
+${EXTI_BASE}    0x46025000
 
 *** Keywords ***
 Read EXTI Register

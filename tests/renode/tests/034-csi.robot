@@ -2,7 +2,7 @@
 Resource        resources/stm32n6-common.robot
 
 *** Variables ***
-${CSI_BASE}     0x50006000
+${CSI_BASE}     0x48006000
 
 *** Keywords ***
 Read CSI Register

@@ -80,54 +80,54 @@ usart10: UART.STM32F7_USART @ sysbus 0x42001C00
     frequency: 64000000
     IRQ -> nvic@168
 
-// IWDG @ 0x40003000 (APB1 + 0x3000)
-iwdg: Miscellaneous.STM32N6_IWDG @ sysbus 0x40003000
+// IWDG @ 0x46004800 (APB4 + 0x4800)
+iwdg: Miscellaneous.STM32N6_IWDG @ sysbus 0x46004800
 
-// RTC @ 0x40002800 (APB1 + 0x2800)
-rtc: Miscellaneous.STM32N6_RTC @ sysbus 0x40002800
+// RTC @ 0x46004000 (APB4 + 0x4000)
+rtc: Miscellaneous.STM32N6_RTC @ sysbus 0x46004000
 
-// EXTI @ 0x46000400 (APB4 + 0x0400)
-exti: Miscellaneous.STM32N6_EXTI @ sysbus 0x46000400
+// EXTI @ 0x46025000 (AHB4 + 0x5000)
+exti: Miscellaneous.STM32N6_EXTI @ sysbus 0x46025000
 
-// GPDMA1 @ 0x40020000 (AHB1 + 0x0000)
-gpdma1: Miscellaneous.STM32N6_GPDMA @ sysbus 0x40020000
+// GPDMA1 @ 0x40021000 (AHB1 + 0x1000)
+gpdma1: Miscellaneous.STM32N6_GPDMA @ sysbus 0x40021000
 
 // I2C1 @ 0x40005400 (APB1 + 0x5400)
 i2c1: Miscellaneous.STM32N6_I2C @ sysbus 0x40005400
 
-// XSPI1 @ 0x48020000 (AHB5 + 0x0000)
-xspi1: Miscellaneous.STM32N6_XSPI @ sysbus 0x48020000
+// XSPI1 @ 0x48025000 (AHB5 + 0x5000)
+xspi1: Miscellaneous.STM32N6_XSPI @ sysbus 0x48025000
 
 // XSPI2 memory-mapped flash @ 0x70000000 (32MB)
 xspi2_flash: Memory.MappedMemory @ sysbus 0x70000000
     size: 0x2000000
 
-// SDMMC1 @ 0x48040000 (AHB5 + 0x20000)
-sdmmc1: Miscellaneous.STM32N6_SDMMC @ sysbus 0x48040000
+// SDMMC1 @ 0x48027000 (AHB5 + 0x7000)
+sdmmc1: Miscellaneous.STM32N6_SDMMC @ sysbus 0x48027000
 
-// EMAC (Ethernet GMAC) @ 0x40028000 (AHB1)
-emac: Miscellaneous.STM32N6_EMAC @ sysbus 0x40028000
+// EMAC (Ethernet GMAC) @ 0x48036000 (AHB5 + 0x16000)
+emac: Miscellaneous.STM32N6_EMAC @ sysbus 0x48036000
 
-// SAI1 @ 0x40015C00 (APB2)
-sai1: Miscellaneous.STM32N6_SAI @ sysbus 0x40015C00
+// SAI1 @ 0x42005800 (APB2 + 0x5800)
+sai1: Miscellaneous.STM32N6_SAI @ sysbus 0x42005800
 
 // FDCAN1 @ 0x4000A000 (APB1)
 fdcan1: Miscellaneous.STM32N6_FDCAN @ sysbus 0x4000A000
 
-// USB OTG HS @ 0x40040000 (AHB2)
-otg: Miscellaneous.STM32N6_OTG @ sysbus 0x40040000
+// USB OTG HS @ 0x48040000 (AHB5 + 0x20000)
+otg: Miscellaneous.STM32N6_OTG @ sysbus 0x48040000
 
-// LTDC (LCD-TFT Display Controller) @ 0x50001000 (APB5)
-ltdc: Miscellaneous.STM32N6_LTDC @ sysbus 0x50001000
+// LTDC (LCD-TFT Display Controller) @ 0x48001000 (APB5 + 0x1000)
+ltdc: Miscellaneous.STM32N6_LTDC @ sysbus 0x48001000
 
-// DCMIPP (Camera Pipeline) @ 0x50005000 (APB5)
-dcmipp: Miscellaneous.STM32N6_DCMIPP @ sysbus 0x50005000
+// DCMIPP (Camera Pipeline) @ 0x48002000 (APB5 + 0x2000)
+dcmipp: Miscellaneous.STM32N6_DCMIPP @ sysbus 0x48002000
 
-// HPDMA1 (High-Performance DMA) @ 0x40021000 (AHB1, after GPDMA1)
-hpdma1: Miscellaneous.STM32N6_HPDMA @ sysbus 0x40021000
+// HPDMA1 (High-Performance DMA) @ 0x48020000 (AHB5 + 0x0000)
+hpdma1: Miscellaneous.STM32N6_HPDMA @ sysbus 0x48020000
 
-// TIM1 (Advanced Timer) @ 0x40012C00 (APB2)
-tim1: Miscellaneous.STM32N6_TIM @ sysbus 0x40012C00
+// TIM1 (Advanced Timer) @ 0x42000000 (APB2 + 0x0000)
+tim1: Miscellaneous.STM32N6_TIM @ sysbus 0x42000000
 
 // TIM2 (General Purpose Timer) @ 0x40000000 (APB1)
 tim2: Miscellaneous.STM32N6_TIM @ sysbus 0x40000000
@@ -135,29 +135,29 @@ tim2: Miscellaneous.STM32N6_TIM @ sysbus 0x40000000
 // LPTIM1 @ 0x40002400 (APB1 + 0x2400)
 lptim1: Miscellaneous.STM32N6_LPTIM @ sysbus 0x40002400
 
-// ADC1 @ 0x40026000 (AHB1 + 0x6000)
-adc1: Miscellaneous.STM32N6_ADC @ sysbus 0x40026000
+// ADC1 @ 0x40022000 (AHB1 + 0x2000)
+adc1: Miscellaneous.STM32N6_ADC @ sysbus 0x40022000
 
-// DTS @ 0x40011800 (APB1 + 0x11800)
-dts: Miscellaneous.STM32N6_DTS @ sysbus 0x40011800
+// DTS @ 0x4600A000 (APB4 + 0xA000)
+dts: Miscellaneous.STM32N6_DTS @ sysbus 0x4600A000
 
-// DMA2D (Chrom-ART) @ 0x4002B000 (AHB1 + 0xB000)
-dma2d: Miscellaneous.STM32N6_DMA2D @ sysbus 0x4002B000
+// DMA2D (Chrom-ART) @ 0x48021000 (AHB5 + 0x1000)
+dma2d: Miscellaneous.STM32N6_DMA2D @ sysbus 0x48021000
 
-// CSI-2 MIPI @ 0x50006000 (APB5 + 0x6000)
-csi: Miscellaneous.STM32N6_CSI @ sysbus 0x50006000
+// CSI-2 MIPI @ 0x48006000 (APB5 + 0x6000)
+csi: Miscellaneous.STM32N6_CSI @ sysbus 0x48006000
 
-// H.264 Video Encoder @ 0x50008000 (APB5 + 0x8000)
-venc: Miscellaneous.STM32N6_VENC @ sysbus 0x50008000
+// H.264 Video Encoder @ 0x48005000 (APB5 + 0x5000)
+venc: Miscellaneous.STM32N6_VENC @ sysbus 0x48005000
 
-// Neural-ART NPU @ 0x48050000 (AHB5 + 0x30000)
-npu: Miscellaneous.STM32N6_NPU @ sysbus 0x48050000
+// Neural-ART NPU @ 0x480E0000 (AHB5 + 0xC0000)
+npu: Miscellaneous.STM32N6_NPU @ sysbus 0x480E0000
 
-// SAES (Crypto) @ 0x42006000 (APB2 + 0x6000)
+// SAES (Crypto) @ 0x42006000 (APB2 + 0x6000, secure-only, not in CMSIS _BASE_NS)
 cryp: Miscellaneous.STM32N6_CRYP @ sysbus 0x42006000
 
-// OTP @ 0x40029000 (AHB1, after EMAC)
-otp: Miscellaneous.STM32N6_OTP @ sysbus 0x40029000
+// OTP (via BSEC) @ 0x46009000 (APB4 + 0x9000)
+otp: Miscellaneous.STM32N6_OTP @ sysbus 0x46009000
 
 // GPIO Ports A-Q @ AHB4 + offset (each 0x400 bytes)
 gpioPortA: GPIOPort.STM32_GPIOPort @ sysbus <0x46020000, +0x400>
@@ -198,37 +198,56 @@ rcc: Miscellaneous.STM32N6_RCC @ sysbus 0x46028000
 // Tag unimplemented peripherals to suppress "unhandled access" warnings
 sysbus:
     init:
-        // APB1 peripherals (except RTC, IWDG, USART2/3, UART4/5/7/8, FDCAN1, SAI1)
-        Tag <0x40000000, 0x400027FF> "APB1_PERIPH_A1"
-        Tag <0x40002C00, 0x40002FFF> "APB1_PERIPH_A2"
-        Tag <0x40003400, 0x400043FF> "APB1_PERIPH_A3"
-        Tag <0x40005500, 0x400077FF> "APB1_PERIPH_B"
+        // APB1 peripherals (except TIM2-7,12-14, LPTIM1, USART2/3,
+        //   UART4/5/7/8, I2C1-3, FDCAN1-3, SPI2/3, WWDG)
+        Tag <0x40002500, 0x40002BFF> "APB1_PERIPH_A1"
+        Tag <0x40002D00, 0x400037FF> "APB1_PERIPH_A2"
+        Tag <0x40004100, 0x400043FF> "APB1_PERIPH_A3"
+        Tag <0x40006500, 0x400077FF> "APB1_PERIPH_B"
         Tag <0x40008000, 0x40009FFF> "APB1_PERIPH_C1"
-        Tag <0x4000A400, 0x40015BFF> "APB1_PERIPH_C2"
-        Tag <0x40016000, 0x4001FFFF> "APB1_PERIPH_D"
-        // APB2 peripherals (except USART1/6, UART9/10)
-        Tag <0x42000000, 0x42000FFF> "APB2_PERIPH_A"
-        Tag <0x42002000, 0x4200FFFF> "APB2_PERIPH_B"
-        // AHB1 peripherals (except GPDMA1)
-        Tag <0x40021000, 0x4003FFFF> "AHB1_PERIPH"
+        Tag <0x4000A900, 0x4000BFFF> "APB1_PERIPH_C2"
+        Tag <0x4000C100, 0x4000E7FF> "APB1_PERIPH_C3"
+        Tag <0x4000E900, 0x4001FFFF> "APB1_PERIPH_D"
+        // APB2 peripherals (except TIM1/8/15-18, USART1/6, UART9/10,
+        //   SPI1/4/5, SAI1/2)
+        Tag <0x42000500, 0x42000FFF> "APB2_PERIPH_A"
+        Tag <0x42002000, 0x42002FFF> "APB2_PERIPH_B"
+        Tag <0x42003500, 0x42003BFF> "APB2_PERIPH_C"
+        Tag <0x42004900, 0x42004FFF> "APB2_PERIPH_D"
+        Tag <0x42005100, 0x420057FF> "APB2_PERIPH_E"
+        Tag <0x42007000, 0x4201FFFF> "APB2_PERIPH_F"
+        // AHB1 peripherals (except GPDMA1, ADC1)
+        Tag <0x40022400, 0x4003FFFF> "AHB1_PERIPH"
         // AHB2 peripherals
         Tag <0x42020000, 0x4203FFFF> "AHB2_PERIPH"
         // APB3 peripherals
         Tag <0x44000000, 0x4400FFFF> "APB3_PERIPH"
         // AHB3 peripherals
         Tag <0x44020000, 0x4403FFFF> "AHB3_PERIPH"
-        // APB4 peripherals (except EXTI, LPUART1)
-        Tag <0x46000000, 0x460003FF> "APB4_PERIPH_A"
-        Tag <0x46000600, 0x46000BFF> "APB4_PERIPH_B"
-        Tag <0x46000D00, 0x4600FFFF> "APB4_PERIPH2"
+        // APB4 peripherals (except LPTIM2-5, RTC, IWDG, BSEC/OTP, DTS)
+        Tag <0x46000000, 0x460023FF> "APB4_PERIPH_A"
+        Tag <0x46003100, 0x46003FFF> "APB4_PERIPH_B"
+        Tag <0x46004900, 0x46008FFF> "APB4_PERIPH_C"
+        Tag <0x4600A200, 0x4601FFFF> "APB4_PERIPH_D"
         // AHB4 peripherals (except GPIO A-Q, RCC)
         Tag <0x46022000, 0x460233FF> "AHB4_GPIO_GAP1"
-        Tag <0x46024400, 0x46027FFF> "AHB4_GPIO_GAP2"
+        Tag <0x46024400, 0x46024FFF> "AHB4_GPIO_GAP2"
+        Tag <0x46025400, 0x46027FFF> "AHB4_GPIO_GAP3"
         Tag <0x46028400, 0x4603FFFF> "AHB4_PERIPH"
-        // APB5 peripherals
-        Tag <0x48000000, 0x4800FFFF> "APB5_PERIPH"
-        // AHB5 peripherals (except XSPI1, SDMMC1)
-        Tag <0x48021000, 0x4803FFFF> "AHB5_PERIPH"
+        // APB5 peripherals (except LTDC, DCMIPP, VENC, CSI)
+        Tag <0x48000000, 0x48000FFF> "APB5_PERIPH"
+        Tag <0x48003000, 0x48003FFF> "APB5_PERIPH_B"
+        Tag <0x48007000, 0x4801FFFF> "APB5_PERIPH_C"
+        // AHB5 peripherals (except HPDMA1, DMA2D, XSPI1, SDMMC1,
+        //   XSPI2, NPU, EMAC, OTG)
+        Tag <0x48020800, 0x48020FFF> "AHB5_PERIPH_A"
+        Tag <0x48022000, 0x48024FFF> "AHB5_PERIPH_B"
+        Tag <0x48026000, 0x48026FFF> "AHB5_PERIPH_C"
+        Tag <0x48028000, 0x48029FFF> "AHB5_PERIPH_D"
+        Tag <0x4802B000, 0x48035FFF> "AHB5_PERIPH_E"
+        Tag <0x48037000, 0x4803FBFF> "AHB5_PERIPH_F"
+        Tag <0x48081000, 0x480DFFFF> "AHB5_PERIPH_G"
+        Tag <0x480E1000, 0x480FFFFF> "AHB5_PERIPH_H"
         // Internal SRAM2
         Tag <0x34420000, 0x34FFFFFF> "SRAM2"
         // FMC/QUADSPI

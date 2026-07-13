@@ -2,7 +2,7 @@
 Resource        resources/stm32n6-common.robot
 
 *** Variables ***
-${LTDC_BASE}    0x50001000
+${LTDC_BASE}    0x48001000
 
 *** Keywords ***
 Read LTDC Register

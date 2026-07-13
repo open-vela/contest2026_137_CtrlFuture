@@ -2,7 +2,7 @@
 Resource        resources/stm32n6-common.robot
 
 *** Variables ***
-${OTG_BASE}     0x40040000
+${OTG_BASE}     0x48040000
 
 *** Keywords ***
 Read OTG Register

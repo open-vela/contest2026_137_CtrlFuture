@@ -2,7 +2,7 @@
 Resource        resources/stm32n6-common.robot
 
 *** Variables ***
-${DCMIPP_BASE}  0x50005000
+${DCMIPP_BASE}  0x48002000
 
 *** Keywords ***
 Read DCMIPP Register

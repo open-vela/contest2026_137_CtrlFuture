@@ -2,7 +2,7 @@
 Resource        resources/stm32n6-common.robot
 
 *** Variables ***
-${IWDG_BASE}    0x40003000
+${IWDG_BASE}    0x46004800
 
 *** Keywords ***
 Read IWDG Register

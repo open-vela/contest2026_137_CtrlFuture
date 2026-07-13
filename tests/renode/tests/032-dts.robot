@@ -2,7 +2,7 @@
 Resource        resources/stm32n6-common.robot
 
 *** Variables ***
-${DTS_BASE}     0x40011800
+${DTS_BASE}     0x4600A000
 
 *** Keywords ***
 Read DTS Register

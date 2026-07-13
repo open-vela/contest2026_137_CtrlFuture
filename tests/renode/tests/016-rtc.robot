@@ -2,7 +2,7 @@
 Resource        resources/stm32n6-common.robot
 
 *** Variables ***
-${RTC_BASE}     0x40002800
+${RTC_BASE}     0x46004000
 
 *** Keywords ***
 Read RTC Register

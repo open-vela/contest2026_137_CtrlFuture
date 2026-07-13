@@ -2,7 +2,7 @@
 Resource        resources/stm32n6-common.robot
 
 *** Variables ***
-${TIM_BASE}     0x40012C00
+${TIM_BASE}     0x42000000
 
 *** Keywords ***
 Read TIM Register

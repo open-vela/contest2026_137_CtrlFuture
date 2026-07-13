@@ -2,7 +2,7 @@
 Resource        resources/stm32n6-common.robot
 
 *** Variables ***
-${VENC_BASE}    0x50008000
+${VENC_BASE}    0x48005000
 
 *** Keywords ***
 Read VENC Register
