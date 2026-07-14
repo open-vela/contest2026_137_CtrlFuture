@@ -73,6 +73,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         private void PeripheralDisabled()
         {
             receiveFifo.Clear();
+            loopbackBuffer.Clear();
             remainingBytes = 0;
             masterBusy = false;
             transmitInterruptStatus = false;
@@ -118,6 +119,11 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 }
 
                 transmitInterruptStatus = false;
+                // NBYTES=0 read: complete immediately (same as write path)
+                if(remainingBytes == 0)
+                {
+                    SetTransferCompleteFlags();
+                }
             }
             else
             {
@@ -178,6 +184,8 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 return;
             }
 
+            // Writing TXDR clears TXIS; reassert if more bytes remain
+            transmitInterruptStatus = false;
             loopbackBuffer.Enqueue((byte)value);
             remainingBytes--;
 
@@ -187,7 +195,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             }
             else
             {
-                // Still need more TX bytes
+                // Still need more TX bytes (level-triggered TXIS)
                 transmitInterruptStatus = true;
                 UpdateInterrupt();
             }
