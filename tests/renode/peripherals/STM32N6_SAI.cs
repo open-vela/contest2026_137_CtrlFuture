@@ -4,16 +4,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 // STM32N6 SAI (Serial Audio Interface) model for Renode.
-// Minimal model: register read/write without actual audio transfers.
+// L2 model: CR1.SAIEN sticks; SR.FREQ asserts while enabled so TX path
+// does not spin forever. No real audio data path.
 //
-// Registers:
-//   CR1   @ 0x04: Configuration 1 (RW)
-//   CR2   @ 0x08: Configuration 2 (RW)
-//   FRCR  @ 0x0C: Frame configuration (RW)
-//   SLOTR @ 0x10: Slot configuration (RW)
-//   SR    @ 0x14: Status (read-only)
-//   CLRFR @ 0x18: Clear flag (write-only)
-//   DR    @ 0x20: Data (RW)
+// Note: N6 SAI block uses A/B sub-blocks; this model maps block A offsets
+// (CR1@0x04) used by the NuttX driver register helpers.
 //
 
 using Antmicro.Renode.Core;
@@ -32,37 +27,58 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
         public long Size => 0x400;
 
+        public override void Reset()
+        {
+            base.Reset();
+            cr1 = 0;
+            data = 0;
+        }
+
         private void DefineRegisters()
         {
-            // CR1 @ 0x04: Configuration 1 (RW)
+            // CR1 @ 0x04: SAIEN is bit 16
             Registers.CR1.Define(this)
-                .WithValueField(0, 32, name: "CR1");
+                .WithValueField(0, 32,
+                    valueProviderCallback: _ => cr1,
+                    writeCallback: (_, val) => cr1 = (uint)val,
+                    name: "CR1");
 
-            // CR2 @ 0x08: Configuration 2 (RW)
             Registers.CR2.Define(this)
                 .WithValueField(0, 32, name: "CR2");
 
-            // FRCR @ 0x0C: Frame configuration (RW)
             Registers.FRCR.Define(this)
                 .WithValueField(0, 32, name: "FRCR");
 
-            // SLOTR @ 0x10: Slot configuration (RW)
             Registers.SLOTR.Define(this)
                 .WithValueField(0, 32, name: "SLOTR");
 
-            // SR @ 0x14: Status register (read-only)
-            // All bits read as zero at reset
+            // SR @ 0x14: FREQ (bit 3) when SAIEN so FIFO always "ready"
             Registers.SR.Define(this)
-                .WithValueField(0, 32, FieldMode.Read, name: "SR");
+                .WithFlag(0, FieldMode.Read, name: "OVRUDR")
+                .WithFlag(1, FieldMode.Read, name: "MUTEDET")
+                .WithFlag(2, FieldMode.Read, name: "WCKCFG")
+                .WithFlag(3, FieldMode.Read,
+                    valueProviderCallback: _ => (cr1 & (1u << 16)) != 0,
+                    name: "FREQ")
+                .WithFlag(4, FieldMode.Read, name: "CNRDY")
+                .WithFlag(5, FieldMode.Read, name: "AFSDET")
+                .WithFlag(6, FieldMode.Read, name: "LFSDET")
+                .WithReservedBits(7, 9)
+                .WithValueField(16, 3, FieldMode.Read, name: "FLVL")
+                .WithReservedBits(19, 13);
 
-            // CLRFR @ 0x18: Clear flag (write-only)
             Registers.CLRFR.Define(this)
                 .WithValueField(0, 32, FieldMode.Write, name: "CLRFR");
 
-            // DR @ 0x20: Data register (RW)
             Registers.DR.Define(this)
-                .WithValueField(0, 32, name: "DR");
+                .WithValueField(0, 32,
+                    valueProviderCallback: _ => data,
+                    writeCallback: (_, val) => data = (uint)val,
+                    name: "DR");
         }
+
+        private uint cr1;
+        private uint data;
 
         private enum Registers : long
         {
