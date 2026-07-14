@@ -292,7 +292,17 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             var ddw = Math.Min(ch.DdwLog2, 2u);
             var srcWidth = 1u << (int)sdw;
             var dstWidth = 1u << (int)ddw;
+            // Beat size for the equal-byte copy loop. Mixed SDW/DDW is not
+            // packing-accurate; warn and still transfer unit bytes per beat.
             var unit = Math.Max(srcWidth, dstWidth);
+
+            if(srcWidth != dstWidth)
+            {
+                this.Log(LogLevel.Warning,
+                    "GPDMA ch{0}: mixed SDW={1}/DDW={2} not packing-accurate; " +
+                    "copying unit={3} bytes/beat with independent SA/DA advance",
+                    channel, srcWidth, dstWidth, unit);
+            }
 
             if((bndt % unit) != 0)
             {
@@ -310,14 +320,15 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             var dst = ch.Cdar;
             var remaining = bndt;
 
-            // Byte-accurate copy; advance SA/DA by programmed width when SINC/DINC.
+            // Within a beat, consecutive bytes are always at base..base+chunk-1.
+            // SINC/DINC only control whether SA/DA advance between beats.
             while(remaining > 0)
             {
                 var chunk = Math.Min(unit, remaining);
                 for(uint i = 0; i < chunk; i++)
                 {
-                    var b = sysbus.ReadByte(src + (ch.Sinc ? i : 0));
-                    sysbus.WriteByte(dst + (ch.Dinc ? i : 0), b);
+                    var b = sysbus.ReadByte(src + i);
+                    sysbus.WriteByte(dst + i, b);
                 }
 
                 if(ch.Sinc)
