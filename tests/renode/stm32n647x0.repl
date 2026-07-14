@@ -97,6 +97,19 @@ gpdma1: Miscellaneous.STM32N6_GPDMA @ sysbus 0x40021000
 // I2C1 @ 0x40005400 (APB1 + 0x5400)
 i2c1: Miscellaneous.STM32N6_I2C @ sysbus 0x40005400
 
+// SPI1 @ 0x42003000 (APB2 + 0x3000), IRQ 153
+spi1: Miscellaneous.STM32N6_SPI @ sysbus 0x42003000
+// SPI2 @ 0x40003800, IRQ 154
+spi2: Miscellaneous.STM32N6_SPI @ sysbus 0x40003800
+// SPI3 @ 0x40003C00, IRQ 155
+spi3: Miscellaneous.STM32N6_SPI @ sysbus 0x40003C00
+// SPI4 @ 0x42003400, IRQ 156
+spi4: Miscellaneous.STM32N6_SPI @ sysbus 0x42003400
+// SPI5 @ 0x42005000, IRQ 157
+spi5: Miscellaneous.STM32N6_SPI @ sysbus 0x42005000
+// SPI6 @ 0x46001400, IRQ 158
+spi6: Miscellaneous.STM32N6_SPI @ sysbus 0x46001400
+
 // XSPI1 @ 0x48025000 (AHB5 + 0x5000)
 xspi1: Miscellaneous.STM32N6_XSPI @ sysbus 0x48025000
 
@@ -229,8 +242,10 @@ sysbus:
         Tag <0x44000000, 0x4400FFFF> "APB3_PERIPH"
         // AHB3 peripherals (except RNG @ 0x44020000)
         Tag <0x44020100, 0x4403FFFF> "AHB3_PERIPH"
-        // APB4 peripherals (except LPTIM2-5, RTC, IWDG, BSEC/OTP, DTS)
-        Tag <0x46000000, 0x460023FF> "APB4_PERIPH_A"
+        // APB4 peripherals (except LPTIM2-5, SPI6, RTC, IWDG, BSEC/OTP, DTS)
+        // Split around SPI6 @ 0x46001400 size 0x400
+        Tag <0x46000000, 0x460013FF> "APB4_PERIPH_A1"
+        Tag <0x46001800, 0x460023FF> "APB4_PERIPH_A2"
         Tag <0x46003100, 0x46003FFF> "APB4_PERIPH_B"
         Tag <0x46004900, 0x46008FFF> "APB4_PERIPH_C"
         Tag <0x4600A200, 0x4601FFFF> "APB4_PERIPH_D"
