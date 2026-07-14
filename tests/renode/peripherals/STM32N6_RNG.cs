@@ -4,7 +4,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 // STM32N6 Random Number Generator (RNG) model for Renode.
-// Minimal model: register read/write with simulated random data.
+// L2 model: RNGEN sets DRDY; DR read returns random data and
+// re-asserts DRDY while enabled; CONDRST soft-reset consistent.
 //
 // Registers:
 //   CR    @ 0x00: Control Register
@@ -35,10 +36,23 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         {
             // CR @ 0x00: Control Register
             Registers.CR.Define(this)
-                .WithFlag(2, out rngEnabled, name: "RNGEN")
+                .WithFlag(2, out rngEnabled, name: "RNGEN",
+                    writeCallback: (_, val) =>
+                    {
+                        // RNGEN=1 makes data available immediately in sim
+                        dataReady.Value = val;
+                    })
                 .WithFlag(3, out interruptEnable, name: "IE")
                 .WithFlag(5, name: "CED")
-                .WithFlag(30, out condrst, name: "CONDRST")
+                .WithFlag(30, out condrst, name: "CONDRST",
+                    writeCallback: (_, val) =>
+                    {
+                        // Hardware: CONDRST must be written 1 then 0
+                        if (!val)
+                        {
+                            dataReady.Value = rngEnabled.Value;
+                        }
+                    })
                 .WithFlag(31, FieldMode.Read, name: "CONFIGLOCK");
 
             // SR @ 0x04: Status Register
@@ -58,9 +72,14 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 .WithValueField(0, 32, FieldMode.Read,
                     valueProviderCallback: _ =>
                     {
-                        // Clear DRDY after read
+                        var value = (uint)random.Next();
+                        // Clear DRDY after read; re-assert if still enabled
                         dataReady.Value = false;
-                        return (uint)random.Next();
+                        if (rngEnabled.Value)
+                        {
+                            dataReady.Value = true;
+                        }
+                        return value;
                     },
                     name: "DR");
 
