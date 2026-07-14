@@ -1,7 +1,7 @@
 *** Settings ***
 Resource        resources/stm32n6-common.robot
 # Tags: L1-register | L2-state | L3-functional | boot-regression
-Force Tags      L1-register  rng
+Force Tags      rng
 
 *** Variables ***
 ${RNG_BASE}     0x44020000
@@ -25,18 +25,21 @@ Write RNG Register
 
 *** Test Cases ***
 CR Reset Value
+    [Tags]    L1-register
     Start STM32N6
     ${val}=    Read RNG Register    ${CR_OFFSET}
     # Reset value: all zeros (RNGEN=0, IE=0, CED=0, CONDRST=0)
     Should Be Equal As Integers    ${val}    0x00
 
 SR After Boot
+    [Tags]    L1-register
     Start STM32N6
     ${val}=    Read RNG Register    ${SR_OFFSET}
     # SR should be 0 after boot (no data ready, no errors)
     Should Be Equal As Integers    ${val}    0x00
 
 DR Readable
+    [Tags]    L1-register
     Start STM32N6
     ${val}=    Read RNG Register    ${DR_OFFSET}
     # DR should return a 32-bit value (random)
@@ -44,12 +47,14 @@ DR Readable
     Should Be True    ${val} >= 0
 
 HTCR Reset Value
+    [Tags]    L1-register
     Start STM32N6
     ${val}=    Read RNG Register    ${HTCR_OFFSET}
     # HTCR reset value: model defines as 0 (no default value set)
     Should Be Equal As Integers    ${val}    0x00
 
 Boot Regression
+    [Tags]    boot-regression
     Start STM32N6
     Wait For NSH
 

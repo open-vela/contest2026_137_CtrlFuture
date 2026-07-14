@@ -24,3 +24,26 @@ Run NSH Command
     [Arguments]    ${cmd}    ${expected}    ${timeout}=5
     Write Line To Uart         ${cmd}
     Wait For Line On Uart      ${expected}    timeout=${timeout}
+
+*** Keywords ***
+Read NVIC ISPRn Pending
+    [Documentation]    Read NVIC ISPR word for IRQn (CMSIS number).
+    ...                ISPR0 @ 0xE000E200 covers IRQn 0-31; ISPR1 @ +4, etc.
+    [Arguments]    ${irqn}
+    ${word}=    Evaluate    int(${irqn}) // 32
+    ${bit}=     Evaluate    int(${irqn}) % 32
+    ${addr}=    Evaluate    0xE000E200 + (${word} * 4)
+    ${val}=     Execute Command    sysbus ReadDoubleWord ${addr}
+    ${val}=     Strip String    ${val}
+    ${pending}=    Evaluate    (int(${val}) >> ${bit}) & 1
+    RETURN    ${pending}
+
+Assert NVIC Pending
+    [Arguments]    ${irqn}
+    ${p}=    Read NVIC ISPRn Pending    ${irqn}
+    Should Be Equal As Integers    ${p}    1
+
+Assert NVIC Not Pending
+    [Arguments]    ${irqn}
+    ${p}=    Read NVIC ISPRn Pending    ${irqn}
+    Should Be Equal As Integers    ${p}    0
