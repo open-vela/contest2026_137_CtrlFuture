@@ -129,3 +129,26 @@ Boot Regression
     [Tags]    boot-regression
     Start STM32N6
     Wait For NSH
+
+SPI1 EOT Raises IRQ When EOTIE
+    [Tags]    L2-state
+    Create STM32N6 Machine
+    # SPE + SSI (0x1001)
+    Write SPI1 Register    ${CR1_OFFSET}    0x1001
+    # Clear IFCR
+    Write SPI1 Register    ${IFCR_OFFSET}    0
+    # IER.EOTIE bit3 = 0x8
+    ${ierAddr}=    Evaluate    ${SPI1_BASE} + 0x10
+    Execute Command    sysbus WriteDoubleWord ${ierAddr} 0x8
+    # Write TXDR to trigger EOT
+    Write SPI1 Register    ${TXDR_OFFSET}    0xA5
+    ${irq}=    Execute Command    sysbus.spi1 IRQ IsSet
+    Should Contain    ${irq}    True
+
+SPI6 Enable Asserts TXP
+    [Tags]    L2-state
+    Create STM32N6 Machine
+    Write SPI6 Register    ${CR1_OFFSET}    0x1
+    ${sr}=    Read SPI6 Register    ${SR_OFFSET}
+    ${sr}=    Convert To Integer    ${sr}
+    Should Be True    (${sr} & 0x2) == 0x2

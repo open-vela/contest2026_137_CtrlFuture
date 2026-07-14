@@ -33,6 +33,7 @@
 //
 
 using System;
+using System.Collections.Generic;
 
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
@@ -51,8 +52,13 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 channels[i] = new ChannelState();
             }
 
+            IRQ = new GPIO();
             DefineRegisters();
         }
+
+        public long Size => 0x1000;
+
+        public GPIO IRQ { get; }
 
         public override void Reset()
         {
@@ -61,9 +67,9 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             {
                 channels[i].Reset();
             }
-        }
 
-        public long Size => 0x1000;
+            IRQ.Unset();
+        }
 
         private void DefineRegisters()
         {
@@ -109,10 +115,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                     .WithFlag(8, FieldMode.Write,
                         writeCallback: (_, val) =>
                         {
-                            if(val)
-                            {
-                                channels[channel].TransferComplete = false;
-                            }
+                            ClearChannelInterrupt(channel);
                         },
                         name: $"CH{channel}_TCFC")
                     .WithFlag(9, FieldMode.Write,
@@ -364,6 +367,29 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
             this.Log(LogLevel.Debug,
                 "GPDMA ch{0}: transfer complete TCF=1 EN=0", channel);
+
+            UpdateInterrupt();
+        }
+
+        private void UpdateInterrupt()
+        {
+            bool anyPending = false;
+            for(var i = 0; i < ChannelCount; i++)
+            {
+                if(channels[i].TransferComplete && channels[i].Tcie)
+                {
+                    anyPending = true;
+                    break;
+                }
+            }
+
+            IRQ.Set(anyPending);
+        }
+
+        private void ClearChannelInterrupt(int channel)
+        {
+            channels[channel].TransferComplete = false;
+            UpdateInterrupt();
         }
 
         private readonly ChannelState[] channels;

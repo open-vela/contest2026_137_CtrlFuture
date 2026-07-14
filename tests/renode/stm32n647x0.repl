@@ -88,11 +88,16 @@ iwdg: Miscellaneous.STM32N6_IWDG @ sysbus 0x46004800
 // RTC @ 0x46004000 (APB4 + 0x4000)
 rtc: Miscellaneous.STM32N6_RTC @ sysbus 0x46004000
 
-// EXTI @ 0x46025000 (AHB4 + 0x5000)
+// EXTI @ 0x46025000 (AHB4 + 0x5000), IRQ 20 (EXTI0_IRQn)
 exti: Miscellaneous.STM32N6_EXTI @ sysbus 0x46025000
+    Line0 -> nvic@20
+    Line1 -> nvic@21
+    Line2 -> nvic@22
+    Line3 -> nvic@23
 
-// GPDMA1 @ 0x40021000 (AHB1 + 0x1000)
+// GPDMA1 @ 0x40021000 (AHB1 + 0x1000), IRQ 84 (GPDMA1_Channel0_IRQn)
 gpdma1: Miscellaneous.STM32N6_GPDMA @ sysbus 0x40021000
+    IRQ -> nvic@84
 
 // I2C1 @ 0x40005400 (APB1 + 0x5400), IRQ 100 (I2C1_EV_IRQn)
 i2c1: Miscellaneous.STM32N6_I2C @ sysbus 0x40005400
@@ -112,16 +117,22 @@ i2c4: Miscellaneous.STM32N6_I2C @ sysbus 0x46001C00
 
 // SPI1 @ 0x42003000 (APB2 + 0x3000), IRQ 153
 spi1: Miscellaneous.STM32N6_SPI @ sysbus 0x42003000
+    IRQ -> nvic@153
 // SPI2 @ 0x40003800, IRQ 154
 spi2: Miscellaneous.STM32N6_SPI @ sysbus 0x40003800
+    IRQ -> nvic@154
 // SPI3 @ 0x40003C00, IRQ 155
 spi3: Miscellaneous.STM32N6_SPI @ sysbus 0x40003C00
+    IRQ -> nvic@155
 // SPI4 @ 0x42003400, IRQ 156
 spi4: Miscellaneous.STM32N6_SPI @ sysbus 0x42003400
+    IRQ -> nvic@156
 // SPI5 @ 0x42005000, IRQ 157
 spi5: Miscellaneous.STM32N6_SPI @ sysbus 0x42005000
+    IRQ -> nvic@157
 // SPI6 @ 0x46001400, IRQ 158
 spi6: Miscellaneous.STM32N6_SPI @ sysbus 0x46001400
+    IRQ -> nvic@158
 
 // XSPI1 @ 0x48025000 (AHB5 + 0x5000)
 xspi1: Miscellaneous.STM32N6_XSPI @ sysbus 0x48025000
@@ -130,8 +141,9 @@ xspi1: Miscellaneous.STM32N6_XSPI @ sysbus 0x48025000
 xspi2_flash: Memory.MappedMemory @ sysbus 0x70000000
     size: 0x2000000
 
-// SDMMC1 @ 0x48027000 (AHB5 + 0x7000)
+// SDMMC1 @ 0x48027000 (AHB5 + 0x7000), IRQ 174
 sdmmc1: Miscellaneous.STM32N6_SDMMC @ sysbus 0x48027000
+    IRQ -> nvic@174
 
 // EMAC (Ethernet GMAC) @ 0x48036000 (AHB5 + 0x16000)
 emac: Miscellaneous.STM32N6_EMAC @ sysbus 0x48036000
@@ -151,8 +163,9 @@ ltdc: Miscellaneous.STM32N6_LTDC @ sysbus 0x48001000
 // DCMIPP (Camera Pipeline) @ 0x48002000 (APB5 + 0x2000)
 dcmipp: Miscellaneous.STM32N6_DCMIPP @ sysbus 0x48002000
 
-// HPDMA1 (High-Performance DMA) @ 0x48020000 (AHB5 + 0x0000)
+// HPDMA1 (High-Performance DMA) @ 0x48020000 (AHB5 + 0x0000), IRQ 68
 hpdma1: Miscellaneous.STM32N6_HPDMA @ sysbus 0x48020000
+    IRQ -> nvic@68
 
 // TIM1 (Advanced Timer) @ 0x42000000 (APB2 + 0x0000)
 tim1: Miscellaneous.STM32N6_TIM @ sysbus 0x42000000

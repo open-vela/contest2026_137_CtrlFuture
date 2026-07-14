@@ -33,6 +33,9 @@
 //        pre-wait succeeds. Documented intentional sim-for-driver quirk.
 //
 
+using System;
+using System.Collections.Generic;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
@@ -47,9 +50,12 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             DefineRegisters();
             // Path-ready for first sdmmc_send_cmd pre-wait.
             cmdSent = true;
+            IRQ = new GPIO();
         }
 
         public long Size => 0x1000;
+
+        public GPIO IRQ { get; }
 
         public override void Reset()
         {
@@ -67,6 +73,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             cCrcFail = false;
             cTimeout = false;
             dataEnd = false;
+            IRQ.Unset();
         }
 
         private void DefineRegisters()
@@ -279,6 +286,8 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             {
                 cmdSent = true;
             }
+
+            AssertIrq();
         }
 
         private uint HandleCommand(uint index, uint arg, ref bool haveResponse)
@@ -378,6 +387,12 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                     "Unhandled SDMMC ACMD{0}, returning R1 ready", index);
                 return R1ReadyForData;
             }
+        }
+
+        private void AssertIrq()
+        {
+            bool pending = cmdSent || cmdREnd;
+            IRQ.Set(pending);
         }
 
         private enum CardState

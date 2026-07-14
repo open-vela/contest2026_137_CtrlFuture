@@ -21,6 +21,9 @@
 // IMR/EMR banks @ 0x80+
 //
 
+using System;
+using System.Collections.Generic;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
@@ -32,10 +35,37 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
     {
         public STM32N6_EXTI(IMachine machine) : base(machine)
         {
+            lines = new GPIO[LineCount];
+            for (var i = 0; i < LineCount; i++)
+            {
+                lines[i] = new GPIO();
+            }
+
             DefineRegisters();
         }
 
         public long Size => 0x200;
+
+        public GPIO Line0 => lines[0];
+        public GPIO Line1 => lines[1];
+        public GPIO Line2 => lines[2];
+        public GPIO Line3 => lines[3];
+
+        public void RaiseLine(int line)
+        {
+            if (line >= 0 && line < LineCount)
+            {
+                lines[line].Set(true);
+            }
+        }
+
+        public void ClearLine(int line)
+        {
+            if (line >= 0 && line < LineCount)
+            {
+                lines[line].Set(false);
+            }
+        }
 
         public override void Reset()
         {
@@ -46,6 +76,11 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 ftsr[i] = 0;
                 rpr[i] = 0;
                 fpr[i] = 0;
+            }
+
+            for (var i = 0; i < LineCount; i++)
+            {
+                lines[i].Unset();
             }
         }
 
@@ -145,6 +180,8 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         }
 
         private const int BankCount = 3;
+        private const int LineCount = 4;
+        private readonly GPIO[] lines;
         private readonly uint[] rtsr = new uint[BankCount];
         private readonly uint[] ftsr = new uint[BankCount];
         private readonly uint[] rpr = new uint[BankCount];

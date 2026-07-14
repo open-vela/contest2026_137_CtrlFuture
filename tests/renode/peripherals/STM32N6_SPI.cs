@@ -37,10 +37,13 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         public STM32N6_SPI(IMachine machine) : base(machine)
         {
             receiveFifo = new Queue<uint>();
+            IRQ = new GPIO();
             DefineRegisters();
         }
 
         public long Size => 0x400;
+
+        public GPIO IRQ { get; }
 
         public override void Reset()
         {
@@ -48,6 +51,8 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             receiveFifo.Clear();
             txComplete = false;
             endOfTransfer = false;
+            ierValue = 0;
+            IRQ.Unset();
         }
 
         private void DefineRegisters()
@@ -101,7 +106,13 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
             // IER @ 0x10: Interrupt Enable Register
             Registers.IER.Define(this)
-                .WithValueField(0, 32, name: "IER");
+                .WithValueField(0, 32,
+                    writeCallback: (_, val) =>
+                    {
+                        ierValue = (uint)val;
+                        UpdateInterrupt();
+                    },
+                    name: "IER");
 
             // SR @ 0x14: Status Register (dynamic)
             Registers.SR.Define(this)
@@ -142,6 +153,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                         {
                             endOfTransfer = false;
                             cstart.Value = false;
+                            UpdateInterrupt();
                         }
                     })
                 .WithFlag(4, FieldMode.Write, name: "TXTFC")
@@ -171,6 +183,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                         receiveFifo.Enqueue((uint)value);
                         txComplete = true;
                         endOfTransfer = true;
+                        UpdateInterrupt();
                     });
 
             // RXDR @ 0x30: Receive Data Register
@@ -210,6 +223,14 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         private IFlagRegisterField cstart;
         private bool txComplete;
         private bool endOfTransfer;
+        private uint ierValue;
+
+        private void UpdateInterrupt()
+        {
+            // EOTIE is bit 3 in IER (STM32N6 SPI_IER_EOTIE)
+            var eotie = (ierValue & (1u << 3)) != 0;
+            IRQ.Set(eotie && endOfTransfer);
+        }
 
         private enum Registers : long
         {
