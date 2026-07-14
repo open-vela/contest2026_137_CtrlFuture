@@ -230,9 +230,9 @@ sysbus:
         //   SPI1/4/5, SAI1/2)
         Tag <0x42000500, 0x42000FFF> "APB2_PERIPH_A"
         Tag <0x42002000, 0x42002FFF> "APB2_PERIPH_B"
-        Tag <0x42003500, 0x42003BFF> "APB2_PERIPH_C"
+        Tag <0x42003800, 0x42003BFF> "APB2_PERIPH_C"   # free SPI4 through 0x420037FF
         Tag <0x42004900, 0x42004FFF> "APB2_PERIPH_D"
-        Tag <0x42005100, 0x420057FF> "APB2_PERIPH_E"
+        Tag <0x42005400, 0x420057FF> "APB2_PERIPH_E"   # free SPI5 through 0x420053FF
         Tag <0x42007000, 0x4201FFFF> "APB2_PERIPH_F"
         // AHB1 peripherals (except GPDMA1, ADC1)
         Tag <0x40022400, 0x4003FFFF> "AHB1_PERIPH"
