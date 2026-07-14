@@ -3,25 +3,9 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 //
-// STM32N6 FDCAN (CAN Bus) model for Renode.
-// Minimal model: register read/write without actual CAN transfers.
-//
-// Registers:
-//   CREL   @ 0x00: Core release (read-only)
-//   ENDN   @ 0x04: Endian (read-only)
-//   DBTP   @ 0x0C: Data bit timing (RW)
-//   TEST   @ 0x10: Test (RW)
-//   RWD    @ 0x14: RAM watchdog (RW)
-//   CCCR   @ 0x18: CC control (RW)
-//   BTP    @ 0x1C: Bit timing (RW)
-//   TSCC   @ 0x20: Timestamp counter config (RW)
-//   IR     @ 0x24: Interrupt (RW)
-//   IE     @ 0x28: Interrupt enable (RW)
-//   ILS    @ 0x34: Interrupt line select (RW)
-//   RXF0S  @ 0x44: RX FIFO 0 status (RW)
-//   TXBAR  @ 0xC8: TX buffer add request (RW)
-//   TXBCR  @ 0xCC: TX buffer cancel request (RW)
-//   TXBTO  @ 0xD0: TX buffer to occurrence (RW)
+// STM32N6 FDCAN model for Renode.
+// L2 model: CCCR.INIT sticks on write so driver wait-for-INIT completes;
+// CCE only accepted while INIT=1; leave INIT clears CCE. No CAN bus.
 //
 
 using Antmicro.Renode.Core;
@@ -40,68 +24,83 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
         public long Size => 0x400;
 
+        public override void Reset()
+        {
+            base.Reset();
+            // Hardware powers up in INIT mode
+            cccr = 0x1;
+        }
+
         private void DefineRegisters()
         {
-            // CREL @ 0x00: Core release (read-only)
             Registers.CREL.Define(this)
                 .WithValueField(0, 32, FieldMode.Read, name: "CREL");
 
-            // ENDN @ 0x04: Endian (read-only)
             Registers.ENDN.Define(this)
-                .WithValueField(0, 32, FieldMode.Read, name: "ENDN");
+                .WithValueField(0, 32, FieldMode.Read,
+                    valueProviderCallback: _ => 0x87654321, name: "ENDN");
 
-            // DBTP @ 0x0C: Data bit timing (RW)
             Registers.DBTP.Define(this)
                 .WithValueField(0, 32, name: "DBTP");
 
-            // TEST @ 0x10: Test (RW)
             Registers.TEST.Define(this)
                 .WithValueField(0, 32, name: "TEST");
 
-            // RWD @ 0x14: RAM watchdog (RW)
             Registers.RWD.Define(this)
                 .WithValueField(0, 32, name: "RWD");
 
-            // CCCR @ 0x18: CC control (RW)
+            // CCCR @ 0x18: INIT (bit0), CCE (bit1)
             Registers.CCCR.Define(this)
-                .WithValueField(0, 32, name: "CCCR");
+                .WithValueField(0, 32,
+                    valueProviderCallback: _ => cccr,
+                    writeCallback: (_, val) =>
+                    {
+                        var v = (uint)val;
+                        var init = (v & 0x1) != 0;
+                        if (init)
+                        {
+                            // Enter INIT; accept CCE
+                            cccr = v & 0xFFFFu;
+                        }
+                        else
+                        {
+                            // Leave INIT: CCE forced clear
+                            cccr = v & ~0x3u;
+                        }
+                    },
+                    name: "CCCR");
 
-            // BTP @ 0x1C: Bit timing (RW)
             Registers.BTP.Define(this)
                 .WithValueField(0, 32, name: "BTP");
 
-            // TSCC @ 0x20: Timestamp counter config (RW)
             Registers.TSCC.Define(this)
                 .WithValueField(0, 32, name: "TSCC");
 
-            // IR @ 0x24: Interrupt (RW)
             Registers.IR.Define(this)
                 .WithValueField(0, 32, name: "IR");
 
-            // IE @ 0x28: Interrupt enable (RW)
             Registers.IE.Define(this)
                 .WithValueField(0, 32, name: "IE");
 
-            // ILS @ 0x34: Interrupt line select (RW)
             Registers.ILS.Define(this)
                 .WithValueField(0, 32, name: "ILS");
 
-            // RXF0S @ 0x44: RX FIFO 0 status (RW)
             Registers.RXF0S.Define(this)
                 .WithValueField(0, 32, name: "RXF0S");
 
-            // TXBAR @ 0xC8: TX buffer add request (RW)
             Registers.TXBAR.Define(this)
                 .WithValueField(0, 32, name: "TXBAR");
 
-            // TXBCR @ 0xCC: TX buffer cancel request (RW)
             Registers.TXBCR.Define(this)
                 .WithValueField(0, 32, name: "TXBCR");
 
-            // TXBTO @ 0xD0: TX buffer to occurrence (RW)
+            // TXBTO: buffers complete immediately when requested via TXBAR
             Registers.TXBTO.Define(this)
-                .WithValueField(0, 32, name: "TXBTO");
+                .WithValueField(0, 32, FieldMode.Read,
+                    valueProviderCallback: _ => 0, name: "TXBTO");
         }
+
+        private uint cccr = 0x1;
 
         private enum Registers : long
         {
