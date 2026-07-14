@@ -4,27 +4,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 // STM32N6 OTG (USB OTG HS) model for Renode.
-// Minimal model: register read/write without actual USB transfers.
-//
-// Registers:
-//   GOTGCTL  @ 0x000: OTG control (read-only)
-//   GOTGINT  @ 0x004: OTG interrupt (RW)
-//   GAHBCFG  @ 0x008: AHB configuration (RW)
-//   GUSBCFG  @ 0x00C: USB configuration (RW)
-//   GRSTCTL  @ 0x010: Reset (RW)
-//   GINTSTS  @ 0x014: Interrupt status (read-only)
-//   GINTMSK  @ 0x018: Interrupt mask (RW)
-//   GRXSTSR  @ 0x01C: Receive status debug read (read-only)
-//   GRXFSIZ  @ 0x024: Receive FIFO size (RW)
-//   GNPTXFSIZ @ 0x028: Non-periodic TX FIFO size (RW)
-//   GCCFG    @ 0x038: General core configuration (RW)
-//   CID      @ 0x03C: Core ID (RW)
-//   DCFG     @ 0x800: Device configuration (RW)
-//   DCTL     @ 0x804: Device control (write-only)
-//   DSTS     @ 0x808: Device status (read-only)
-//   DIEPMSK  @ 0x810: Device IN endpoint mask (RW)
-//   DOEPMSK  @ 0x814: Device OUT endpoint mask (RW)
-//   DAINT    @ 0x818: Device all endpoints interrupt (RW)
+// L2 model: GRSTCTL.CSRST (bit0) self-clears; AHBIDL (bit31) always 1
+// so core soft-reset wait loops complete. No USB transfers.
 //
 
 using Antmicro.Renode.Core;
@@ -43,80 +24,102 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
         public long Size => 0x1000;
 
+        public override void Reset()
+        {
+            base.Reset();
+            grstctl = 0x80000000; // AHBIDL set at idle
+            gahbcfg = 0;
+            gusbcfg = 0;
+            dcfg = 0;
+            cid = 0;
+        }
+
         private void DefineRegisters()
         {
-            // GOTGCTL @ 0x000: OTG control (read-only)
             Registers.GOTGCTL.Define(this)
                 .WithValueField(0, 32, FieldMode.Read, name: "GOTGCTL");
 
-            // GOTGINT @ 0x004: OTG interrupt (RW)
             Registers.GOTGINT.Define(this)
                 .WithValueField(0, 32, name: "GOTGINT");
 
-            // GAHBCFG @ 0x008: AHB configuration (RW)
             Registers.GAHBCFG.Define(this)
-                .WithValueField(0, 32, name: "GAHBCFG");
+                .WithValueField(0, 32,
+                    valueProviderCallback: _ => gahbcfg,
+                    writeCallback: (_, val) => gahbcfg = (uint)val,
+                    name: "GAHBCFG");
 
-            // GUSBCFG @ 0x00C: USB configuration (RW)
             Registers.GUSBCFG.Define(this)
-                .WithValueField(0, 32, name: "GUSBCFG");
+                .WithValueField(0, 32,
+                    valueProviderCallback: _ => gusbcfg,
+                    writeCallback: (_, val) => gusbcfg = (uint)val,
+                    name: "GUSBCFG");
 
-            // GRSTCTL @ 0x010: Reset (RW)
+            // GRSTCTL @ 0x010: CSRST (bit0) self-clears; AHBIDL (bit31)=1
             Registers.GRSTCTL.Define(this)
-                .WithValueField(0, 32, name: "GRSTCTL");
+                .WithValueField(0, 32,
+                    valueProviderCallback: _ => grstctl | 0x80000000u,
+                    writeCallback: (_, val) =>
+                    {
+                        // Soft-reset and TX/RX FIFO flushes complete instantly
+                        var v = (uint)val;
+                        v &= ~0x1u;          // CSRST self-clear
+                        v &= ~(0x1u << 4);   // RXFFLSH self-clear
+                        v &= ~(0x1u << 5);   // TXFFLSH self-clear
+                        grstctl = v | 0x80000000u; // AHBIDL
+                    },
+                    name: "GRSTCTL");
 
-            // GINTSTS @ 0x014: Interrupt status (read-only)
             Registers.GINTSTS.Define(this)
                 .WithValueField(0, 32, FieldMode.Read, name: "GINTSTS");
 
-            // GINTMSK @ 0x018: Interrupt mask (RW)
             Registers.GINTMSK.Define(this)
                 .WithValueField(0, 32, name: "GINTMSK");
 
-            // GRXSTSR @ 0x01C: Receive status debug read (read-only)
             Registers.GRXSTSR.Define(this)
                 .WithValueField(0, 32, FieldMode.Read, name: "GRXSTSR");
 
-            // GRXFSIZ @ 0x024: Receive FIFO size (RW)
             Registers.GRXFSIZ.Define(this)
                 .WithValueField(0, 32, name: "GRXFSIZ");
 
-            // GNPTXFSIZ @ 0x028: Non-periodic TX FIFO size (RW)
             Registers.GNPTXFSIZ.Define(this)
                 .WithValueField(0, 32, name: "GNPTXFSIZ");
 
-            // GCCFG @ 0x038: General core configuration (RW)
             Registers.GCCFG.Define(this)
                 .WithValueField(0, 32, name: "GCCFG");
 
-            // CID @ 0x03C: Core ID (RW)
             Registers.CID.Define(this)
-                .WithValueField(0, 32, name: "CID");
+                .WithValueField(0, 32,
+                    valueProviderCallback: _ => cid,
+                    writeCallback: (_, val) => cid = (uint)val,
+                    name: "CID");
 
-            // DCFG @ 0x800: Device configuration (RW)
             Registers.DCFG.Define(this)
-                .WithValueField(0, 32, name: "DCFG");
+                .WithValueField(0, 32,
+                    valueProviderCallback: _ => dcfg,
+                    writeCallback: (_, val) => dcfg = (uint)val,
+                    name: "DCFG");
 
-            // DCTL @ 0x804: Device control (write-only)
             Registers.DCTL.Define(this)
                 .WithValueField(0, 32, FieldMode.Write, name: "DCTL");
 
-            // DSTS @ 0x808: Device status (read-only)
             Registers.DSTS.Define(this)
                 .WithValueField(0, 32, FieldMode.Read, name: "DSTS");
 
-            // DIEPMSK @ 0x810: Device IN endpoint mask (RW)
             Registers.DIEPMSK.Define(this)
                 .WithValueField(0, 32, name: "DIEPMSK");
 
-            // DOEPMSK @ 0x814: Device OUT endpoint mask (RW)
             Registers.DOEPMSK.Define(this)
                 .WithValueField(0, 32, name: "DOEPMSK");
 
-            // DAINT @ 0x818: Device all endpoints interrupt (RW)
             Registers.DAINT.Define(this)
                 .WithValueField(0, 32, name: "DAINT");
         }
+
+        private uint grstctl = 0x80000000;
+        private uint gahbcfg;
+        private uint gusbcfg;
+        private uint dcfg;
+        private uint cid;
 
         private enum Registers : long
         {
