@@ -147,6 +147,20 @@ P4 (高级功能)
 037 加密加速器 ← 005 ──→ 038 Secure Boot ← 019
 ```
 
+## Renode（驱动正确性仿真）
+
+Phase-1 **driver-correctness** 波次（Wave 0–3）已完成：Wave 相关 C#
+模型 + Robot suite 覆盖上述 P0–P4 中已落地驱动的 L1/L2/L3 行为。
+
+- 权威保真度矩阵与 **Robot suite 编号 ≠ ADR 编号** 对照表：
+  [`tests/renode/README.md`](../tests/renode/README.md)
+- 方法论摘要：[`DEV-METHODOLOGY.md`](DEV-METHODOLOGY.md) 中
+  “Renode Fidelity Matrix (Phase-1)” 一节
+- 本表各 ADR 的 **DONE / PENDING 状态不因仿真波次改写**；
+  Renode 保真度以 README 矩阵为准，不在此重复逐行打标
+
+---
+
 ## 风险登记
 
 | 风险 | 影响 | 缓解措施 |

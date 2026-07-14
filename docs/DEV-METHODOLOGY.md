@@ -339,6 +339,51 @@ renode/src/Infrastructure/src/Emulator/Peripherals/Peripherals/Miscellaneous/STM
 
 ---
 
+## Renode Fidelity Matrix (Phase-1)
+
+完整 L1/L2/L3 保真度表、Robot suite ↔ ADR 映射、路径布局以
+[`tests/renode/README.md`](../tests/renode/README.md) 为**唯一权威源**。
+本文只摘要；更新矩阵时改 README，不必批量改 ADR 正文。
+
+### 保真度层级
+
+| 层级 | 含义 | 典型证据 |
+|------|------|----------|
+| L1 | 寄存器可读 / 复位值 | `L1-register` Robot cases |
+| L2 | 控制/状态位与状态机 | enable→ready、soft IRQ、FIFO 标志 |
+| L3 | 功能路径 | mem2mem / SPI loopback / SDMMC probe / UART console |
+
+### 路径布局（勿写错 RENODE_SRC）
+
+| 变量 | 路径 | 说明 |
+|------|------|------|
+| `OPENVELA_ROOT` | `/home/takumi/mi/open-velao-contest` | 顶层 |
+| `WORKSPACE` | `$OPENVELA_ROOT/ctrl_future` | NuttX 构建根 |
+| `RENODE_SRC` | `$OPENVELA_ROOT/renode` | Renode 源码（**不是** `$WORKSPACE/renode`） |
+| `SOFTWARE_PACKAGE` | `$OPENVELA_ROOT/SoftwarePackage` | ST HAL / CMSIS |
+| CMSIS | `$SOFTWARE_PACKAGE/STM32Cube_FW_N6_V1.0.0/.../stm32n647xx.h` | 寄存器真源 |
+| 本仓 Renode 树 | `tests/renode/` | `.repl` / `peripherals/*.cs` / `tests/*.robot` |
+
+### Robot 编号 ≠ ADR 编号
+
+Robot 文件名前缀是历史落地顺序，**不等于** ROADMAP ADR 号。
+示例：`021-emac`→ADR-022，`023-fdcan`→ADR-024，`024-otg`→ADR-023，
+`025-ltdc`→ADR-031，`026-dcmipp`→ADR-033，`039-rng`→ADR-037。
+**禁止**为对齐编号而批量重命名 suite。完整对照表见 README。
+
+### Phase-1 波次结果（摘要）
+
+- Wave 0–3 已将驱动相关外设模型抬到可用 L2/L3（见 README 表）。
+- L3 已达：USART1（stock）、GPDMA mem2mem、SPI FIFO loopback、
+  I2C master path、SDMMC probe/CMD。
+- L2+ 覆盖：RCC、PWR、EXTI、IWDG、RTC、XSPI、EMAC、SAI、FDCAN、
+  OTG、LTDC、DCMIPP、RNG 等。
+- 仍为 L1（本波未抬升）：HPDMA、TIM、LPTIM、ADC、DTS、DMA2D、CSI、
+  VENC、NPU、CRYP、OTP。
+- Phase-2 cmocka drivertest e2e 延后，理由见 README。
+
+---
+
 ## CLAUDE.md 新增内容（工作流串联）
 
 在 CLAUDE.md 中追加：
