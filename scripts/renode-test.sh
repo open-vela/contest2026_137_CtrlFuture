@@ -9,20 +9,41 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 WORKSPACE="$(cd "${REPO_DIR}/.." && pwd)"
-RENODE_SRC="${WORKSPACE}/renode"
+OPENVELA_ROOT="$(cd "${WORKSPACE}/.." && pwd)"
 RESULTS_DIR="${REPO_DIR}/tests/renode/results"
 MARKER_FILE="${REPO_DIR}/tests/renode/.renode-built"
 PERIPHERALS_DIR="${REPO_DIR}/tests/renode/peripherals"
 TESTS_DIR="${REPO_DIR}/tests/renode/tests"
 
+# Resolve Renode source for local and CI layouts:
+# - Local: open-velao-contest/renode (sibling of ctrl_future / WORKSPACE)
+# - CI:    $GITHUB_WORKSPACE/renode (sibling of contest2026_137_CtrlFuture;
+#          workflow renode-test.yml uses that path directly and does not call
+#          this script)
+# - Override: export RENODE_SRC=/path/to/renode when needed
+if [ -n "${RENODE_SRC:-}" ] && [ -x "${RENODE_SRC}/renode-test" ]; then
+  : # honor env override if valid
+elif [ -x "${OPENVELA_ROOT}/renode/renode-test" ]; then
+  RENODE_SRC="${OPENVELA_ROOT}/renode"
+elif [ -x "${WORKSPACE}/renode/renode-test" ]; then
+  RENODE_SRC="${WORKSPACE}/renode"
+elif [ -x "${REPO_DIR}/../renode/renode-test" ]; then
+  RENODE_SRC="$(cd "${REPO_DIR}/.." && pwd)/renode"
+else
+  RENODE_SRC="${OPENVELA_ROOT}/renode"  # default local expectation
+fi
+
 echo "=== Renode Robot Framework Test Runner ==="
 echo "Repository: ${REPO_DIR}"
+echo "Workspace: ${WORKSPACE}"
 echo "Renode source: ${RENODE_SRC}"
 echo "Results: ${RESULTS_DIR}"
 
 # Check renode-test exists
 if [ ! -x "${RENODE_SRC}/renode-test" ]; then
     echo "ERROR: renode-test not found at ${RENODE_SRC}/renode-test"
+    echo "Hint: set RENODE_SRC to the Renode tree (local default:"
+    echo "      ${OPENVELA_ROOT}/renode)."
     exit 1
 fi
 
