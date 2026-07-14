@@ -98,6 +98,18 @@ gpdma1: Miscellaneous.STM32N6_GPDMA @ sysbus 0x40021000
 i2c1: Miscellaneous.STM32N6_I2C @ sysbus 0x40005400
     IRQ -> nvic@100
 
+// I2C2 @ 0x40005800 (APB1 + 0x5800), IRQ 102 (I2C2_EV_IRQn)
+i2c2: Miscellaneous.STM32N6_I2C @ sysbus 0x40005800
+    IRQ -> nvic@102
+
+// I2C3 @ 0x40005C00 (APB1 + 0x5C00), IRQ 104 (I2C3_EV_IRQn)
+i2c3: Miscellaneous.STM32N6_I2C @ sysbus 0x40005C00
+    IRQ -> nvic@104
+
+// I2C4 @ 0x46001C00 (APB4 + 0x1C00), IRQ 106 (I2C4_EV_IRQn)
+i2c4: Miscellaneous.STM32N6_I2C @ sysbus 0x46001C00
+    IRQ -> nvic@106
+
 // SPI1 @ 0x42003000 (APB2 + 0x3000), IRQ 153
 spi1: Miscellaneous.STM32N6_SPI @ sysbus 0x42003000
 // SPI2 @ 0x40003800, IRQ 154

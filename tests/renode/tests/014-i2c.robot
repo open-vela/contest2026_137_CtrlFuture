@@ -4,6 +4,9 @@ Force Tags      i2c
 
 *** Variables ***
 ${I2C1_BASE}    0x40005400
+${I2C2_BASE}    0x40005800
+${I2C3_BASE}    0x40005C00
+${I2C4_BASE}    0x46001C00
 ${CR1_OFFSET}   0x00
 ${CR2_OFFSET}   0x04
 ${TIMINGR_OFFSET}    0x10
@@ -178,3 +181,26 @@ Boot Regression
     [Tags]    boot-regression
     Start STM32N6
     Wait For NSH
+
+I2C2 CR1 Reset Value
+    [Tags]    L1-register
+    Start STM32N6
+    ${val}=    Execute Command    sysbus ReadDoubleWord ${I2C2_BASE}
+    ${val}=    Strip String    ${val}
+    Should Be Equal As Integers    ${val}    0
+
+I2C3 PE Enable
+    [Tags]    L2-state
+    Start STM32N6
+    Execute Command    sysbus WriteDoubleWord ${I2C3_BASE} 0x1
+    ${val}=    Execute Command    sysbus ReadDoubleWord ${I2C3_BASE}
+    ${val}=    Strip String    ${val}
+    Should Be Equal As Integers    ${val}    1
+
+I2C4 PE Enable
+    [Tags]    L2-state
+    Start STM32N6
+    Execute Command    sysbus WriteDoubleWord ${I2C4_BASE} 0x1
+    ${val}=    Execute Command    sysbus ReadDoubleWord ${I2C4_BASE}
+    ${val}=    Strip String    ${val}
+    Should Be Equal As Integers    ${val}    1
