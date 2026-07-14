@@ -5,7 +5,9 @@ Force Tags      sai
 *** Variables ***
 ${SAI_BASE}     0x42005800
 ${REG_CR1}      0x04
-${REG_SR}       0x14
+${REG_IMR}      0x14
+${REG_SR}       0x18
+${REG_CLRFR}    0x1C
 ${REG_DR}       0x20
 
 *** Keywords ***
@@ -41,6 +43,13 @@ SAI1 SR Accessible
     ${val}=    Read SAI Register    ${REG_SR}
     Should Be True    int(${val}) >= 0
 
+SAI1 IMR Writable
+    [Tags]    L1-register
+    Start STM32N6
+    Write SAI Register    ${REG_IMR}    0x08
+    ${val}=    Read SAI Register    ${REG_IMR}
+    Should Be Equal As Integers    ${val}    0x08
+
 SAI1 SAIEN Sticks
     [Tags]    L2-state
     Start STM32N6
@@ -58,7 +67,7 @@ SAI1 FREQ When Enabled
     Write SAI Register    ${REG_CR1}    0x00010000
     ${sr1}=    Read SAI Register    ${REG_SR}
     ${sr1}=    Convert To Integer    ${sr1}
-    # FREQ bit 3
+    # FREQ bit 3 at SR@0x18
     Should Be True    (${sr1} & 0x8) == 0x8
 
 SAI1 DR Writable When Enabled
