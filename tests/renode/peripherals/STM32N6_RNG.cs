@@ -6,6 +6,7 @@
 // STM32N6 Random Number Generator (RNG) model for Renode.
 // L2 model: RNGEN sets DRDY; DR read returns random data and
 // re-asserts DRDY while enabled; CONDRST soft-reset consistent.
+// IRQ asserts when RNGEN && IE && DRDY (wired to NVIC RNG_IRQn=40).
 //
 // Registers:
 //   CR    @ 0x00: Control Register
@@ -26,11 +27,27 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
     {
         public STM32N6_RNG(IMachine machine) : base(machine)
         {
+            IRQ = new GPIO();
             random = new Random();
             DefineRegisters();
         }
 
         public long Size => 0x100;
+
+        public GPIO IRQ { get; }
+
+        public override void Reset()
+        {
+            base.Reset();
+            IRQ.Unset();
+        }
+
+        private void UpdateInterrupt()
+        {
+            // IRQ when enabled, IE set, and data ready (DRDY-gated L2)
+            IRQ.Set(rngEnabled.Value && interruptEnable.Value &&
+                    dataReady.Value);
+        }
 
         private void DefineRegisters()
         {
@@ -41,8 +58,10 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                     {
                         // RNGEN=1 makes data available immediately in sim
                         dataReady.Value = val;
+                        UpdateInterrupt();
                     })
-                .WithFlag(3, out interruptEnable, name: "IE")
+                .WithFlag(3, out interruptEnable, name: "IE",
+                    changeCallback: (_, __) => UpdateInterrupt())
                 .WithFlag(5, name: "CED")
                 .WithFlag(30, out condrst, name: "CONDRST",
                     writeCallback: (_, val) =>
@@ -51,6 +70,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                         if (!val)
                         {
                             dataReady.Value = rngEnabled.Value;
+                            UpdateInterrupt();
                         }
                     })
                 .WithFlag(31, FieldMode.Read, name: "CONFIGLOCK");
@@ -79,6 +99,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                         {
                             dataReady.Value = true;
                         }
+                        UpdateInterrupt();
                         return value;
                     },
                     name: "DR");

@@ -171,8 +171,9 @@ npu: Miscellaneous.STM32N6_NPU @ sysbus 0x480E0000
 // SAES (Crypto) @ 0x42006000 (APB2 + 0x6000, secure-only, not in CMSIS _BASE_NS)
 cryp: Miscellaneous.STM32N6_CRYP @ sysbus 0x42006000
 
-// RNG (Random Number Generator) @ 0x44020000 (AHB3 + 0x0000)
+// RNG @ 0x44020000 (AHB3), IRQ 40 (RNG_IRQn)
 rng: Miscellaneous.STM32N6_RNG @ sysbus 0x44020000
+    IRQ -> nvic@40
 
 // OTP (via BSEC) @ 0x46009000 (APB4 + 0x9000)
 otp: Miscellaneous.STM32N6_OTP @ sysbus 0x46009000
