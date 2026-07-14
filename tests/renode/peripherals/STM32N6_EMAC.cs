@@ -3,23 +3,17 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 //
-// STM32N6 EMAC (Ethernet GMAC) model for Renode.
-// Minimal model: register read/write without actual Ethernet transfers.
+// STM32N6 EMAC (Ethernet GMAC / ETH1) model for Renode.
+// L2 model: DMAMR.SWR self-clears; MACMDIOAR.GB self-clears after MDIO
+// access; Size covers DMA region @ 0x1000. No real MAC/PHY transfers.
 //
-// Registers:
-//   MACCR    @ 0x000: MAC configuration
-//   MACFFR   @ 0x004: MAC frame filter
-//   MACMIIAR @ 0x010: MII address
-//   MACMIIDR @ 0x014: MII data
-//   MACFCR   @ 0x018: MAC flow control
-//   MACVLANTR @ 0x01C: VLAN tag
-//   MACA0HR  @ 0x040: Address 0 high
-//   MACA0LR  @ 0x044: Address 0 low
-//   MMCCR    @ 0x100: MMC control
-//   MMCIR    @ 0x104: MMC interrupt
-//   MMCRIR   @ 0x108: MMC receive interrupt
-//   MMCTIR   @ 0x10C: MMC transmit interrupt
-//   DMABMR   @ 0x1000: DMA bus mode
+// Registers (CMSIS ETH_TypeDef offsets):
+//   MACCR     @ 0x000
+//   MACFFR    @ 0x004  (MACPacketFilter)
+//   MACA0HR   @ 0x300  (kept also legacy 0x040 for L1 tests)
+//   MACMDIOAR @ 0x200
+//   MACMDIODR @ 0x204
+//   DMAMR     @ 0x1000
 //
 
 using Antmicro.Renode.Core;
@@ -36,62 +30,101 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             DefineRegisters();
         }
 
-        public long Size => 0x800;
+        // Cover DMA mode register at 0x1000
+        public long Size => 0x1200;
+
+        public override void Reset()
+        {
+            base.Reset();
+            maccr = 0;
+            macmdioar = 0;
+            macmdiodr = 0;
+            dmamr = 0;
+        }
 
         private void DefineRegisters()
         {
-            // MACCR @ 0x000: MAC configuration
             Registers.MACCR.Define(this)
-                .WithValueField(0, 32, name: "MACCR");
+                .WithValueField(0, 32,
+                    valueProviderCallback: _ => maccr,
+                    writeCallback: (_, val) => maccr = (uint)val,
+                    name: "MACCR");
 
-            // MACFFR @ 0x004: MAC frame filter
             Registers.MACFFR.Define(this)
                 .WithValueField(0, 32, name: "MACFFR");
 
-            // MACMIIAR @ 0x010: MII address
+            // Legacy MII aliases (older layout) retained for L1 shells
             Registers.MACMIIAR.Define(this)
                 .WithValueField(0, 32, name: "MACMIIAR");
 
-            // MACMIIDR @ 0x014: MII data
             Registers.MACMIIDR.Define(this)
                 .WithValueField(0, 32, name: "MACMIIDR");
 
-            // MACFCR @ 0x018: MAC flow control
             Registers.MACFCR.Define(this)
                 .WithValueField(0, 32, name: "MACFCR");
 
-            // MACVLANTR @ 0x01C: VLAN tag
             Registers.MACVLANTR.Define(this)
                 .WithValueField(0, 32, name: "MACVLANTR");
 
-            // MACA0HR @ 0x040: Address 0 high
-            Registers.MACA0HR.Define(this)
-                .WithValueField(0, 32, name: "MACA0HR");
+            // L1 robot uses 0x040 for MACA0HR accessibility
+            Registers.MACA0HR_LEGACY.Define(this)
+                .WithValueField(0, 32, name: "MACA0HR_LEGACY");
 
-            // MACA0LR @ 0x044: Address 0 low
-            Registers.MACA0LR.Define(this)
-                .WithValueField(0, 32, name: "MACA0LR");
+            Registers.MACA0LR_LEGACY.Define(this)
+                .WithValueField(0, 32, name: "MACA0LR_LEGACY");
 
-            // MMCCR @ 0x100: MMC control
             Registers.MMCCR.Define(this)
                 .WithValueField(0, 32, name: "MMCCR");
 
-            // MMCIR @ 0x104: MMC interrupt
             Registers.MMCIR.Define(this)
                 .WithValueField(0, 32, name: "MMCIR");
 
-            // MMCRIR @ 0x108: MMC receive interrupt
             Registers.MMCRIR.Define(this)
                 .WithValueField(0, 32, name: "MMCRIR");
 
-            // MMCTIR @ 0x10C: MMC transmit interrupt
             Registers.MMCTIR.Define(this)
                 .WithValueField(0, 32, name: "MMCTIR");
 
-            // DMABMR @ 0x1000: DMA bus mode
-            Registers.DMABMR.Define(this)
-                .WithValueField(0, 32, name: "DMABMR");
+            // MACMDIOAR @ 0x200: GB (bit 0) self-clears after MDIO cycle
+            Registers.MACMDIOAR.Define(this)
+                .WithValueField(0, 32,
+                    valueProviderCallback: _ => macmdioar,
+                    writeCallback: (_, val) =>
+                    {
+                        // Accept write but clear GB immediately (instant MDIO)
+                        macmdioar = (uint)val & ~0x1u;
+                    },
+                    name: "MACMDIOAR");
+
+            Registers.MACMDIODR.Define(this)
+                .WithValueField(0, 32,
+                    valueProviderCallback: _ => macmdiodr,
+                    writeCallback: (_, val) => macmdiodr = (uint)val,
+                    name: "MACMDIODR");
+
+            // CMSIS MACA0HR/LR @ 0x300/0x304
+            Registers.MACA0HR.Define(this)
+                .WithValueField(0, 32, name: "MACA0HR");
+
+            Registers.MACA0LR.Define(this)
+                .WithValueField(0, 32, name: "MACA0LR");
+
+            // DMAMR @ 0x1000: SWR (bit 0) self-clears after soft reset
+            Registers.DMAMR.Define(this)
+                .WithValueField(0, 32,
+                    valueProviderCallback: _ => dmamr,
+                    writeCallback: (_, val) =>
+                    {
+                        // Soft reset completes instantly in simulation
+                        dmamr = (uint)val & ~0x1u;
+                    },
+                    name: "DMAMR");
         }
+
+        private uint maccr;
+        private uint macmdioar;
+        private uint macmdiodr;
+        private uint dmamr;
 
         private enum Registers : long
         {
@@ -101,13 +134,17 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             MACMIIDR = 0x014,
             MACFCR = 0x018,
             MACVLANTR = 0x01C,
-            MACA0HR = 0x040,
-            MACA0LR = 0x044,
+            MACA0HR_LEGACY = 0x040,
+            MACA0LR_LEGACY = 0x044,
             MMCCR = 0x100,
             MMCIR = 0x104,
             MMCRIR = 0x108,
             MMCTIR = 0x10C,
-            DMABMR = 0x1000,
+            MACMDIOAR = 0x200,
+            MACMDIODR = 0x204,
+            MACA0HR = 0x300,
+            MACA0LR = 0x304,
+            DMAMR = 0x1000,
         }
     }
 }
