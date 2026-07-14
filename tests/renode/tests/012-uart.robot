@@ -23,7 +23,7 @@ USART6 Register Accessible
     Should Be True    int(${val}) >= 0
 
 USART1 Console Works
-    [Tags]    L3-functional
+    [Tags]    L2-state    L3-functional
     Start STM32N6
     Wait For NSH
     Run NSH Command    help    Builtin Apps:

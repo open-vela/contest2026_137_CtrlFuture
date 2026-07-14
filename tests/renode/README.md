@@ -49,6 +49,23 @@ USART1 L3 is already proven by `012-uart.robot`:
 SPI and I2C L3 models (`013-spi.robot`, `014-i2c.robot`) are ready
 for future drivertest binding.
 
+#### Phase-1 exit checklist (Task 11) — PASSED 2026-07-14
+
+| Gate | Evidence |
+|------|----------|
+| `scripts/renode-test.sh` default paths | Resolves `RENODE_SRC=$OPENVELA_ROOT/renode` |
+| SPI in `.repl` + model + ≥ L2 | `spi1`–`spi6` `STM32N6_SPI`; `013-spi` L2+L3 |
+| RNG DRDY/RNGEN | `039-rng` L2 (DRDY) + IRQ path |
+| GPDMA mem2mem L3 | `011-gpdma` L3-functional cases |
+| I2C master flags L2+ | `014-i2c` L2 + L3 |
+| Every MMIO NuttX driver ≥1 L2-state | See matrix; RCC/GPIO/PWR/UART tagged |
+| Full Robot suite green | **217 pass / 0 fail** (`robot_output.xml`) |
+| `000-boot-regression` green | First-class suite PASS |
+| CLAUDE.md paths | `RENODE_SRC`, `SOFTWARE_PACKAGE` correct |
+
+**MMIO driver scope:** `stm32n6_{rcc,gpio,pwr,exti,dma,spi,i2c,iwdg,rtc,xspi,sdmmc,ethernet,sai,fdcan,otg,ltdc,dcmipp,rng,lowputc,serial}.c`.  
+**Excluded (not peripheral MMIO models):** `start`, `allocateheap`, `irq` (NVIC), `timerisr` (SysTick core).
+
 ### Phase-2 (deferred)
 
 Full cmocka drivertest e2e on Renode is deferred:

@@ -1,5 +1,6 @@
 *** Settings ***
 Resource        resources/stm32n6-common.robot
+Force Tags      pwr
 
 *** Variables ***
 ${PWR_BASE}     0x46024800
@@ -21,12 +22,14 @@ Write PWR Register
 *** Test Cases ***
 PWR VOSCR Reset Value
     [Documentation]    VOSCR should reset to 0
+    [Tags]    L1-register
     Create STM32N6 Machine
     ${val}=    Read PWR Register    ${VOSCR}
     Should Be Equal As Integers    ${val}    0
 
 PWR Set VOS Scale 0
     [Documentation]    Writing VOS=0 should set VOSRDY and ACTVOS
+    [Tags]    L2-state
     Create STM32N6 Machine
     Write PWR Register    ${VOSCR}    0x00
     ${val}=    Read PWR Register    ${VOSCR}
@@ -35,6 +38,7 @@ PWR Set VOS Scale 0
 
 PWR Set VOS Scale 1
     [Documentation]    Writing VOS=1 should set VOSRDY and ACTVOS
+    [Tags]    L2-state
     Create STM32N6 Machine
     Write PWR Register    ${VOSCR}    0x01
     ${val}=    Read PWR Register    ${VOSCR}
@@ -43,5 +47,6 @@ PWR Set VOS Scale 1
 
 Boot Regression
     [Documentation]    NSH prompt should still work after PWR model addition
+    [Tags]    boot-regression
     Start STM32N6
     Wait For NSH

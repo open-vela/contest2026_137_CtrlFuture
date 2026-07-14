@@ -1,5 +1,6 @@
 *** Settings ***
 Resource        resources/stm32n6-common.robot
+Force Tags      rcc
 
 *** Variables ***
 ${RCC_BASE}     0x46028000
@@ -23,12 +24,14 @@ Write RCC Register
 
 *** Test Cases ***
 CR After Boot HSI Enabled
+    [Tags]    L1-register
     Start STM32N6
     ${val}=    Read RCC Register    ${CR_OFFSET}
     # Firmware sets HSION (bit 3) during boot -> 0x08
     Should Be Equal As Integers    ${val}    0x08
 
 HSION Sets HSIRDY
+    [Tags]    L2-state
     Start STM32N6
     # Set HSION (bit 3) in CR
     Write RCC Register    ${CR_OFFSET}    0x08
@@ -38,6 +41,7 @@ HSION Sets HSIRDY
     Should Be Equal As Integers    ${hsirdy}    1
 
 HSEON Sets HSERDY
+    [Tags]    L2-state
     Start STM32N6
     # Set HSEON (bit 4) in CR
     Write RCC Register    ${CR_OFFSET}    0x10
@@ -47,6 +51,7 @@ HSEON Sets HSERDY
     Should Be Equal As Integers    ${hserdy}    1
 
 PLL1ON Sets PLL1RDY
+    [Tags]    L2-state
     Start STM32N6
     # Set PLL1ON (bit 8) in CR
     Write RCC Register    ${CR_OFFSET}    0x100
@@ -56,6 +61,7 @@ PLL1ON Sets PLL1RDY
     Should Be Equal As Integers    ${pll1rdy}    1
 
 Peripheral Clock GPIOE
+    [Tags]    L2-state
     Start STM32N6
     # AHB4ENR: GPIOEEN is bit 4
     Write RCC Register    ${AHB4ENR}    0x10
@@ -64,6 +70,7 @@ Peripheral Clock GPIOE
     Should Be Equal As Integers    ${gpioeen}    1
 
 Peripheral Clock USART1
+    [Tags]    L2-state
     Start STM32N6
     # APB2ENR: USART1EN is bit 4
     Write RCC Register    ${APB2ENR}    0x10
@@ -72,5 +79,6 @@ Peripheral Clock USART1
     Should Be Equal As Integers    ${usart1en}    1
 
 Boot Regression
+    [Tags]    boot-regression
     Start STM32N6
     Wait For NSH

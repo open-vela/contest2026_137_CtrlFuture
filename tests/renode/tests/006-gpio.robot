@@ -1,5 +1,6 @@
 *** Settings ***
 Resource        resources/stm32n6-common.robot
+Force Tags      gpio
 
 *** Variables ***
 ${GPIOE_BASE}       0x46021000
@@ -23,12 +24,14 @@ Write GPIO Register
 
 *** Test Cases ***
 GPIOE MODER Accessible
+    [Tags]    L1-register
     Start STM32N6
     ${val}=    Read GPIO Register    ${GPIOE_BASE}    ${GPIO_MODER}
     # PE5/PE6 configured as AF (USART1) by firmware: 0x2800
     Should Be True    int(${val}) >= 0
 
 GPIOE Output Write
+    [Tags]    L2-state
     Start STM32N6
     # Set PE0 to output mode (MODER bit 0:1 = 01)
     Write GPIO Register    ${GPIOE_BASE}    ${GPIO_MODER}    0x01
@@ -39,15 +42,18 @@ GPIOE Output Write
     Should Be Equal As Integers    ${pe0}    1
 
 GPIOA Accessible
+    [Tags]    L1-register
     Start STM32N6
     ${val}=    Read GPIO Register    ${GPIOA_BASE}    ${GPIO_MODER}
     Should Be Equal As Integers    ${val}    0
 
 GPIO Port E IDR Readback
+    [Tags]    L1-register
     Start STM32N6
     ${idr}=    Read GPIO Register    ${GPIOE_BASE}    ${GPIO_IDR}
     Should Be True    int(${idr}) >= 0
 
 Boot Regression
+    [Tags]    boot-regression
     Start STM32N6
     Wait For NSH
