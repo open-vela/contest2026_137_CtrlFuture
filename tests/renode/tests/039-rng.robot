@@ -1,5 +1,7 @@
 *** Settings ***
 Resource        resources/stm32n6-common.robot
+# Tags: L1-register | L2-state | L3-functional | boot-regression
+Force Tags      L1-register  rng
 
 *** Variables ***
 ${RNG_BASE}     0x44020000

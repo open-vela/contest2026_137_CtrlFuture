@@ -3,6 +3,17 @@
 #
 # Local Renode Robot Framework test runner.
 # Rebuilds Renode if C# models changed, then runs all .robot tests.
+#
+# Robot test tiers (Force Tags in suite Settings):
+#   L1-register     - reset values, RW shells
+#   L2-state        - enable->ready, IRQ, state machines
+#   L3-functional   - data paths / DMA
+#   boot-regression - NSH boot
+#
+# Full suite (default):
+#   bash scripts/renode-test.sh
+# Filter by tier when renode-test supports --include:
+#   ${RENODE_SRC}/renode-test --include L2-state tests/renode/tests/*.robot
 
 set -euo pipefail
 
