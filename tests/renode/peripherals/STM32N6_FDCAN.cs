@@ -7,6 +7,17 @@
 // L2 model: CCCR.INIT sticks on write so driver wait-for-INIT completes;
 // CCE only accepted while INIT=1; leave INIT clears CCE. No CAN bus.
 //
+// CMSIS FDCAN_GlobalTypeDef (subset used by L2):
+//   CREL  @ 0x000  ENDN @ 0x004
+//   DBTP  @ 0x00C  TEST @ 0x010  RWD @ 0x014
+//   CCCR  @ 0x018  NBTP @ 0x01C  TSCC @ 0x020
+//   IR    @ 0x050  IE   @ 0x054  ILS  @ 0x058  ILE @ 0x05C
+//   RXF0S @ 0x0A4
+//   TXBAR @ 0x0D0  TXBCR @ 0x0D4  TXBTO @ 0x0D8
+//
+// Note: NuttX stm32n6_fdcan.c currently has wrong CCCR@0x000 map;
+// this model follows CMSIS, not the driver bug.
+//
 
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
@@ -29,6 +40,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             base.Reset();
             // Hardware powers up in INIT mode
             cccr = 0x1;
+            txbto = 0;
         }
 
         private void DefineRegisters()
@@ -57,7 +69,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                     {
                         var v = (uint)val;
                         var init = (v & 0x1) != 0;
-                        if (init)
+                        if(init)
                         {
                             // Enter INIT; accept CCE
                             cccr = v & 0xFFFFu;
@@ -70,8 +82,8 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                     },
                     name: "CCCR");
 
-            Registers.BTP.Define(this)
-                .WithValueField(0, 32, name: "BTP");
+            Registers.NBTP.Define(this)
+                .WithValueField(0, 32, name: "NBTP");
 
             Registers.TSCC.Define(this)
                 .WithValueField(0, 32, name: "TSCC");
@@ -85,22 +97,31 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             Registers.ILS.Define(this)
                 .WithValueField(0, 32, name: "ILS");
 
+            Registers.ILE.Define(this)
+                .WithValueField(0, 32, name: "ILE");
+
             Registers.RXF0S.Define(this)
                 .WithValueField(0, 32, name: "RXF0S");
 
+            // TXBAR: request bits; mark TXBTO complete immediately (no bus)
             Registers.TXBAR.Define(this)
-                .WithValueField(0, 32, name: "TXBAR");
+                .WithValueField(0, 32,
+                    writeCallback: (_, val) =>
+                    {
+                        txbto |= (uint)val;
+                    },
+                    name: "TXBAR");
 
             Registers.TXBCR.Define(this)
                 .WithValueField(0, 32, name: "TXBCR");
 
-            // TXBTO: buffers complete immediately when requested via TXBAR
             Registers.TXBTO.Define(this)
                 .WithValueField(0, 32, FieldMode.Read,
-                    valueProviderCallback: _ => 0, name: "TXBTO");
+                    valueProviderCallback: _ => txbto, name: "TXBTO");
         }
 
         private uint cccr = 0x1;
+        private uint txbto;
 
         private enum Registers : long
         {
@@ -110,15 +131,16 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             TEST = 0x10,
             RWD = 0x14,
             CCCR = 0x18,
-            BTP = 0x1C,
+            NBTP = 0x1C,
             TSCC = 0x20,
-            IR = 0x24,
-            IE = 0x28,
-            ILS = 0x34,
-            RXF0S = 0x44,
-            TXBAR = 0xC8,
-            TXBCR = 0xCC,
-            TXBTO = 0xD0,
+            IR = 0x50,
+            IE = 0x54,
+            ILS = 0x58,
+            ILE = 0x5C,
+            RXF0S = 0xA4,
+            TXBAR = 0xD0,
+            TXBCR = 0xD4,
+            TXBTO = 0xD8,
         }
     }
 }

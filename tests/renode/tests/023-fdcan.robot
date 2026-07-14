@@ -28,11 +28,11 @@ FDCAN1 CREL Reset Value
     ${val}=    Read FDCAN Register    ${REG_CREL}
     Should Be Equal As Integers    ${val}    0
 
-FDCAN1 ENDN Accessible
+FDCAN1 ENDN Magic
     [Tags]    L1-register
     Start STM32N6
     ${val}=    Read FDCAN Register    ${REG_ENDN}
-    Should Be True    int(${val}) >= 0
+    Should Be Equal As Integers    ${val}    0x87654321
 
 FDCAN1 CCCR Reset In INIT
     [Tags]    L2-state

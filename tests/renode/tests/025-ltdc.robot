@@ -7,7 +7,9 @@ ${LTDC_BASE}    0x48001000
 ${REG_GCR}      0x18
 ${REG_SRCR}     0x24
 ${REG_ISR}      0x38
-${REG_L0_CR}    0x80
+# CMSIS Layer1 CR @ LTDC + 0x10C (not H7 0x84/0x80)
+${REG_L1_CR}    0x10C
+${REG_L2_CR}    0x20C
 
 *** Keywords ***
 Read LTDC Register
@@ -58,11 +60,18 @@ LTDC SRCR Self Clears
     ${val}=    Read LTDC Register    ${REG_SRCR}
     Should Be Equal As Integers    ${val}    0
 
-LTDC Layer0 Enable Sticks
+LTDC Layer1 Enable Sticks
     [Tags]    L2-state
     Start STM32N6
-    Write LTDC Register    ${REG_L0_CR}    0x01
-    ${val}=    Read LTDC Register    ${REG_L0_CR}
+    Write LTDC Register    ${REG_L1_CR}    0x01
+    ${val}=    Read LTDC Register    ${REG_L1_CR}
+    Should Be Equal As Integers    ${val}    0x01
+
+LTDC Layer2 Enable Sticks
+    [Tags]    L2-state
+    Start STM32N6
+    Write LTDC Register    ${REG_L2_CR}    0x01
+    ${val}=    Read LTDC Register    ${REG_L2_CR}
     Should Be Equal As Integers    ${val}    0x01
 
 Boot Regression

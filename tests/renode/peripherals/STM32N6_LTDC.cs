@@ -7,6 +7,14 @@
 // L2 model: GCR.LTDCEN sticks; SRCR IMR/VBR self-clear after reload;
 // layer CR enable sticks. No display output.
 //
+// CMSIS LTDC_TypeDef / LTDC_Layer_TypeDef (N6, not F4/H7):
+//   SSCR@0x08 BPCR@0x0C AWCR@0x10 TWCR@0x14 GCR@0x18
+//   SRCR@0x24 BCCR@0x2C IER@0x34 ISR@0x38 ICR@0x3C
+//   LIPCR@0x40 CPSR@0x44 CDSR@0x48
+//   Layer1 base = LTDC + 0x100: C0R@+0 C1R@+4 RCR@+8 CR@+0x0C
+//     → absolute Layer1 CR @ 0x10C
+//   Layer2 base = LTDC + 0x200 → Layer2 CR @ 0x20C
+//
 
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
@@ -28,8 +36,8 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         {
             base.Reset();
             gcr = 0;
-            l0cr = 0;
             l1cr = 0;
+            l2cr = 0;
         }
 
         private void DefineRegisters()
@@ -84,68 +92,60 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             Registers.CDSR.Define(this)
                 .WithValueField(0, 32, FieldMode.Read, name: "CDSR");
 
-            Registers.L0_CR.Define(this)
-                .WithValueField(0, 32,
-                    valueProviderCallback: _ => l0cr,
-                    writeCallback: (_, val) => l0cr = (uint)val,
-                    name: "L0_CR");
-
-            Registers.L0_WHPCR.Define(this)
-                .WithValueField(0, 32, name: "L0_WHPCR");
-            Registers.L0_WVPCR.Define(this)
-                .WithValueField(0, 32, name: "L0_WVPCR");
-            Registers.L0_CKCR.Define(this)
-                .WithValueField(0, 32, name: "L0_CKCR");
-            Registers.L0_PFCR.Define(this)
-                .WithValueField(0, 32, name: "L0_PFCR");
-            Registers.L0_CACR.Define(this)
-                .WithValueField(0, 32, name: "L0_CACR");
-            Registers.L0_DCCR.Define(this)
-                .WithValueField(0, 32, name: "L0_DCCR");
-            Registers.L0_BFCR.Define(this)
-                .WithValueField(0, 32, name: "L0_BFCR");
-            Registers.L0_CFBAR.Define(this)
-                .WithValueField(0, 32, name: "L0_CFBAR");
-            Registers.L0_CFBLNR.Define(this)
-                .WithValueField(0, 32, name: "L0_CFBLNR");
-            Registers.L0_CFBLR.Define(this)
-                .WithValueField(0, 32, name: "L0_CFBLR");
-            Registers.L0_CLUTWR.Define(this)
-                .WithValueField(0, 32, name: "L0_CLUTWR");
-
+            // Layer1 @ 0x100: C0R/C1R/RCR stubs + CR enable
+            Registers.L1_C0R.Define(this)
+                .WithValueField(0, 32, name: "L1_C0R");
+            Registers.L1_C1R.Define(this)
+                .WithValueField(0, 32, name: "L1_C1R");
+            Registers.L1_RCR.Define(this)
+                .WithValueField(0, 32, name: "L1_RCR");
             Registers.L1_CR.Define(this)
                 .WithValueField(0, 32,
                     valueProviderCallback: _ => l1cr,
                     writeCallback: (_, val) => l1cr = (uint)val,
                     name: "L1_CR");
-
             Registers.L1_WHPCR.Define(this)
                 .WithValueField(0, 32, name: "L1_WHPCR");
             Registers.L1_WVPCR.Define(this)
                 .WithValueField(0, 32, name: "L1_WVPCR");
-            Registers.L1_CKCR.Define(this)
-                .WithValueField(0, 32, name: "L1_CKCR");
             Registers.L1_PFCR.Define(this)
                 .WithValueField(0, 32, name: "L1_PFCR");
-            Registers.L1_CACR.Define(this)
-                .WithValueField(0, 32, name: "L1_CACR");
-            Registers.L1_DCCR.Define(this)
-                .WithValueField(0, 32, name: "L1_DCCR");
-            Registers.L1_BFCR.Define(this)
-                .WithValueField(0, 32, name: "L1_BFCR");
             Registers.L1_CFBAR.Define(this)
                 .WithValueField(0, 32, name: "L1_CFBAR");
-            Registers.L1_CFBLNR.Define(this)
-                .WithValueField(0, 32, name: "L1_CFBLNR");
             Registers.L1_CFBLR.Define(this)
                 .WithValueField(0, 32, name: "L1_CFBLR");
-            Registers.L1_CLUTWR.Define(this)
-                .WithValueField(0, 32, name: "L1_CLUTWR");
+            Registers.L1_CFBLNR.Define(this)
+                .WithValueField(0, 32, name: "L1_CFBLNR");
+
+            // Layer2 @ 0x200
+            Registers.L2_C0R.Define(this)
+                .WithValueField(0, 32, name: "L2_C0R");
+            Registers.L2_C1R.Define(this)
+                .WithValueField(0, 32, name: "L2_C1R");
+            Registers.L2_RCR.Define(this)
+                .WithValueField(0, 32, name: "L2_RCR");
+            Registers.L2_CR.Define(this)
+                .WithValueField(0, 32,
+                    valueProviderCallback: _ => l2cr,
+                    writeCallback: (_, val) => l2cr = (uint)val,
+                    name: "L2_CR");
+            Registers.L2_WHPCR.Define(this)
+                .WithValueField(0, 32, name: "L2_WHPCR");
+            Registers.L2_WVPCR.Define(this)
+                .WithValueField(0, 32, name: "L2_WVPCR");
+            Registers.L2_PFCR.Define(this)
+                .WithValueField(0, 32, name: "L2_PFCR");
+            Registers.L2_CFBAR.Define(this)
+                .WithValueField(0, 32, name: "L2_CFBAR");
+            Registers.L2_CFBLR.Define(this)
+                .WithValueField(0, 32, name: "L2_CFBLR");
+            Registers.L2_CFBLNR.Define(this)
+                .WithValueField(0, 32, name: "L2_CFBLNR");
         }
 
         private uint gcr;
-        private uint l0cr;
         private uint l1cr;
+        private uint l2cr;
 
         private enum Registers : long
         {
@@ -162,30 +162,30 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             LIPCR = 0x40,
             CPSR = 0x44,
             CDSR = 0x48,
-            L0_CR = 0x80,
-            L0_WHPCR = 0x84,
-            L0_WVPCR = 0x88,
-            L0_CKCR = 0x8C,
-            L0_PFCR = 0x90,
-            L0_CACR = 0x94,
-            L0_DCCR = 0x98,
-            L0_BFCR = 0x9C,
-            L0_CFBAR = 0xAC,
-            L0_CFBLNR = 0xB0,
-            L0_CFBLR = 0xB4,
-            L0_CLUTWR = 0xC4,
-            L1_CR = 0x100,
-            L1_WHPCR = 0x104,
-            L1_WVPCR = 0x108,
-            L1_CKCR = 0x10C,
-            L1_PFCR = 0x110,
-            L1_CACR = 0x114,
-            L1_DCCR = 0x118,
-            L1_BFCR = 0x11C,
-            L1_CFBAR = 0x12C,
-            L1_CFBLNR = 0x130,
-            L1_CFBLR = 0x134,
-            L1_CLUTWR = 0x144,
+
+            // Layer1 base 0x100
+            L1_C0R = 0x100,
+            L1_C1R = 0x104,
+            L1_RCR = 0x108,
+            L1_CR = 0x10C,
+            L1_WHPCR = 0x110,
+            L1_WVPCR = 0x114,
+            L1_PFCR = 0x11C,
+            L1_CFBAR = 0x134,
+            L1_CFBLR = 0x138,
+            L1_CFBLNR = 0x13C,
+
+            // Layer2 base 0x200
+            L2_C0R = 0x200,
+            L2_C1R = 0x204,
+            L2_RCR = 0x208,
+            L2_CR = 0x20C,
+            L2_WHPCR = 0x210,
+            L2_WVPCR = 0x214,
+            L2_PFCR = 0x21C,
+            L2_CFBAR = 0x234,
+            L2_CFBLR = 0x238,
+            L2_CFBLNR = 0x23C,
         }
     }
 }
