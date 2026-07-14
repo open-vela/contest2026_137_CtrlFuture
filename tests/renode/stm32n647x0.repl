@@ -94,8 +94,9 @@ exti: Miscellaneous.STM32N6_EXTI @ sysbus 0x46025000
 // GPDMA1 @ 0x40021000 (AHB1 + 0x1000)
 gpdma1: Miscellaneous.STM32N6_GPDMA @ sysbus 0x40021000
 
-// I2C1 @ 0x40005400 (APB1 + 0x5400)
+// I2C1 @ 0x40005400 (APB1 + 0x5400), IRQ 100 (I2C1_EV_IRQn)
 i2c1: Miscellaneous.STM32N6_I2C @ sysbus 0x40005400
+    IRQ -> nvic@100
 
 // SPI1 @ 0x42003000 (APB2 + 0x3000), IRQ 153
 spi1: Miscellaneous.STM32N6_SPI @ sysbus 0x42003000
