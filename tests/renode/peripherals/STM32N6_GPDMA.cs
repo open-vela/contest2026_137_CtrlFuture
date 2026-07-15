@@ -27,7 +27,8 @@
 //   CDAR     @ +0x50
 //   CTR3     @ +0x54  stub
 //   CBR2     @ +0x58  stub
-//   CLLR     @ +0x7C  stub (no LLI engine)
+//   CLLR     @ +0xCC  stub (no LLI engine; model places at +0x7C to avoid
+//                      inter-channel overlap — NuttX driver never accesses CLLR)
 //
 // L3: memory-to-memory transfer on CCR.EN write.
 //
@@ -258,7 +259,8 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                         writeCallback: (_, val) => channels[channel].Cbr2 = (uint)val,
                         name: $"CH{channel}_CBR2");
 
-                // CLLR @ +0x7C stub (no linked-list engine)
+                // CLLR @ +0xCC stub (no linked-list engine; model places at +0x7C
+                // to avoid inter-channel overlap — NuttX driver never accesses)
                 ((Registers)(chBase + 0x7C)).Define(this)
                     .WithValueField(0, 32,
                         valueProviderCallback: _ => channels[channel].Cllr,
