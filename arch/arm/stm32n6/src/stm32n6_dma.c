@@ -32,44 +32,44 @@
 #define STM32N6_GPDMA1_BASE  0x40021000
 #define STM32N6_GPDMA2_BASE  0x40021400
 
-/* GPDMA channel register offsets (per channel: 0x40 spacing) */
+/* GPDMA channel register offsets (per CMSIS DMA_Channel_TypeDef) */
 
-#define GPDMA_SECCFGR_OFFSET   0x00
-#define GPDMA_PRIVCFGR_OFFSET  0x04
-#define GPDMA_MISR_OFFSET      0x08
-#define GPDMA_SMISR_OFFSET     0x0C
-#define GPDMA_CLBAR_OFFSET     0x50
-#define GPDMA_CC_OFFSET        0x54
-#define GPDMA_CTR2_OFFSET      0x58
-#define GPDMA_CBR1_OFFSET      0x5C
-#define GPDMA_CSAR_OFFSET      0x60
-#define GPDMA_CDAR_OFFSET      0x64
-#define GPDMA_CTR3_OFFSET      0x68
-#define GPDMA_CBR2_OFFSET      0x6C
-#define GPDMA_CLLR_OFFSET      0x70
+#define GPDMA_CLBAR_OFFSET     0x00
+#define GPDMA_CCIDCFGR_OFFSET  0x04
+#define GPDMA_CFCR_OFFSET      0x0C
+#define GPDMA_CSR_OFFSET       0x10
+#define GPDMA_CCR_OFFSET       0x14
+#define GPDMA_CTR1_OFFSET      0x40
+#define GPDMA_CTR2_OFFSET      0x44
+#define GPDMA_CBR1_OFFSET      0x48
+#define GPDMA_CSAR_OFFSET      0x4C
+#define GPDMA_CDAR_OFFSET      0x50
+#define GPDMA_CTR3_OFFSET      0x54
+#define GPDMA_CBR2_OFFSET      0x58
+#define GPDMA_CLLR_OFFSET      0xCC
 
 /* GPDMA global register offsets */
 
 #define GPDMA_GISR_OFFSET      0x00
 #define GPDMA_SECCFGR2_OFFSET  0x24
 
-/* GPDMA_CC (Channel Control) bits */
+/* GPDMA_CCR (Channel Control) bits */
 
-#define GPDMA_CC_EN            (1 << 0)
-#define GPDMA_CC_RESET         (1 << 1)
-#define GPDMA_CC_SUSP          (1 << 2)
-#define GPDMA_CC_TCIE          (1 << 8)   /* Transfer complete IE */
-#define GPDMA_CC_HTIE          (1 << 9)   /* Half transfer IE */
-#define GPDMA_CC_DTEIE         (1 << 10)  /* Data transfer error IE */
-#define GPDMA_CC_ULEIE         (1 << 11)  /* Update link error IE */
-#define GPDMA_CC_USEIE         (1 << 12)  /* User setting error IE */
-#define GPDMA_CC_TOIE          (1 << 13)  /* Trigger overrun IE */
-#define GPDMA_CC_SWRIOIE       (1 << 14)  /* Software request overrun IE */
+#define GPDMA_CCR_EN            (1 << 0)
+#define GPDMA_CCR_RESET         (1 << 1)
+#define GPDMA_CCR_SUSP          (1 << 2)
+#define GPDMA_CCR_TCIE          (1 << 8)   /* Transfer complete IE */
+#define GPDMA_CCR_HTIE          (1 << 9)   /* Half transfer IE */
+#define GPDMA_CCR_DTEIE         (1 << 10)  /* Data transfer error IE */
+#define GPDMA_CCR_ULEIE         (1 << 11)  /* Update link error IE */
+#define GPDMA_CCR_USEIE         (1 << 12)  /* User setting error IE */
+#define GPDMA_CCR_TOIE          (1 << 13)  /* Trigger overrun IE */
+#define GPDMA_CCR_SWRIOIE       (1 << 14)  /* Software request overrun IE */
 
 /* GPDMA_CTR2 (Transfer Register 2) bits */
 
 #define GPDMA_CTR2_DREQ        (1 << 0)   /* Destination request */
-#define GPDMA_CTR2_SWREQ       (1 << 1)   /* Software request */
+#define GPDMA_CTR2_SWREQ       (1 << 9)   /* Software request */
 #define GPDMA_CTR2_DREQ_MASK   (0x7f << 4)
 #define GPDMA_CTR2_TCEM_MASK   (3 << 14)  /* Transfer complete event mode */
 
@@ -145,7 +145,7 @@ int stm32n6_dma_init(int channel)
 
   /* Disable channel */
 
-  dma_putreg(priv, GPDMA_CC_OFFSET, 0);
+  dma_putreg(priv, GPDMA_CCR_OFFSET, 0);
 
   priv->initialized = true;
 
@@ -196,8 +196,8 @@ int stm32n6_dma_start(int channel, uint32_t src, uint32_t dst,
 
   /* Enable channel with transfer complete interrupt */
 
-  dma_putreg(priv, GPDMA_CC_OFFSET,
-             GPDMA_CC_EN | GPDMA_CC_TCIE);
+  dma_putreg(priv, GPDMA_CCR_OFFSET,
+             GPDMA_CCR_EN | GPDMA_CCR_TCIE);
 
   nxsem_post(&priv->lock);
   return 0;
@@ -226,8 +226,8 @@ int stm32n6_dma_wait(int channel, int timeout_ms)
 
   while (timeout-- > 0)
     {
-      uint32_t cc = dma_getreg(priv, GPDMA_CC_OFFSET);
-      if (!(cc & GPDMA_CC_EN))
+      uint32_t cc = dma_getreg(priv, GPDMA_CCR_OFFSET);
+      if (!(cc & GPDMA_CCR_EN))
         {
           return 0;
         }
@@ -254,7 +254,7 @@ void stm32n6_dma_deinit(int channel)
 
   /* Disable channel */
 
-  dma_putreg(priv, GPDMA_CC_OFFSET, GPDMA_CC_RESET);
+  dma_putreg(priv, GPDMA_CCR_OFFSET, GPDMA_CCR_RESET);
 
   priv->initialized = false;
   nxsem_destroy(&priv->lock);
