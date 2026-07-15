@@ -5,6 +5,7 @@
 //
 // STM32N6 TIM model for Renode.
 // Minimal model: register read/write without actual timer counting.
+// L2: EGR.UG sets SR.UIF (software update event generation).
 //
 // Registers:
 //   CR1   @ 0x00: Control Register 1
@@ -29,6 +30,8 @@
 //   DMAR  @ 0x4C: DMA Address for Full Transfer
 //
 
+using System;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
@@ -44,6 +47,9 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         }
 
         public long Size => 0x400;
+
+        // L2 state: SR bits accumulated by EGR writes
+        private uint sr;
 
         private void DefineRegisters()
         {
@@ -63,13 +69,30 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             Registers.DIER.Define(this)
                 .WithValueField(0, 32, name: "DIER");
 
-            // SR @ 0x10: Status Register
+            // SR @ 0x10: Status Register — valueProvider returns accumulated state
             Registers.SR.Define(this)
-                .WithValueField(0, 32, name: "SR");
+                .WithValueField(0, 32,
+                    valueProviderCallback: _ => sr,
+                    writeCallback: (_, val) =>
+                    {
+                        // Write-1-to-clear for status flags
+                        sr &= ~(uint)val;
+                    },
+                    name: "SR");
 
-            // EGR @ 0x14: Event Generation (write-only)
+            // EGR @ 0x14: Event Generation (write-only) — UG sets SR.UIF
             Registers.EGR.Define(this)
-                .WithValueField(0, 32, FieldMode.Write, name: "EGR");
+                .WithValueField(0, 32, FieldMode.Write,
+                    writeCallback: (_, val) =>
+                    {
+                        uint w = (uint)val;
+                        // Bit 0 (UG) sets UIF in SR via OR
+                        if ((w & 0x1) != 0)
+                        {
+                            sr |= 0x1;
+                        }
+                    },
+                    name: "EGR");
 
             // CCMR1 @ 0x18: Capture/Compare Mode 1
             Registers.CCMR1.Define(this)
