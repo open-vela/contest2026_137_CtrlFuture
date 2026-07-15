@@ -112,7 +112,7 @@ Max fidelity is the highest tier the model/suite currently supports
 | `STM32N6_LTDC` | `025-ltdc` | ADR-031 | **L2** | Layer CR @ 0x10C/0x20C (CMSIS N6) |
 | `STM32N6_DCMIPP` | `026-dcmipp` | ADR-033 | **L2** | Pipe enable |
 | `STM32N6_RNG` | `039-rng` | ADR-037 | **L2** | DRDY/RNGEN + IRQ; robot# ≠ ADR# |
-| `STM32N6_HPDMA` | `027-hpdma` | ADR-025 | L1 | Not raised this wave |
+| `STM32N6_HPDMA` | `027-hpdma` | ADR-025 | **L3** | mem2mem + IRQ (fixed from L1) |
 | `STM32N6_TIM` | `028-tim`, `029-tim2` | ADR-026 / ADR-027 | L1 | |
 | `STM32N6_LPTIM` | `030-lptim` | ADR-028 | L1 | |
 | `STM32N6_ADC` | `031-adc` | ADR-029 | L1 | |
@@ -125,8 +125,8 @@ Max fidelity is the highest tier the model/suite currently supports
 | `STM32N6_OTP` | `038-otp` | ADR-038 | L1 | |
 
 **NuttX drivers with L2+ models after this wave:**  
-exti, gpdma, spi, i2c, iwdg, rtc, xspi, sdmmc, ethernet, sai, otg,
-fdcan, ltdc, dcmipp, rng, uart (stock), rcc, pwr.
+exti, gpdma, hpdma, spi, i2c, iwdg, rtc, xspi, sdmmc, ethernet, sai,
+otg, fdcan, ltdc, dcmipp, rng, uart (stock), rcc, pwr.
 
 ## Robot suite number ≠ ADR number
 
@@ -151,6 +151,32 @@ Aligned suites (robot prefix == ADR) for the common path:
 `005-rcc`, `009-pwr`, `010-exti`, `011-gpdma`, `012-uart`, `013-spi`,
 `014-i2c`, `015-iwdg`, `016-rtc`, `018-xspi`, `019-xspi-boot`,
 `020-sdmmc`.
+
+## Completeness Campaign (Gaps 1–8) — EXIT 2026-07-14
+
+All eight Renode completeness gaps closed in a single campaign.
+
+| Gap | Description | Status | Evidence |
+|-----|-------------|--------|----------|
+| 1 | Tests are mostly model MMIO, not driver behavior | **CLOSED** | `042-driver-sequences`, `012-uart`, `044-firmware-l3` |
+| 2 | IRQ wiring incomplete | **CLOSED** | `040-irq-wiring` (6/6 IRQ tests); SPI1–6, GPDMA, EXTI, SDMMC, HPDMA, I2C1, RNG wired |
+| 3 | L3 narrow; no multi-peripheral | **CLOSED** | `041-multi-peripheral` (SPI+GPDMA), `020-sdmmc` data path |
+| 4 | Instance coverage thin | **CLOSED** | `014-i2c` I2C2–4, `013-spi` SPI2/SPI6, `012-uart` USART2/6 |
+| 5 | Correctness bugs (HPDMA base) | **CLOSED** | `027-hpdma` on `0x48020000`, `043-base-audit` |
+| 6 | Tag/matrix noise | **CLOSED** | `039-rng` Force Tags fixed; matrix matches reality |
+| 7 | Uneven model depth | **CLOSED** | All NuttX MMIO drivers ≥ L2; L1 listed for non-drivers |
+| 8 | Phase-2 drivertest deferred | **CLOSED** | `044-firmware-l3` contest-local path (Approach B) |
+
+**Deferred-with-reason (no follow-on wave planned):**
+
+| Item | Reason |
+|------|--------|
+| Full cmocka `drivertest_*` from apps/testing | Contest isolation + binary size limit |
+| DMAMUX / peripheral-triggered DMA | No NuttX DMAMUX driver in tree |
+| HPDMA CH1–15 IRQ | CH0 proves pattern; expand if driver uses more |
+| TIM/ADC/LPTIM/DTS/DMA2D/CSI/VENC/NPU/CRYP/OTP L3 | No NuttX driver consuming them yet — leave L1 |
+
+**Full gate:** 42 suites, all PASS. Baseline was 217 pass; current count exceeds after adding IRQ wiring, multi-peripheral, driver-sequence, and firmware-L3 suites.
 
 ## Quick run
 

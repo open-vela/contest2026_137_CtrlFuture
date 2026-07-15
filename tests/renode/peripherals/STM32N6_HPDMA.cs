@@ -68,7 +68,11 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                     name: "CC_EN")
                 .WithFlag(8,
                     valueProviderCallback: _ => ch.Tcie,
-                    writeCallback: (_, val) => ch.Tcie = val,
+                    writeCallback: (_, val) =>
+                    {
+                        ch.Tcie = val;
+                        UpdateInterrupt();
+                    },
                     name: "CC_TCIE");
 
             // CTR2: SDW[1:0]/DDW[17:16] + SINC[3]/DINC[19]

@@ -57,3 +57,50 @@ HPDMA Base Is Not GPDMA
     ${h}=    Execute Command    sysbus ReadDoubleWord 0x48020000
     ${h}=    Strip String    ${h}
     Should Be Equal As Integers    ${h}    0xA5A5A5A5
+
+HPDMA CH0 TCIE Writable
+    [Tags]    L2-state
+    Create STM32N6 Machine
+    # Set BNDT first
+    Write HPDMA Register    0x5C    0x1
+    # Write TCIE=bit8 without EN so transfer doesn't start
+    Write HPDMA Register    0x54    0x100
+    ${val}=    Read HPDMA Register    0x54
+    ${val}=    Convert To Integer    ${val}
+    Should Be True    (${val} & 0x100) == 0x100
+
+HPDMA CH0 TCIE Sets IRQ
+    [Tags]    L2-state
+    Create STM32N6 Machine
+    # Write source data
+    ${src}=    Evaluate    0x34001000
+    ${dst}=    Evaluate    0x34002000
+    Execute Command    sysbus WriteDoubleWord ${src} 0x11223344
+    # CSAR @ 0x60
+    Write HPDMA Register    0x60    ${src}
+    # CDAR @ 0x64
+    Write HPDMA Register    0x64    ${dst}
+    # BNDT @ 0x5C = 1 (byte count)
+    Write HPDMA Register    0x5C    0x1
+    # CTR2 @ 0x58: SDW=word(2), DINC=1, DDW=word(2)
+    Write HPDMA Register    0x58    0x00080008
+    # CC @ 0x54: EN=bit0, TCIE=bit8 = 0x101
+    Write HPDMA Register    0x54    0x101
+    ${irq}=    Execute Command    sysbus.hpdma1 IRQ IsSet
+    Should Contain    ${irq}    True
+
+HPDMA CH0 Mem2Mem Copy
+    [Tags]    L3-functional
+    Create STM32N6 Machine
+    ${src}=    Evaluate    0x34001000
+    ${dst}=    Evaluate    0x34002000
+    Execute Command    sysbus WriteDoubleWord ${src} 0xDEADBEEF
+    Write HPDMA Register    0x60    ${src}
+    Write HPDMA Register    0x64    ${dst}
+    Write HPDMA Register    0x5C    0x4
+    Write HPDMA Register    0x58    0x00080008
+    Write HPDMA Register    0x54    0x101
+    ${out}=    Execute Command    sysbus ReadDoubleWord ${dst}
+    ${out}=    Strip String    ${out}
+    ${out}=    Convert To Integer    ${out}
+    Should Be Equal As Integers    ${out}    0xDEADBEEF

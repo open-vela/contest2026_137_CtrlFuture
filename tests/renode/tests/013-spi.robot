@@ -4,6 +4,7 @@ Force Tags      spi
 
 *** Variables ***
 ${SPI1_BASE}    0x42003000
+${SPI2_BASE}    0x40003800
 ${SPI6_BASE}    0x46001400
 ${CR1_OFFSET}   0x00
 ${CFG2_OFFSET}  0x0C
@@ -35,6 +36,18 @@ Read SPI6 Register
 Write SPI6 Register
     [Arguments]    ${offset}    ${value}
     ${addr}=    Evaluate    ${SPI6_BASE} + ${offset}
+    Execute Command    sysbus WriteDoubleWord ${addr} ${value}
+
+Read SPI2 Register
+    [Arguments]    ${offset}
+    ${addr}=    Evaluate    ${SPI2_BASE} + ${offset}
+    ${val}=     Execute Command    sysbus ReadDoubleWord ${addr}
+    ${val}=     Strip String    ${val}
+    RETURN    ${val}
+
+Write SPI2 Register
+    [Arguments]    ${offset}    ${value}
+    ${addr}=    Evaluate    ${SPI2_BASE} + ${offset}
     Execute Command    sysbus WriteDoubleWord ${addr} ${value}
 
 *** Test Cases ***
@@ -113,6 +126,17 @@ SPI1 Disable Clears RXP
     ${sr}=    Convert To Integer    ${sr}
     # RXP and TXP should be clear when SPE=0
     Should Be True    (${sr} & 0x3) == 0x0
+
+SPI2 Enable Asserts TXP
+    [Tags]    L2-state
+    Create STM32N6 Machine
+    Execute Command    sysbus WriteDoubleWord ${SPI2_BASE} 0x1
+    ${srAddr}=    Evaluate    ${SPI2_BASE} + ${SR_OFFSET}
+    ${sr}=    Execute Command    sysbus ReadDoubleWord ${srAddr}
+    ${sr}=    Strip String    ${sr}
+    ${sr}=    Convert To Integer    ${sr}
+    # TXP bit 1
+    Should Be True    (${sr} & 0x2) == 0x2
 
 SPI6 Accessible After Tag Split
     [Tags]    L1-register

@@ -154,13 +154,70 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 .WithValueField(0, 32, name: "DTIMER");
 
             Registers.DLEN.Define(this)
-                .WithValueField(0, 32, name: "DLEN");
+                .WithValueField(0, 32,
+                    valueProviderCallback: _ => dlen,
+                    writeCallback: (_, val) => dlen = (uint)val,
+                    name: "DLEN");
 
             Registers.DCTRL.Define(this)
-                .WithValueField(0, 32, name: "DCTRL");
+                .WithValueField(0, 32,
+                    valueProviderCallback: _ => dctrl,
+                    writeCallback: (_, val) =>
+                    {
+                        var newVal = (uint)val;
+                        // DTEN transition 0→1 triggers data path
+                        if (((newVal & 0x1) == 1) && ((dctrl & 0x1) == 0))
+                        {
+                            StartDataPath();
+                        }
+
+                        dctrl = newVal;
+                    },
+                    name: "DCTRL");
 
             Registers.DCOUNT.Define(this)
-                .WithValueField(0, 32, FieldMode.Read, name: "DCOUNT");
+                .WithValueField(0, 32, FieldMode.Read, name: "DCOUNT",
+                    valueProviderCallback: _ => (ulong)dcountRemaining);
+
+            // FIFO @ 0x80: data read/write
+            Registers.FIFO.Define(this)
+                .WithValueField(0, 32,
+                    valueProviderCallback: _ =>
+                    {
+                        if (dataDir == DataDir.Read && dcountRemaining > 0)
+                        {
+                            var b = (uint)(cannedPattern & 0xFF);
+                            cannedPattern++;
+                            dcountRemaining -= 4;
+                            if (dcountRemaining <= 0)
+                            {
+                                dcountRemaining = 0;
+                                dataEnd = true;
+                                dataDir = DataDir.Idle;
+                                AssertIrq();
+                            }
+
+                            return b;
+                        }
+
+                        return 0;
+                    },
+                    writeCallback: (_, val) =>
+                    {
+                        if (dataDir == DataDir.Write && dcountRemaining > 0)
+                        {
+                            cannedPattern = (uint)val;
+                            dcountRemaining -= 4;
+                            if (dcountRemaining <= 0)
+                            {
+                                dcountRemaining = 0;
+                                dataEnd = true;
+                                dataDir = DataDir.Idle;
+                                AssertIrq();
+                            }
+                        }
+                    },
+                    name: "FIFO");
 
             // STA @ 0x34 — sticky completion flags
             Registers.STA.Define(this)
@@ -391,7 +448,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
         private void AssertIrq()
         {
-            bool pending = cmdSent || cmdREnd;
+            bool pending = cmdSent || cmdREnd || dataEnd;
             IRQ.Set(pending);
         }
 
@@ -422,6 +479,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             STA = 0x34,
             ICR = 0x38,
             MASK = 0x3C,
+            FIFO = 0x80,
         }
 
         // WAITRESP encoding (CMSIS bits [9:8])
@@ -456,5 +514,33 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         private bool cCrcFail;
         private bool cTimeout;
         private bool dataEnd;
+
+        // Data path state
+        private uint dlen;
+        private uint dctrl;
+        private int dcountRemaining;
+        private uint cannedPattern = 0xA5;
+        private DataDir dataDir = DataDir.Idle;
+
+        private enum DataDir
+        {
+            Idle,
+            Read,
+            Write,
+        }
+
+        private void StartDataPath()
+        {
+            if (dlen == 0)
+            {
+                return;
+            }
+
+            // DCTRL bit1 = data direction (0=read, 1=write)
+            var isWrite = (dctrl & 0x2) != 0;
+            dataDir = isWrite ? DataDir.Write : DataDir.Read;
+            dcountRemaining = (int)dlen;
+            cannedPattern = 0xA5;
+        }
     }
 }

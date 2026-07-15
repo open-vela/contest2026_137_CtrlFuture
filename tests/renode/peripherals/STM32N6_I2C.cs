@@ -150,6 +150,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         {
             if(autoEnd.Value)
             {
+                transferComplete = true;
                 masterBusy = false;
                 stopDetection = true;
                 transmitInterruptStatus = false;

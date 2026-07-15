@@ -22,6 +22,24 @@ USART6 Register Accessible
     ${val}=    Strip String    ${val}
     Should Be True    int(${val}) >= 0
 
+USART2 CR1 Writable
+    [Tags]    L2-state
+    Create STM32N6 Machine
+    ${crAddr}=    Evaluate    ${USART2_BASE}
+    Execute Command    sysbus WriteDoubleWord ${crAddr} 0x1
+    ${val}=    Execute Command    sysbus ReadDoubleWord ${crAddr}
+    ${val}=    Strip String    ${val}
+    Should Be True    (int(${val}) & 1) == 1
+
+USART6 CR1 Writable
+    [Tags]    L2-state
+    Create STM32N6 Machine
+    ${crAddr}=    Evaluate    ${USART6_BASE}
+    Execute Command    sysbus WriteDoubleWord ${crAddr} 0x1
+    ${val}=    Execute Command    sysbus ReadDoubleWord ${crAddr}
+    ${val}=    Strip String    ${val}
+    Should Be True    (int(${val}) & 1) == 1
+
 USART1 Console Works
     [Tags]    L2-state    L3-functional
     Start STM32N6

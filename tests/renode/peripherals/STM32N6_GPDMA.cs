@@ -176,7 +176,11 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                     .WithReservedBits(3, 5)
                     .WithFlag(8,
                         valueProviderCallback: _ => channels[channel].Tcie,
-                        writeCallback: (_, val) => channels[channel].Tcie = val,
+                        writeCallback: (_, val) =>
+                        {
+                            channels[channel].Tcie = val;
+                            UpdateInterrupt();
+                        },
                         name: $"CH{channel}_TCIE")
                     .WithReservedBits(9, 23);
 
