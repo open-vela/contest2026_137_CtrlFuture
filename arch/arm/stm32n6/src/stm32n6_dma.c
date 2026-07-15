@@ -29,8 +29,8 @@
 
 /* GPDMA register base addresses */
 
-#define STM32N6_GPDMA1_BASE  0x40001000
-#define STM32N6_GPDMA2_BASE  0x40001400
+#define STM32N6_GPDMA1_BASE  0x40021000
+#define STM32N6_GPDMA2_BASE  0x40021400
 
 /* GPDMA channel register offsets (per channel: 0x40 spacing) */
 
