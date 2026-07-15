@@ -18,22 +18,43 @@ Write LPTIM Register
     Execute Command    sysbus WriteDoubleWord ${addr} ${value}
 
 *** Test Cases ***
-LPTIM1 ISR Reset Value
+LPTIM1 CR Enable Bit
+    [Tags]    L2-state
     Start STM32N6
-    ${val}=    Read LPTIM Register    0x00
-    Should Be Equal As Integers    ${val}    0
-
-LPTIM1 CR Writable
-    Start STM32N6
+    # CR @ 0x10, enable bit 0
     Write LPTIM Register    0x10    0x01
     ${val}=    Read LPTIM Register    0x10
+    ${val}=    Convert To Integer    ${val}
     Should Be Equal As Integers    ${val}    0x01
 
-LPTIM1 CNT Accessible
+LPTIM1 ISR Write And Read
+    [Tags]    L2-state
     Start STM32N6
-    ${val}=    Read LPTIM Register    0x1C
-    Should Be True    int(${val}) >= 0
+    # ISR @ 0x00
+    Write LPTIM Register    0x00    0x000000FF
+    ${val}=    Read LPTIM Register    0x00
+    ${val}=    Convert To Integer    ${val}
+    Should Be Equal As Integers    ${val}    0x000000FF
+
+LPTIM1 IER Write And Read
+    [Tags]    L2-state
+    Start STM32N6
+    # IER @ 0x08, interrupt enable register
+    Write LPTIM Register    0x08    0x00000003
+    ${val}=    Read LPTIM Register    0x08
+    ${val}=    Convert To Integer    ${val}
+    Should Be Equal As Integers    ${val}    0x00000003
+
+LPTIM1 CMP Compare Value
+    [Tags]    L2-state
+    Start STM32N6
+    # CMP @ 0x14
+    Write LPTIM Register    0x14    0x1234
+    ${val}=    Read LPTIM Register    0x14
+    ${val}=    Convert To Integer    ${val}
+    Should Be Equal As Integers    ${val}    0x1234
 
 Boot Regression
+    [Tags]    boot-regression
     Start STM32N6
     Wait For NSH
