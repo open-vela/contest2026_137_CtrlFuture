@@ -6,7 +6,17 @@
 // STM32N6 CSI-2 MIPI Interface model for Renode.
 // Minimal model: register read/write without actual camera input.
 //
-// Registers:
+// IMPORTANT: this is a team-defined placeholder register layout,
+// NOT the real CMSIS CSI_TypeDef.  The real STM32N6 CSI-2 MIPI Host
+// + PHY controller (verified in stm32n647xx.h) is a much larger IP
+// with CR=0x00, PCR=0x04, VC0CFGR1..4 starting at 0x10, IER0=0x80,
+// IER1=0x84, SR0=0x90, SR1=0x94, FCR0=0x100, FCR1=0x104, plus a PHY
+// register block starting around 0x1000 (PRCR/PMCR/PFCR).  This
+// model's CR/SR/IER/IFR at 0x00/0x04/0x08/0x0C do not correspond to
+// any of those real registers -- do NOT use this layout as a
+// reference when writing a real CSI driver.
+//
+// Registers (placeholder, not CMSIS):
 //   CR  @ 0x00: Configuration Register
 //   SR  @ 0x04: Status Register
 //   IER @ 0x08: Interrupt Enable Register

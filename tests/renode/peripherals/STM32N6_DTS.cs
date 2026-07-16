@@ -6,7 +6,18 @@
 // STM32N6 Digital Temperature Sensor (DTS) model for Renode.
 // Minimal model: register read/write without actual temperature sensing.
 //
-// Registers:
+// IMPORTANT: this is a team-defined placeholder register layout,
+// NOT the real CMSIS DTS_TypeDef.  The real STM32N6 DTS_TypeDef
+// (verified in stm32n647xx.h) has 0x00-0x0F entirely RESERVED; the
+// first real register is PVTREG_LOCKR @ 0x10, followed by
+// PVTLOCK_SR=0x14, PVTTMR_CR=0x20, PVTTMR_SR=0x24, PVT_IER=0x40,
+// and a TSC (temperature sensor controller) block starting at
+// 0x80.  This model's CFGR1/CFGR2/T0VALR1/T0VALR2 at
+// 0x00/0x04/0x08/0x0C fall entirely inside that reserved region and
+// do not correspond to any real register -- do NOT use this layout
+// as a reference when writing a real DTS driver.
+//
+// Registers (placeholder, not CMSIS):
 //   CFGR1   @ 0x00: Configuration Register 1
 //   CFGR2   @ 0x04: Configuration Register 2
 //   T0VALR1 @ 0x08: T0 Value Register 1

@@ -6,7 +6,18 @@
 // STM32N6 OTP (One-Time Programmable Memory) model for Renode.
 // Minimal model: register read/write without actual OTP operations.
 //
-// Registers:
+// IMPORTANT: this is a team-defined placeholder register layout,
+// NOT the real CMSIS BSEC_TypeDef.  STM32N6 OTP is implemented via
+// the BSEC (Boot and Security) fuse controller, which is a fuse
+// array of 384 32-bit words (FVRw[384] @ 0x000-0x5FC) plus lock/
+// status register blocks (SPLOCKx/SWLOCKx/SRLOCKx/OTPVLDRx/SFSRx
+// starting around 0x800) and a control block around 0xC00-0xE44
+// (OTPCR=0xC04, WDR=0xC08, SR=0xE40, OTPSR=0xE44 -- verified in
+// stm32n647xx.h).  This model's CR/SR/AR/DR at 0x00/0x04/0x08/0x0C
+// do not correspond to any of those real registers -- do NOT use
+// this layout as a reference when writing a real BSEC/OTP driver.
+//
+// Registers (placeholder, not CMSIS):
 //   CR  @ 0x00: Control Register
 //   SR  @ 0x04: Status Register
 //   AR  @ 0x08: Address Register
