@@ -43,10 +43,10 @@
  * Pre-processor Definitions
  ****************************************************************************/
 
-/* XSPI register base addresses */
+/* XSPI register base addresses (per CMSIS stm32n647xx.h) */
 
-#define STM32N6_XSPI1_BASE  0x40100000
-#define STM32N6_XSPI2_BASE  0x40200000
+#define STM32N6_XSPI1_BASE  0x48025000
+#define STM32N6_XSPI2_BASE  0x4802A000
 
 /* XSPI register offsets */
 
@@ -61,18 +61,18 @@
 #define XSPI_AR_OFFSET      0x48
 #define XSPI_DR_OFFSET      0x50
 #define XSPI_CCR_OFFSET     0x100
-#define XSPI_TCR_OFFSET     0x104
-#define XSPI_IR_OFFSET      0x108
-#define XSPI_ABR_OFFSET     0x110
-#define XSPI_LPTR_OFFSET    0x120
+#define XSPI_TCR_OFFSET     0x108
+#define XSPI_IR_OFFSET      0x110
+#define XSPI_ABR_OFFSET     0x120
+#define XSPI_LPTR_OFFSET    0x130
 #define XSPI_WPCCR_OFFSET   0x140
-#define XSPI_WPTCR_OFFSET   0x144
-#define XSPI_WPIR_OFFSET    0x148
-#define XSPI_WPABR_OFFSET   0x150
-#define XSPI_WCCR_OFFSET    0x160
-#define XSPI_WTCR_OFFSET    0x164
-#define XSPI_WIR_OFFSET     0x168
-#define XSPI_WABR_OFFSET    0x170
+#define XSPI_WPTCR_OFFSET   0x148
+#define XSPI_WPIR_OFFSET    0x150
+#define XSPI_WPABR_OFFSET   0x160
+#define XSPI_WCCR_OFFSET    0x180
+#define XSPI_WTCR_OFFSET    0x188
+#define XSPI_WIR_OFFSET     0x190
+#define XSPI_WABR_OFFSET    0x1A0
 #define XSPI_HLCR_OFFSET    0x200
 
 /* XSPI_CR bits */
