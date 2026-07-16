@@ -37,7 +37,7 @@ HPDMA SECCFGR Writable
 HPDMA Channel 0 CLBAR Accessible
     [Tags]    L1-register
     Start STM32N6
-    # Channel 0: CLBAR @ 0x50
+    # Channel 0: CLBAR @ 0x50 (CMSIS DMA_Channel_TypeDef +0x00)
     ${val}=    Read HPDMA Register    0x50
     Should Be True    int(${val}) >= 0
 
@@ -61,11 +61,12 @@ HPDMA Base Is Not GPDMA
 HPDMA CH0 TCIE Writable
     [Tags]    L2-state
     Create STM32N6 Machine
-    # Set BNDT first
-    Write HPDMA Register    0x5C    0x1
+    # Set BNDT first (CBR1 @ 0x98, CMSIS DMA_Channel_TypeDef +0x48)
+    Write HPDMA Register    0x98    0x1
     # Write TCIE=bit8 without EN so transfer doesn't start
-    Write HPDMA Register    0x54    0x100
-    ${val}=    Read HPDMA Register    0x54
+    # (CCR @ 0x64, CMSIS DMA_Channel_TypeDef +0x14)
+    Write HPDMA Register    0x64    0x100
+    ${val}=    Read HPDMA Register    0x64
     ${val}=    Convert To Integer    ${val}
     Should Be True    (${val} & 0x100) == 0x100
 
@@ -76,16 +77,17 @@ HPDMA CH0 TCIE Sets IRQ
     ${src}=    Evaluate    0x34001000
     ${dst}=    Evaluate    0x34002000
     Execute Command    sysbus WriteDoubleWord ${src} 0x11223344
-    # CSAR @ 0x60
-    Write HPDMA Register    0x60    ${src}
-    # CDAR @ 0x64
-    Write HPDMA Register    0x64    ${dst}
-    # BNDT @ 0x5C = 1 (byte count)
-    Write HPDMA Register    0x5C    0x1
-    # CTR2 @ 0x58: SDW=word(2), DINC=1, DDW=word(2)
-    Write HPDMA Register    0x58    0x00080008
-    # CC @ 0x54: EN=bit0, TCIE=bit8 = 0x101
-    Write HPDMA Register    0x54    0x101
+    # CSAR @ 0x9C (CMSIS DMA_Channel_TypeDef +0x4C)
+    Write HPDMA Register    0x9C    ${src}
+    # CDAR @ 0xA0 (CMSIS DMA_Channel_TypeDef +0x50)
+    Write HPDMA Register    0xA0    ${dst}
+    # BNDT @ 0x98 = 1 (byte count)
+    Write HPDMA Register    0x98    0x1
+    # CTR2 @ 0x94: SDW=word(2), DINC=1, DDW=word(2)
+    # (CMSIS DMA_Channel_TypeDef +0x44)
+    Write HPDMA Register    0x94    0x00080008
+    # CCR @ 0x64: EN=bit0, TCIE=bit8 = 0x101
+    Write HPDMA Register    0x64    0x101
     ${irq}=    Execute Command    sysbus.hpdma1 IRQ IsSet
     Should Contain    ${irq}    True
 
@@ -95,11 +97,11 @@ HPDMA CH0 Mem2Mem Copy
     ${src}=    Evaluate    0x34001000
     ${dst}=    Evaluate    0x34002000
     Execute Command    sysbus WriteDoubleWord ${src} 0xDEADBEEF
-    Write HPDMA Register    0x60    ${src}
-    Write HPDMA Register    0x64    ${dst}
-    Write HPDMA Register    0x5C    0x4
-    Write HPDMA Register    0x58    0x00080008
-    Write HPDMA Register    0x54    0x101
+    Write HPDMA Register    0x9C    ${src}
+    Write HPDMA Register    0xA0    ${dst}
+    Write HPDMA Register    0x98    0x4
+    Write HPDMA Register    0x94    0x00080008
+    Write HPDMA Register    0x64    0x101
     ${out}=    Execute Command    sysbus ReadDoubleWord ${dst}
     ${out}=    Strip String    ${out}
     ${out}=    Convert To Integer    ${out}

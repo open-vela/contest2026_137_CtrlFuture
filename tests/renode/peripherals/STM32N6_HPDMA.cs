@@ -5,7 +5,31 @@
 //
 // STM32N6 HPDMA (High-Performance DMA) model for Renode.
 // L3 memory-to-memory transfer + IRQ GPIO.
-// Channel layout: global regs @ 0x00, channel 0 @ 0x50..0x7C.
+//
+// HPDMA shares the same CMSIS DMA_Channel_TypeDef layout as GPDMA
+// (see STM32N6_GPDMA.cs): HPDMA1_Channel0_BASE_NS = HPDMA1_BASE_NS
+// + 0x0050, and per-channel register offsets from that base are:
+//   CLBAR    @ +0x00
+//   CCIDCFGR @ +0x04  stub
+//   CFCR     @ +0x0C  stub
+//   CSR      @ +0x10  stub
+//   CCR      @ +0x14  EN bit0, TCIE bit8 (was "CC" @ +0x04 in a
+//                      previous, non-CMSIS revision of this model)
+//   CTR1     @ +0x40  stub
+//   CTR2     @ +0x44  SDW/DDW/SINC/DINC (was +0x08)
+//   CBR1     @ +0x48  BNDT[15:0] (was +0x0C)
+//   CSAR     @ +0x4C  (was +0x10)
+//   CDAR     @ +0x50  (was +0x14)
+//   CTR3     @ +0x54  stub (was +0x18)
+//   CBR2     @ +0x58  stub (was +0x1C)
+//   CLLR     @ +0xCC  stub (no LLI engine; matches the GPDMA model
+//                      convention -- was +0x20 in the previous
+//                      non-CMSIS revision)
+//
+// Only channel 0 is modeled; this class does not multiplex multiple
+// DMA_CH instances the way STM32N6_GPDMA.cs does for GPDMA1's 16
+// channels, since NuttX has no HPDMA driver to exercise more than
+// one channel.
 //
 
 using System;
@@ -57,15 +81,15 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                     writeCallback: (_, val) => ch.Clbar = (uint)val,
                     name: "CLBAR");
 
-            // Channel 0: CC (control) — bit 0 = EN, bit 8 = TCIE
-            Registers.CC.Define(this)
+            // Channel 0: CCR (control) — bit 0 = EN, bit 8 = TCIE
+            Registers.CCR.Define(this)
                 .WithFlag(0,
                     writeCallback: (_, val) =>
                     {
                         if (val) DoTransfer();
                     },
                     valueProviderCallback: _ => ch.Enabled,
-                    name: "CC_EN")
+                    name: "CCR_EN")
                 .WithFlag(8,
                     valueProviderCallback: _ => ch.Tcie,
                     writeCallback: (_, val) =>
@@ -73,7 +97,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                         ch.Tcie = val;
                         UpdateInterrupt();
                     },
-                    name: "CC_TCIE");
+                    name: "CCR_TCIE");
 
             // CTR2: SDW[1:0]/DDW[17:16] + SINC[3]/DINC[19]
             Registers.CTR2.Define(this)
@@ -246,18 +270,18 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
         private enum Registers : long
         {
-            SECCFGR = 0x00,
+            SECCFGR  = 0x00,
             PRIVCFGR = 0x04,
-            MISR = 0x08,
-            CLBAR = 0x50,
-            CC = 0x54,
-            CTR2 = 0x58,
-            CBR1 = 0x5C,
-            CSAR = 0x60,
-            CDAR = 0x64,
-            CTR3 = 0x68,
-            CBR2 = 0x6C,
-            CLLR = 0x70,
+            MISR     = 0x08,
+            CLBAR    = 0x50,
+            CCR      = 0x64,
+            CTR2     = 0x94,
+            CBR1     = 0x98,
+            CSAR     = 0x9C,
+            CDAR     = 0xA0,
+            CTR3     = 0xA4,
+            CBR2     = 0xA8,
+            CLLR     = 0x11C,
         }
     }
 }

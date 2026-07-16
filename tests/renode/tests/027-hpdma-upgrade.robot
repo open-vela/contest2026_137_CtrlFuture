@@ -21,17 +21,18 @@ HPDMA CH0 Full Mem2Mem Word Transfer
     # Write second word at src+4
     ${src4}=    Evaluate    ${src} + 4
     Execute Command    sysbus WriteDoubleWord ${src4} 0xDEADBEEF
-    # Set CSAR @ 0x60
-    Write HPDMA Register    0x60    ${src}
-    # Set CDAR @ 0x64
-    Write HPDMA Register    0x64    ${dst}
-    # Set BNDT @ 0x5C = 8 bytes (2 words)
-    Write HPDMA Register    0x5C    0x8
-    # Set CTR2 @ 0x58: SDW=word(2), SINC=1, DDW=word(2), DINC=1
+    # Set CSAR @ 0x9C (CMSIS DMA_Channel_TypeDef +0x4C)
+    Write HPDMA Register    0x9C    ${src}
+    # Set CDAR @ 0xA0 (CMSIS DMA_Channel_TypeDef +0x50)
+    Write HPDMA Register    0xA0    ${dst}
+    # Set BNDT @ 0x98 = 8 bytes (2 words)
+    # (CBR1, CMSIS DMA_Channel_TypeDef +0x48)
+    Write HPDMA Register    0x98    0x8
+    # Set CTR2 @ 0x94: SDW=word(2), SINC=1, DDW=word(2), DINC=1
     # = (2) | (1<<3) | (2<<16) | (1<<19) = 0x00080008
-    Write HPDMA Register    0x58    0x00080008
-    # Enable with TCIE: CC @ 0x54 = EN(1) | TCIE(256) = 0x101
-    Write HPDMA Register    0x54    0x101
+    Write HPDMA Register    0x94    0x00080008
+    # Enable with TCIE: CCR @ 0x64 = EN(1) | TCIE(256) = 0x101
+    Write HPDMA Register    0x64    0x101
     # Verify destination data after transfer
     ${out0}=    Execute Command    sysbus ReadDoubleWord ${dst}
     ${out0}=    Strip String    ${out0}
@@ -50,16 +51,16 @@ HPDMA CH0 TransferComplete IRQ
     ${src}=    Evaluate    0x34003000
     ${dst}=    Evaluate    0x34004000
     Execute Command    sysbus WriteDoubleWord ${src} 0x12345678
-    # Set CSAR @ 0x60
-    Write HPDMA Register    0x60    ${src}
-    # Set CDAR @ 0x64
-    Write HPDMA Register    0x64    ${dst}
-    # Set BNDT @ 0x5C = 4 bytes
-    Write HPDMA Register    0x5C    0x4
-    # Set CTR2 @ 0x58: word, SINC, DINC
-    Write HPDMA Register    0x58    0x00080008
+    # Set CSAR @ 0x9C
+    Write HPDMA Register    0x9C    ${src}
+    # Set CDAR @ 0xA0
+    Write HPDMA Register    0xA0    ${dst}
+    # Set BNDT @ 0x98 = 4 bytes
+    Write HPDMA Register    0x98    0x4
+    # Set CTR2 @ 0x94: word, SINC, DINC
+    Write HPDMA Register    0x94    0x00080008
     # Enable with TCIE
-    Write HPDMA Register    0x54    0x101
+    Write HPDMA Register    0x64    0x101
     # Check IRQ line
     ${irq}=    Execute Command    sysbus.hpdma1 IRQ IsSet
     Should Contain    ${irq}    True
@@ -68,12 +69,12 @@ HPDMA CH0 BNDT=0 No Transfer
     [Tags]    L2-state
     Create STM32N6 Machine
     # Set CSAR and CDAR but BNDT=0 should skip transfer
-    Write HPDMA Register    0x60    0x34005000
-    Write HPDMA Register    0x64    0x34006000
-    Write HPDMA Register    0x5C    0x0
-    Write HPDMA Register    0x54    0x101
-    # CC should not have EN set (no transfer)
-    ${cc}=    Execute Command    sysbus ReadDoubleWord 0x48020054
+    Write HPDMA Register    0x9C    0x34005000
+    Write HPDMA Register    0xA0    0x34006000
+    Write HPDMA Register    0x98    0x0
+    Write HPDMA Register    0x64    0x101
+    # CCR should not have EN set (no transfer)
+    ${cc}=    Execute Command    sysbus ReadDoubleWord 0x48020064
     ${cc}=    Strip String    ${cc}
     ${cc}=    Convert To Integer    ${cc}
     ${cc_and_1}=    Evaluate    ${cc} & 1
