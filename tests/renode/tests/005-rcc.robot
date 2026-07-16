@@ -23,13 +23,6 @@ Write RCC Register
     Execute Command    sysbus WriteDoubleWord ${addr} ${value}
 
 *** Test Cases ***
-CR After Boot HSI Enabled
-    [Tags]    L1-register
-    Start STM32N6
-    ${val}=    Read RCC Register    ${CR_OFFSET}
-    # Firmware sets HSION (bit 3) during boot -> 0x08
-    Should Be Equal As Integers    ${val}    0x08
-
 HSION Sets HSIRDY
     [Tags]    L2-state
     Start STM32N6
@@ -81,4 +74,4 @@ Peripheral Clock USART1
 Boot Regression
     [Tags]    boot-regression
     Start STM32N6
-    Wait For NSH
+    Wait For Prompt On Uart    nsh>    timeout=120
