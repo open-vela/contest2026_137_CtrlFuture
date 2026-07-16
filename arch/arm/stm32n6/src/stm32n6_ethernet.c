@@ -44,9 +44,9 @@
  * Pre-processor Definitions
  ****************************************************************************/
 
-/* GMAC register base */
+/* GMAC register base (per CMSIS stm32n647xx.h: ETH1_BASE_NS) */
 
-#define STM32N6_ETH_BASE    0x40028000
+#define STM32N6_ETH_BASE    0x48036000
 
 /* GMAC register offsets */
 
@@ -56,15 +56,12 @@
 #define ETH_MACWTR_OFFSET   0x000C
 #define ETH_MACHT0R_OFFSET  0x0010
 #define ETH_MACHT1R_OFFSET  0x0014
-#define ETH_MACVTR_OFFSET   0x001C
-#define ETH_MACCSR_OFFSET   0x0064
 #define ETH_MACISR_OFFSET   0x00B0
 #define ETH_MACIER_OFFSET   0x00B4
-#define ETH_MACTCR_OFFSET   0x00E0
-#define ETH_MACRCR_OFFSET   0x00E4
 #define ETH_MACMDIOAR_OFFSET 0x0200
 #define ETH_MACMDIODR_OFFSET 0x0204
-#define ETH_MACEEECR_OFFSET 0x0264
+#define ETH_MACA0HR_OFFSET  0x0300  /* CMSIS: MAC Address 0 high */
+#define ETH_MACA0LR_OFFSET  0x0304  /* CMSIS: MAC Address 0 low */
 
 /* DMA registers */
 
@@ -74,10 +71,9 @@
 #define ETH_DMAIER_OFFSET   0x100C
 #define ETH_DMAMFBOCR_OFFSET 0x1010
 #define ETH_DMARSWTR_OFFSET 0x1018
-#define ETH_DMACHR0R_OFFSET 0x1080
-#define ETH_DMATCHR0R_OFFSET 0x1084
-#define ETH_DMACHR1R_OFFSET 0x1090
-#define ETH_DMATCHR1R_OFFSET 0x1094
+#define ETH_DMACCR_OFFSET       0x1100  /* CMSIS: Channel x control */
+#define ETH_DMACTXDLAR_OFFSET   0x1114  /* CMSIS: Ch x Tx desc list addr */
+#define ETH_DMACRXDLAR_OFFSET   0x111C  /* CMSIS: Ch x Rx desc list addr */
 
 /* MAC configuration register bits */
 
@@ -100,13 +96,15 @@
 #define ETH_DMASR_TS        (1 << 0)   /* Transmit status */
 #define ETH_DMASR_RS        (1 << 6)   /* Receive status */
 
-/* DMA channel 0 (Rx) control */
+/* DMA channel 0 Rx control (CMSIS DMACRXCR @ 0x1108) */
 
-#define ETH_DMACHR0R_SR     (1 << 0)   /* Start/stop receive */
+#define ETH_DMACRXCR_OFFSET  0x1108
+#define ETH_DMACRXCR_SR      (1 << 0)   /* Start/stop receive */
 
-/* DMA channel 1 (Tx) control */
+/* DMA channel 0 Tx control (CMSIS DMACTXCR @ 0x1104) */
 
-#define ETH_DMATCHR1R_ST    (1 << 0)   /* Start/stop transmit */
+#define ETH_DMACTXCR_OFFSET  0x1104
+#define ETH_DMACTXCR_ST      (1 << 0)   /* Start/stop transmit */
 
 /* MAC MDIO address register */
 
@@ -339,16 +337,16 @@ int stm32n6_ethernet_init(uint8_t *mac_addr)
         }
     }
 
-  /* Configure MAC address */
+  /* Configure MAC address (CMSIS MACA0HR @ 0x0300, MACA0LR @ 0x0304) */
 
-  eth_putreg(priv, 0x0040,
+  eth_putreg(priv, ETH_MACA0HR_OFFSET,
+             (priv->mac_addr[5] << 8) |
+             priv->mac_addr[4]);
+  eth_putreg(priv, ETH_MACA0LR_OFFSET,
              (priv->mac_addr[3] << 24) |
              (priv->mac_addr[2] << 16) |
              (priv->mac_addr[1] << 8)  |
              priv->mac_addr[0]);
-  eth_putreg(priv, 0x0044,
-             (priv->mac_addr[5] << 8) |
-             priv->mac_addr[4]);
 
   /* Initialize descriptors */
 
@@ -359,24 +357,28 @@ int stm32n6_ethernet_init(uint8_t *mac_addr)
   eth_putreg(priv, ETH_DMASBMR_OFFSET,
              (4 << 16) | (4 << 8));
 
-  /* Configure DMA channel 0 (Rx): ring mode, start */
+  /* Configure DMA channel 0 Rx descriptor list address
+   * (CMSIS DMACRXDLAR @ 0x111C)
+   */
 
-  eth_putreg(priv, ETH_DMACHR0R_OFFSET,
+  eth_putreg(priv, ETH_DMACRXDLAR_OFFSET,
              (uint32_t)(uintptr_t)&priv->rx_desc[0]);
 
-  /* Configure DMA channel 1 (Tx): ring mode, start */
+  /* Configure DMA channel 0 Tx descriptor list address
+   * (CMSIS DMACTXDLAR @ 0x1114)
+   */
 
-  eth_putreg(priv, ETH_DMATCHR1R_OFFSET,
+  eth_putreg(priv, ETH_DMACTXDLAR_OFFSET,
              (uint32_t)(uintptr_t)&priv->tx_desc[0]);
 
-  /* Start DMA channels */
+  /* Start DMA channels (CMSIS DMACRXCR @ 0x1108, DMACTXCR @ 0x1104) */
 
-  eth_putreg(priv, ETH_DMACHR0R_OFFSET,
-             eth_getreg(priv, ETH_DMACHR0R_OFFSET) |
-             ETH_DMACHR0R_SR);
-  eth_putreg(priv, ETH_DMATCHR1R_OFFSET,
-             eth_getreg(priv, ETH_DMATCHR1R_OFFSET) |
-             ETH_DMATCHR1R_ST);
+  eth_putreg(priv, ETH_DMACRXCR_OFFSET,
+             eth_getreg(priv, ETH_DMACRXCR_OFFSET) |
+             ETH_DMACRXCR_SR);
+  eth_putreg(priv, ETH_DMACTXCR_OFFSET,
+             eth_getreg(priv, ETH_DMACTXCR_OFFSET) |
+             ETH_DMACTXCR_ST);
 
   /* Configure MAC: 100Mbps full duplex, enable Rx/Tx */
 

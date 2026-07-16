@@ -5,7 +5,7 @@ Force Tags      emac
 *** Variables ***
 ${EMAC_BASE}    0x48036000
 ${REG_MACCR}    0x000
-${REG_MACA0HR}  0x040
+${REG_MACA0HR}  0x300
 ${REG_MDIOAR}   0x200
 ${REG_MDIODR}   0x204
 ${REG_DMAMR}    0x1000

@@ -10,7 +10,8 @@
 // Registers (CMSIS ETH_TypeDef offsets):
 //   MACCR     @ 0x000
 //   MACFFR    @ 0x004  (MACPacketFilter)
-//   MACA0HR   @ 0x300  (kept also legacy 0x040 for L1 tests)
+//   MACA0HR   @ 0x300
+//   MACA0LR   @ 0x304
 //   MACMDIOAR @ 0x200
 //   MACMDIODR @ 0x204
 //   DMAMR     @ 0x1000
@@ -65,13 +66,6 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
             Registers.MACVLANTR.Define(this)
                 .WithValueField(0, 32, name: "MACVLANTR");
-
-            // L1 robot uses 0x040 for MACA0HR accessibility
-            Registers.MACA0HR_LEGACY.Define(this)
-                .WithValueField(0, 32, name: "MACA0HR_LEGACY");
-
-            Registers.MACA0LR_LEGACY.Define(this)
-                .WithValueField(0, 32, name: "MACA0LR_LEGACY");
 
             Registers.MMCCR.Define(this)
                 .WithValueField(0, 32, name: "MMCCR");
@@ -134,8 +128,6 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             MACMIIDR = 0x014,
             MACFCR = 0x018,
             MACVLANTR = 0x01C,
-            MACA0HR_LEGACY = 0x040,
-            MACA0LR_LEGACY = 0x044,
             MMCCR = 0x100,
             MMCIR = 0x104,
             MMCRIR = 0x108,
