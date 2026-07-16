@@ -31,6 +31,11 @@
 // channels, since NuttX has no HPDMA driver to exercise more than
 // one channel.
 //
+// NOTE: like STM32N6_GPDMA.cs, the transfer runs to completion
+// synchronously inside the CCR.EN write callback. There is no
+// mid-transfer CPU-observable state and no way to interrupt a
+// transfer partway through from a test.
+//
 
 using System;
 

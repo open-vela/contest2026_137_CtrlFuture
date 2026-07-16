@@ -32,6 +32,16 @@
 //
 // L3: memory-to-memory transfer on CCR.EN write.
 //
+// NOTE: the transfer runs to completion synchronously inside the
+// CCR.EN write callback (a single C# call stack, not scheduled
+// across simulated bus cycles). There is no mid-transfer
+// CPU-observable state: a guest read of CSAR/CDAR/CBR1 issued
+// "during" a transfer will always see the pre-transfer or
+// post-transfer value, never a partial-progress snapshot, and the
+// transfer cannot be interrupted partway through by another IRQ
+// or debugger step. Tests that need partial-progress polling or a
+// controlled mid-DMA interruption are out of scope for this model.
+//
 
 using System;
 using System.Collections.Generic;
