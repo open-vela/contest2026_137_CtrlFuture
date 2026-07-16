@@ -15,8 +15,10 @@
 //   RXF0S @ 0x0A4
 //   TXBAR @ 0x0D0  TXBCR @ 0x0D4  TXBTO @ 0x0D8
 //
-// Note: NuttX stm32n6_fdcan.c currently has wrong CCCR@0x000 map;
-// this model follows CMSIS, not the driver bug.
+// Note: NuttX stm32n6_fdcan.c previously had a wrong CCCR@0x000
+// mapping; that was fixed to match the CMSIS offsets below (see
+// commit "arch: fix FDCAN register offsets"). This model has
+// always followed CMSIS.
 //
 
 using Antmicro.Renode.Core;
