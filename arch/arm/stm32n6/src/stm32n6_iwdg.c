@@ -41,7 +41,7 @@
 
 /* IWDG register base */
 
-#define STM32N6_IWDG_BASE   0x40003000
+#define STM32N6_IWDG_BASE   0x46004800  /* CMSIS IWDG_BASE_NS */
 
 /* IWDG register offsets */
 

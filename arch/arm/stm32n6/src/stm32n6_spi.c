@@ -42,11 +42,14 @@
  * Pre-processor Definitions
  ****************************************************************************/
 
-/* SPI register base addresses */
+/* SPI register base addresses (per CMSIS stm32n647xx.h) */
 
-#define STM32N6_SPI1_BASE   0x40013000
-#define STM32N6_SPI2_BASE   0x40013400
-#define STM32N6_SPI3_BASE   0x40013800
+#define STM32N6_SPI1_BASE   0x42003000
+#define STM32N6_SPI2_BASE   0x40003800
+#define STM32N6_SPI3_BASE   0x40003C00
+#define STM32N6_SPI4_BASE   0x42003400
+#define STM32N6_SPI5_BASE   0x42005000
+#define STM32N6_SPI6_BASE   0x46001400
 
 /* SPI register offsets */
 
@@ -125,6 +128,10 @@ struct stm32n6_spi_priv_s
 
 static struct stm32n6_spi_priv_s g_spi1_priv;
 static struct stm32n6_spi_priv_s g_spi2_priv;
+static struct stm32n6_spi_priv_s g_spi3_priv;
+static struct stm32n6_spi_priv_s g_spi4_priv;
+static struct stm32n6_spi_priv_s g_spi5_priv;
+static struct stm32n6_spi_priv_s g_spi6_priv;
 
 /****************************************************************************
  * Private Functions
@@ -210,6 +217,22 @@ int stm32n6_spi_initialize(int bus_num)
         priv = &g_spi2_priv;
         priv->base = STM32N6_SPI2_BASE;
         break;
+      case 3:
+        priv = &g_spi3_priv;
+        priv->base = STM32N6_SPI3_BASE;
+        break;
+      case 4:
+        priv = &g_spi4_priv;
+        priv->base = STM32N6_SPI4_BASE;
+        break;
+      case 5:
+        priv = &g_spi5_priv;
+        priv->base = STM32N6_SPI5_BASE;
+        break;
+      case 6:
+        priv = &g_spi6_priv;
+        priv->base = STM32N6_SPI6_BASE;
+        break;
       default:
         syslog(LOG_ERR, "spi: unsupported bus %d\n", bus_num);
         return -EINVAL;
@@ -248,6 +271,18 @@ int stm32n6_spi_transfer(int bus_num, const uint8_t *tx,
         break;
       case 2:
         priv = &g_spi2_priv;
+        break;
+      case 3:
+        priv = &g_spi3_priv;
+        break;
+      case 4:
+        priv = &g_spi4_priv;
+        break;
+      case 5:
+        priv = &g_spi5_priv;
+        break;
+      case 6:
+        priv = &g_spi6_priv;
         break;
       default:
         return -EINVAL;

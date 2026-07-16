@@ -47,12 +47,12 @@
 
 #define STM32N6_I2C_COUNT   4
 
-/* I2C register base addresses (from memory map) */
+/* I2C register base addresses (per CMSIS stm32n647xx.h) */
 
 #define STM32N6_I2C1_BASE   0x40005400
 #define STM32N6_I2C2_BASE   0x40005800
-#define STM32N6_I2C3_BASE   0x40006C00
-#define STM32N6_I2C4_BASE   0x40007000
+#define STM32N6_I2C3_BASE   0x40005C00
+#define STM32N6_I2C4_BASE   0x46001C00
 
 /* I2C register offsets (STM32N6 compatible with H7) */
 
@@ -152,6 +152,28 @@ static const struct stm32n6_i2c_config_s g_i2c1_config =
   .scl_af = 4,
 };
 
+static const struct stm32n6_i2c_config_s g_i2c2_config =
+{
+  .base = STM32N6_I2C2_BASE,
+  .clock = 64000000,
+  .irq = 0,
+  .sda_pin = 0,
+  .scl_pin = 0,
+  .sda_af = 4,
+  .scl_af = 4,
+};
+
+static const struct stm32n6_i2c_config_s g_i2c3_config =
+{
+  .base = STM32N6_I2C3_BASE,
+  .clock = 64000000,
+  .irq = 0,
+  .sda_pin = 0,
+  .scl_pin = 0,
+  .sda_af = 4,
+  .scl_af = 4,
+};
+
 static const struct stm32n6_i2c_config_s g_i2c4_config =
 {
   .base = STM32N6_I2C4_BASE,
@@ -164,6 +186,8 @@ static const struct stm32n6_i2c_config_s g_i2c4_config =
 };
 
 static struct stm32n6_i2c_priv_s g_i2c1_priv;
+static struct stm32n6_i2c_priv_s g_i2c2_priv;
+static struct stm32n6_i2c_priv_s g_i2c3_priv;
 static struct stm32n6_i2c_priv_s g_i2c4_priv;
 
 /****************************************************************************
@@ -382,6 +406,14 @@ struct i2c_master_s *stm32n6_i2cbus_initialize(int bus_num)
       case 1:
         priv = &g_i2c1_priv;
         config = &g_i2c1_config;
+        break;
+      case 2:
+        priv = &g_i2c2_priv;
+        config = &g_i2c2_config;
+        break;
+      case 3:
+        priv = &g_i2c3_priv;
+        config = &g_i2c3_config;
         break;
       case 4:
         priv = &g_i2c4_priv;

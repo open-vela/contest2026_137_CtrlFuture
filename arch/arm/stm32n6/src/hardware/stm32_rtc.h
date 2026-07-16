@@ -27,9 +27,9 @@
  * Pre-processor Definitions
  ****************************************************************************/
 
-/* RTC base address (matches Renode platform mapping) */
+/* RTC base address (per CMSIS stm32n647xx.h: RTC_BASE_NS) */
 
-#define STM32N6_RTC_BASE        0x40002800ul
+#define STM32N6_RTC_BASE        0x46004000ul
 
 /* Register Offsets (from Renode STM32N6_RTC.cs) */
 

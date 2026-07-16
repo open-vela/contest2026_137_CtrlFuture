@@ -42,9 +42,14 @@
  * Pre-processor Definitions
  ****************************************************************************/
 
-/* SAI1 block A/B base addresses */
+/* SAI1 base address (per CMSIS stm32n647xx.h). The driver's register
+ * offsets below (SAI_CR1_OFFSET=0x04, etc.) are relative to this base
+ * and already encode the CMSIS Block A control-register placement
+ * (SAI_Block_TypeDef starting at SAI1_BASE + 0x04), matching the
+ * Renode STM32N6_SAI model's absolute offsets from the sai1 base.
+ */
 
-#define STM32N6_SAI1_BASE   0x40015000
+#define STM32N6_SAI1_BASE   0x42005800
 
 /* SAI register offsets (per block: 0x20 spacing) */
 

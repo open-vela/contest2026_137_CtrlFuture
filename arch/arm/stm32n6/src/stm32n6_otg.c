@@ -42,7 +42,9 @@
 
 /* USB OTG HS register base */
 
-#define STM32N6_OTG_HS_BASE  0x40040000
+/* per CMSIS stm32n647xx.h: USB1_OTG_HS_BASE_NS */
+
+#define STM32N6_OTG_HS_BASE  0x48040000
 
 /* Core global registers */
 
