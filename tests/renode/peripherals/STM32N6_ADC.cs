@@ -6,24 +6,31 @@
 // STM32N6 ADC (Analog-to-Digital Converter) model for Renode.
 // Minimal model: register read/write without actual conversions.
 //
-// Registers:
-//   ISR   @ 0x00: Interrupt and Status Register
-//   CR    @ 0x08: Control Register
-//   CFGR  @ 0x0C: Configuration Register
-//   SMPR1 @ 0x14: Sampling Time Register 1
-//   SMPR2 @ 0x18: Sampling Time Register 2
-//   TR1   @ 0x20: Watchdog Threshold Register 1
-//   TR2   @ 0x24: Watchdog Threshold Register 2
-//   SQR1  @ 0x30: Regular Sequence Register 1
-//   SQR2  @ 0x34: Regular Sequence Register 2
-//   SQR3  @ 0x38: Regular Sequence Register 3
-//   SQR4  @ 0x3C: Regular Sequence Register 4
-//   DR    @ 0x40: Regular Data Register
-//   OFR1  @ 0x60: Offset Register 1
-//   OFR2  @ 0x64: Offset Register 2
-//   OFR3  @ 0x68: Offset Register 3
-//   OFR4  @ 0x6C: Offset Register 4
-//   JSQR  @ 0x70: Injected Sequence Register
+// Registers (CMSIS ADC_TypeDef offsets, verified against
+// stm32n647xx.h; STM32N657 CMSIS is byte-for-byte identical):
+//   ISR    @ 0x00: Interrupt and Status Register
+//   IER    @ 0x04: Interrupt Enable Register
+//   CR     @ 0x08: Control Register
+//   CFGR1  @ 0x0C: Configuration Register 1
+//   CFGR2  @ 0x10: Configuration Register 2
+//   SMPR1  @ 0x14: Sampling Time Register 1
+//   SMPR2  @ 0x18: Sampling Time Register 2
+//   PCSEL  @ 0x1C: Channel Preselection Register
+//   SQR1   @ 0x30: Regular Sequence Register 1
+//   SQR2   @ 0x34: Regular Sequence Register 2
+//   SQR3   @ 0x38: Regular Sequence Register 3
+//   SQR4   @ 0x3C: Regular Sequence Register 4
+//   DR     @ 0x40: Regular Data Register
+//   JSQR   @ 0x4C: Injected Sequence Register
+//   OFR1-4 @ 0x60-0x6C: Offset Registers 1-4
+//   AWD1LTR @ 0xA8: Analog Watchdog 1 Low Threshold Register
+//   AWD1HTR @ 0xAC: Analog Watchdog 1 High Threshold Register
+//
+// Note: 0x20/0x24 (used by a previous revision of this model as
+// "TR1"/"TR2") are CMSIS RESERVED1 space, not real watchdog
+// threshold registers; the real thresholds are AWD1LTR/AWD1HTR at
+// 0xA8/0xAC.  JSQR was also previously placed at 0x70 (that offset
+// is CMSIS RESERVED3); corrected to 0x4C.
 //
 
 using Antmicro.Renode.Core;
@@ -48,13 +55,21 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             Registers.ISR.Define(this)
                 .WithValueField(0, 32, name: "ISR");
 
+            // IER @ 0x04: Interrupt Enable Register
+            Registers.IER.Define(this)
+                .WithValueField(0, 32, name: "IER");
+
             // CR @ 0x08: Control Register
             Registers.CR.Define(this)
                 .WithValueField(0, 32, name: "CR");
 
-            // CFGR @ 0x0C: Configuration Register
-            Registers.CFGR.Define(this)
-                .WithValueField(0, 32, name: "CFGR");
+            // CFGR1 @ 0x0C: Configuration Register 1
+            Registers.CFGR1.Define(this)
+                .WithValueField(0, 32, name: "CFGR1");
+
+            // CFGR2 @ 0x10: Configuration Register 2
+            Registers.CFGR2.Define(this)
+                .WithValueField(0, 32, name: "CFGR2");
 
             // SMPR1 @ 0x14: Sampling Time Register 1
             Registers.SMPR1.Define(this)
@@ -64,13 +79,9 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             Registers.SMPR2.Define(this)
                 .WithValueField(0, 32, name: "SMPR2");
 
-            // TR1 @ 0x20: Watchdog Threshold Register 1
-            Registers.TR1.Define(this)
-                .WithValueField(0, 32, name: "TR1");
-
-            // TR2 @ 0x24: Watchdog Threshold Register 2
-            Registers.TR2.Define(this)
-                .WithValueField(0, 32, name: "TR2");
+            // PCSEL @ 0x1C: Channel Preselection Register
+            Registers.PCSEL.Define(this)
+                .WithValueField(0, 32, name: "PCSEL");
 
             // SQR1 @ 0x30: Regular Sequence Register 1
             Registers.SQR1.Define(this)
@@ -92,6 +103,10 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             Registers.DR.Define(this)
                 .WithValueField(0, 32, FieldMode.Read, name: "DR");
 
+            // JSQR @ 0x4C: Injected Sequence Register
+            Registers.JSQR.Define(this)
+                .WithValueField(0, 32, name: "JSQR");
+
             // OFR1 @ 0x60: Offset Register 1
             Registers.OFR1.Define(this)
                 .WithValueField(0, 32, name: "OFR1");
@@ -108,30 +123,37 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             Registers.OFR4.Define(this)
                 .WithValueField(0, 32, name: "OFR4");
 
-            // JSQR @ 0x70: Injected Sequence Register
-            Registers.JSQR.Define(this)
-                .WithValueField(0, 32, name: "JSQR");
+            // AWD1LTR @ 0xA8: Analog Watchdog 1 Low Threshold Register
+            Registers.AWD1LTR.Define(this)
+                .WithValueField(0, 32, name: "AWD1LTR");
+
+            // AWD1HTR @ 0xAC: Analog Watchdog 1 High Threshold Register
+            Registers.AWD1HTR.Define(this)
+                .WithValueField(0, 32, name: "AWD1HTR");
         }
 
         private enum Registers : long
         {
-            ISR   = 0x00,
-            CR    = 0x08,
-            CFGR  = 0x0C,
-            SMPR1 = 0x14,
-            SMPR2 = 0x18,
-            TR1   = 0x20,
-            TR2   = 0x24,
-            SQR1  = 0x30,
-            SQR2  = 0x34,
-            SQR3  = 0x38,
-            SQR4  = 0x3C,
-            DR    = 0x40,
-            OFR1  = 0x60,
-            OFR2  = 0x64,
-            OFR3  = 0x68,
-            OFR4  = 0x6C,
-            JSQR  = 0x70,
+            ISR     = 0x00,
+            IER     = 0x04,
+            CR      = 0x08,
+            CFGR1   = 0x0C,
+            CFGR2   = 0x10,
+            SMPR1   = 0x14,
+            SMPR2   = 0x18,
+            PCSEL   = 0x1C,
+            SQR1    = 0x30,
+            SQR2    = 0x34,
+            SQR3    = 0x38,
+            SQR4    = 0x3C,
+            DR      = 0x40,
+            JSQR    = 0x4C,
+            OFR1    = 0x60,
+            OFR2    = 0x64,
+            OFR3    = 0x68,
+            OFR4    = 0x6C,
+            AWD1LTR = 0xA8,
+            AWD1HTR = 0xAC,
         }
     }
 }
