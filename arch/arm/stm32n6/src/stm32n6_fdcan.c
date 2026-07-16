@@ -55,20 +55,19 @@
 
 /* FDCAN register offsets */
 
-#define FDCAN_CCCR_OFFSET    0x000
-#define FDCAN_BTP_OFFSET     0x00C
-#define FDCAN_TDCR_OFFSET    0x010
-#define FDCAN_IR_OFFSET      0x018
-#define FDCAN_IE_OFFSET      0x01C
-#define FDCAN_ILS_OFFSET     0x020
-#define FDCAN_ILE_OFFSET     0x024
-#define FDCAN_GFC_OFFSET     0x080
-#define FDCAN_RXGFC_OFFSET   0x084
-#define FDCAN_TXBAR_OFFSET   0x0CC
-#define FDCAN_TXBCR_OFFSET   0x0D0
-#define FDCAN_TXBTO_OFFSET   0x0D4
-#define FDCAN_RXF0S_OFFSET   0x0A4
-#define FDCAN_RXF0A_OFFSET   0x0A8
+#define FDCAN_CCCR_OFFSET    0x018  /* CMSIS CCCR (CC Control) */
+#define FDCAN_BTP_OFFSET     0x01C  /* CMSIS NBTP (Nominal Bit Timing) */
+#define FDCAN_TDCR_OFFSET    0x048  /* CMSIS TDCR (Tx Delay Comp) */
+#define FDCAN_IR_OFFSET      0x050  /* CMSIS IR (Interrupt) */
+#define FDCAN_IE_OFFSET      0x054  /* CMSIS IE (Interrupt Enable) */
+#define FDCAN_ILS_OFFSET     0x058  /* CMSIS ILS (Interrupt Line Select) */
+#define FDCAN_ILE_OFFSET     0x05C  /* CMSIS ILE (Interrupt Line Enable) */
+#define FDCAN_GFC_OFFSET     0x080  /* CMSIS GFC (Global Filter Config) */
+#define FDCAN_TXBAR_OFFSET   0x0D0  /* CMSIS TXBAR (Tx Buffer Add Req) */
+#define FDCAN_TXBCR_OFFSET   0x0D4  /* CMSIS TXBCR (Tx Buffer Cancel Req) */
+#define FDCAN_TXBTO_OFFSET   0x0D8  /* CMSIS TXBTO (Tx Buffer Tx Occurred) */
+#define FDCAN_RXF0S_OFFSET   0x0A4  /* CMSIS RXF0S (Rx FIFO0 Status) */
+#define FDCAN_RXF0A_OFFSET   0x0A8  /* CMSIS RXF0A (Rx FIFO0 Ack) */
 
 /* CCCR register bits */
 
