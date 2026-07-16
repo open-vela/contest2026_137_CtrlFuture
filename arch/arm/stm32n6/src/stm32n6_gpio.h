@@ -87,7 +87,15 @@
 #define GPIO_AF_MASK         (0xful << GPIO_AF_SHIFT)
 #define GPIO_AF(n)           ((uint32_t)(n) << GPIO_AF_SHIFT)
 
-/* Port */
+/* Port
+ *
+ * CMSIS stm32n647xx.h confirms this chip has GPIO ports A-H plus
+ * N/O/P/Q (12 ports total, indices 0-11 below) -- there is no
+ * GPIOI/GPIOJ/GPIOZ on this part.  A previous revision of this
+ * header encoded a fictitious port set (A-J + Z); corrected to
+ * match CMSIS and the apache/nuttx upstream STM32N657 port, which
+ * uses the same A-H + N/O/P/Q port set.
+ */
 
 #define GPIO_PORT_SHIFT      4
 #define GPIO_PORT_MASK       (0xful << GPIO_PORT_SHIFT)
@@ -99,9 +107,10 @@
 #define GPIO_PORTF           (5ul << GPIO_PORT_SHIFT)
 #define GPIO_PORTG           (6ul << GPIO_PORT_SHIFT)
 #define GPIO_PORTH           (7ul << GPIO_PORT_SHIFT)
-#define GPIO_PORTI           (8ul << GPIO_PORT_SHIFT)
-#define GPIO_PORTJ           (9ul << GPIO_PORT_SHIFT)
-#define GPIO_PORTZ           (10ul << GPIO_PORT_SHIFT)
+#define GPIO_PORTN           (8ul << GPIO_PORT_SHIFT)
+#define GPIO_PORTO           (9ul << GPIO_PORT_SHIFT)
+#define GPIO_PORTP           (10ul << GPIO_PORT_SHIFT)
+#define GPIO_PORTQ           (11ul << GPIO_PORT_SHIFT)
 
 /* Pin */
 

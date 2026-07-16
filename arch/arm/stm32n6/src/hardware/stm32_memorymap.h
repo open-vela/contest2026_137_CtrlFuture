@@ -27,7 +27,21 @@
  * Pre-processor Definitions
  ****************************************************************************/
 
-/* STM32N6 Memory Map (non-secure aliases) */
+/* STM32N6 Memory Map (non-secure aliases)
+ *
+ * Each peripheral is physically aliased twice: a Non-Secure alias at
+ * 0x4xxxxxxx and a Secure alias at 0x5xxxxxxx (RM0486 section 3.5.1).
+ * The same hardware register is reached through either alias.  This
+ * port intentionally keeps the Non-Secure aliases so that, if this
+ * board is ever split into a Secure/Non-Secure TrustZone image pair,
+ * NuttX (the larger, general-purpose OS) can keep running unmodified
+ * as the Non-Secure world's OS -- the small Secure-world firmware
+ * that would configure SAU/RIFSC/NVIC target-state and perform the
+ * actual Secure->Non-Secure handoff is a separate, not-yet-written
+ * component.  In the current single-world (Secure-only, no SAU
+ * configured) boot configuration, both aliases reach the same
+ * register and are functionally equivalent.
+ */
 
 #define STM32_SRAM_BASE        0x34000000ul
 #define STM32_PERIPH_BASE      0x40000000ul
@@ -51,6 +65,9 @@
 #define STM32_USART3_BASE      (STM32_APB1_BASE + 0x4800)
 #define STM32_UART4_BASE       (STM32_APB1_BASE + 0x4c00)
 #define STM32_UART5_BASE       (STM32_APB1_BASE + 0x5000)
+#define STM32_I2C1_BASE        (STM32_APB1_BASE + 0x5400)
+#define STM32_I2C2_BASE        (STM32_APB1_BASE + 0x5800)
+#define STM32_I2C3_BASE        (STM32_APB1_BASE + 0x5c00)
 #define STM32_UART7_BASE       (STM32_APB1_BASE + 0x7800)
 #define STM32_UART8_BASE       (STM32_APB1_BASE + 0x7c00)
 
@@ -64,8 +81,20 @@
 /* APB4 peripherals */
 
 #define STM32_LPUART1_BASE     (STM32_APB4_BASE + 0x0c00)
+#define STM32_RTC_BASE         (STM32_APB4_BASE + 0x4000)
+#define STM32_TAMP_BASE        (STM32_APB4_BASE + 0x4400)
+#define STM32_IWDG_BASE        (STM32_APB4_BASE + 0x4800)
+#define STM32_BSEC_BASE        (STM32_APB4_BASE + 0x9000)
+#define STM32_DTS_BASE         (STM32_APB4_BASE + 0xa000)
 
-/* AHB4 peripherals */
+/* AHB4 peripherals
+ *
+ * CMSIS stm32n647xx.h confirms this chip has GPIO ports A-H plus
+ * N/O/P/Q (12 ports total) -- there is no GPIOI/GPIOJ/GPIOZ_BASE_NS
+ * defined anywhere in CMSIS for this part.  A previous revision of
+ * this header defined a fictitious GPIOI/GPIOJ/GPIOZ port set; that
+ * was never referenced by any board-level code and has been removed.
+ */
 
 #define STM32_GPIOA_BASE       (STM32_AHB4_BASE + 0x0000)
 #define STM32_GPIOB_BASE       (STM32_AHB4_BASE + 0x0400)
@@ -75,14 +104,17 @@
 #define STM32_GPIOF_BASE       (STM32_AHB4_BASE + 0x1400)
 #define STM32_GPIOG_BASE       (STM32_AHB4_BASE + 0x1800)
 #define STM32_GPIOH_BASE       (STM32_AHB4_BASE + 0x1c00)
-#define STM32_GPIOI_BASE       (STM32_AHB4_BASE + 0x2000)
-#define STM32_GPIOJ_BASE       (STM32_AHB4_BASE + 0x2400)
-#define STM32_GPIOZ_BASE       (STM32_AHB4_BASE + 0x4400)
 #define STM32_GPION_BASE       (STM32_AHB4_BASE + 0x3400)
 #define STM32_GPIOO_BASE       (STM32_AHB4_BASE + 0x3800)
 #define STM32_GPIOP_BASE       (STM32_AHB4_BASE + 0x3c00)
 #define STM32_GPIOQ_BASE       (STM32_AHB4_BASE + 0x4000)
+#define STM32_EXTI_BASE        (STM32_AHB4_BASE + 0x5000)
 #define STM32_RCC_BASE         (STM32_AHB4_BASE + 0x8000)
+
+/* AHB1 peripherals */
+
+#define STM32_GPDMA1_BASE      (STM32_AHB1_BASE + 0x1000)
+#define STM32_ADC1_BASE        (STM32_AHB1_BASE + 0x2000)
 
 /* AHB3 peripherals */
 

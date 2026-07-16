@@ -53,6 +53,12 @@
  * Private Data
  ****************************************************************************/
 
+/* Port base address table.
+ *
+ * CMSIS stm32n647xx.h confirms A-H + N/O/P/Q (12 ports); see the
+ * note in stm32n6_gpio.h.
+ */
+
 static const uintptr_t g_gpiobase[] =
 {
   STM32_GPIOA_BASE,   /* 0: GPIOA */
@@ -63,9 +69,10 @@ static const uintptr_t g_gpiobase[] =
   STM32_GPIOF_BASE,   /* 5: GPIOF */
   STM32_GPIOG_BASE,   /* 6: GPIOG */
   STM32_GPIOH_BASE,   /* 7: GPIOH */
-  STM32_GPIOI_BASE,   /* 8: GPIOI */
-  STM32_GPIOJ_BASE,   /* 9: GPIOJ */
-  STM32_GPIOZ_BASE,   /* 10: GPIOZ */
+  STM32_GPION_BASE,   /* 8: GPION */
+  STM32_GPIOO_BASE,   /* 9: GPIOO */
+  STM32_GPIOP_BASE,   /* 10: GPIOP */
+  STM32_GPIOQ_BASE,   /* 11: GPIOQ */
 };
 
 /****************************************************************************
