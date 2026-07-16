@@ -176,8 +176,9 @@ tim2: Miscellaneous.STM32N6_TIM @ sysbus 0x40000000
 // LPTIM1 @ 0x40002400 (APB1 + 0x2400)
 lptim1: Miscellaneous.STM32N6_LPTIM @ sysbus 0x40002400
 
-// ADC1 @ 0x40022000 (AHB1 + 0x2000)
+// ADC1 @ 0x40022000 (AHB1 + 0x2000), IRQ 46 (ADC1_2_IRQn)
 adc1: Miscellaneous.STM32N6_ADC @ sysbus 0x40022000
+    IRQ -> nvic@46
 
 // DTS @ 0x4600A000 (APB4 + 0xA000)
 dts: Miscellaneous.STM32N6_DTS @ sysbus 0x4600A000
