@@ -74,7 +74,19 @@
 #define GPIO_SPEED_LOW       (0ul << GPIO_SPEED_SHIFT)
 #define GPIO_SPEED_HIGH      (3ul << GPIO_SPEED_SHIFT)
 
-/* Pull-up/down */
+/* Pull-up/down
+ *
+ * Bit 20 (GPIO_OUTPUT_SET) selects the initial output level when
+ * GPIO_MODE_OUTPUT is configured: 1=high, 0=low.  configgpio()
+ * applies this level before the pin's MODER bits are switched to
+ * output, avoiding a brief output glitch on the transition from
+ * whatever the pin's previous mode was (ported from apache/nuttx
+ * upstream stm32_configgpio(), which does the same ordering).
+ */
+
+#define GPIO_OUTPUT_SET_SHIFT 20
+#define GPIO_OUTPUT_SET      (1ul << GPIO_OUTPUT_SET_SHIFT)
+#define GPIO_OUTPUT_CLEAR    (0ul << GPIO_OUTPUT_SET_SHIFT)
 
 #define GPIO_PUPD_SHIFT      22
 #define GPIO_PUPD_NONE       (0ul << GPIO_PUPD_SHIFT)
@@ -133,6 +145,7 @@
  ****************************************************************************/
 
 int stm32n6_configgpio(uint32_t cfgset);
+int stm32n6_unconfiggpio(uint32_t cfgset);
 bool stm32n6_gpioread(uint32_t pinset);
 void stm32n6_gpiowrite(uint32_t pinset, bool value);
 

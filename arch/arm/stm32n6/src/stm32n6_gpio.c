@@ -28,6 +28,9 @@
 
 #include <stdbool.h>
 #include <stdint.h>
+#include <errno.h>
+
+#include <nuttx/spinlock.h>
 
 #include "arm_internal.h"
 #include "stm32n6_gpio.h"
@@ -52,6 +55,14 @@
 /****************************************************************************
  * Private Data
  ****************************************************************************/
+
+/* Serializes read-modify-write access to the GPIO configuration
+ * registers.  Ported from apache/nuttx upstream stm32_gpio.c, which
+ * protects against concurrent stm32_configgpio() calls racing on the
+ * same port's MODER/OTYPER/OSPEEDR/PUPDR/AFRL/AFRH registers.
+ */
+
+static spinlock_t g_configgpio_lock = SP_UNLOCKED;
 
 /* Port base address table.
  *
@@ -85,6 +96,10 @@ static const uintptr_t g_gpiobase[] =
  * Description:
  *   Configure a GPIO pin based on encoded pin attributes.
  *
+ * Returned Value:
+ *   OK (0) on success; a negated errno value (-EINVAL) if the port
+ *   field decodes to an unsupported port index.
+ *
  ****************************************************************************/
 
 int stm32n6_configgpio(uint32_t cfgset)
@@ -98,6 +113,7 @@ int stm32n6_configgpio(uint32_t cfgset)
   unsigned int otype;
   uintptr_t base;
   uint32_t regval;
+  irqstate_t flags;
 
   port  = (cfgset & GPIO_PORT_MASK) >> GPIO_PORT_SHIFT;
   pin   = (cfgset & GPIO_PIN_MASK)  >> GPIO_PIN_SHIFT;
@@ -109,10 +125,32 @@ int stm32n6_configgpio(uint32_t cfgset)
 
   if (port >= sizeof(g_gpiobase) / sizeof(g_gpiobase[0]))
     {
-      return -1;
+      return -EINVAL;
     }
 
   base = g_gpiobase[port];
+
+  /* If this pin is being configured as an output, drive the
+   * requested initial level (GPIO_OUTPUT_SET) on the ODR/BSRR
+   * *before* switching MODER to output below.  Ported from
+   * apache/nuttx upstream stm32_configgpio(): setting the output
+   * level ahead of the mode switch avoids a brief glitch where the
+   * pin would otherwise momentarily drive whatever stale ODR value
+   * was already latched from a previous (e.g. input/analog)
+   * configuration.
+   */
+
+  if (mode == (GPIO_MODE_OUTPUT >> GPIO_MODE_SHIFT))
+    {
+      stm32n6_gpiowrite(cfgset, (cfgset & GPIO_OUTPUT_SET) != 0);
+    }
+
+  /* Interrupts must be disabled from here on out so that we have
+   * mutually exclusive access to all of the GPIO configuration
+   * registers for this port.
+   */
+
+  flags = spin_lock_irqsave(&g_configgpio_lock);
 
   /* Set mode (2 bits per pin) */
 
@@ -166,7 +204,36 @@ int stm32n6_configgpio(uint32_t cfgset)
       putreg32(regval, afr_reg);
     }
 
-  return 0;
+  spin_unlock_irqrestore(&g_configgpio_lock, flags);
+  return OK;
+}
+
+/****************************************************************************
+ * Name: stm32n6_unconfiggpio
+ *
+ * Description:
+ *   Unconfigure a GPIO pin: reuse the port and pin fields from cfgset
+ *   and reconfigure that pin to a default, safe, high-impedance input
+ *   with no pull-up/down.  Ported from apache/nuttx upstream
+ *   stm32_unconfiggpio(): this is a safety function, primarily meant
+ *   to be called before repurposing a pin that was previously driven
+ *   as a fixed-level GPIO output or PWM/timer channel output, so the
+ *   pin does not keep driving a stale fixed level (which, for a motor
+ *   or LED driver channel, can trigger an over-current condition)
+ *   once the peripheral or application code that owned it is done.
+ *
+ * Returned Value:
+ *   OK (0) on success; a negated errno value (-EINVAL) if the port
+ *   field decodes to an unsupported port index.
+ *
+ ****************************************************************************/
+
+int stm32n6_unconfiggpio(uint32_t cfgset)
+{
+  cfgset &= GPIO_PORT_MASK | GPIO_PIN_MASK;
+  cfgset |= GPIO_MODE_INPUT | GPIO_PUPD_NONE;
+
+  return stm32n6_configgpio(cfgset);
 }
 
 /****************************************************************************
