@@ -173,6 +173,16 @@ static inline int rcc_configpll1(void)
 
   /* Configure PLL1 source, input divider (M), and feedback divider
    * (N) in a single PLL1CFGR1 write.
+   *
+   * DIVM/DIVN are direct division/multiplication factors, not
+   * "value-1" encodings: confirmed against ST's own HAL driver
+   * (stm32n6xx_hal_rcc.c HAL_RCC_OscConfig(): MODIFY_REG(...,
+   * pPLLInit->PLLM << RCC_PLL1CFGR1_PLL1DIVM_Pos ...) writes PLLM
+   * unmodified) and its header doc ("PLLM ... must be a number
+   * between Min_Data = 1 and Max_Data = 63"). A previous revision
+   * of this function wrote (STM32_PLL1_M - 1)/(STM32_PLL1_N - 1),
+   * which does not match board.h's "M=2 * N=25 = 800MHz" comment
+   * and would have programmed the wrong VCO frequency.
    */
 
 #ifdef CONFIG_STM32N6_USE_HSE
@@ -181,8 +191,8 @@ static inline int rcc_configpll1(void)
   regval = RCC_PLL1CFGR1_SEL_HSI;
 #endif
 
-  regval |= ((STM32_PLL1_M - 1) << RCC_PLL1CFGR1_DIVM_SHIFT) |
-            ((STM32_PLL1_N - 1) << RCC_PLL1CFGR1_DIVN_SHIFT);
+  regval |= (STM32_PLL1_M << RCC_PLL1CFGR1_DIVM_SHIFT) |
+            (STM32_PLL1_N << RCC_PLL1CFGR1_DIVN_SHIFT);
   putreg32(regval, STM32_RCC_PLL1CFGR1);
 
   /* Post-dividers: enable direct VCO output (PDIV1=PDIV2=1) and
@@ -212,8 +222,9 @@ static inline int rcc_configpll1(void)
     }
 
   /* IC dividers: register field is (divider - 1).  IC1 feeds CPUCLK
-   * directly; IC2/IC6/IC11 feed the SYSCLK domain switch group.  The
-   * ratios below mirror the upstream STM32N6 port: IC2 = IC1_DIV*2,
+   * directly; IC2/IC6/IC11 feed the SYSCLK domain switch group; IC3
+   * feeds the XSPI2 kernel clock.  The ratios below mirror the
+   * upstream STM32N6 port: IC2 = IC1_DIV*2, IC3 = IC1_DIV*4,
    * IC6 = IC1_DIV*3, IC11 = IC1_DIV*2 relative to the VCO.
    */
 
@@ -224,14 +235,17 @@ static inline int rcc_configpll1(void)
            ((STM32_PLL1_IC1_DIV * 2 - 1) << RCC_ICCFGR_INT_SHIFT),
            STM32_RCC_IC2CFGR);
   putreg32(RCC_ICCFGR_SEL_PLL1 |
+           ((STM32_PLL1_IC1_DIV * 4 - 1) << RCC_ICCFGR_INT_SHIFT),
+           STM32_RCC_IC3CFGR);
+  putreg32(RCC_ICCFGR_SEL_PLL1 |
            ((STM32_PLL1_IC1_DIV * 3 - 1) << RCC_ICCFGR_INT_SHIFT),
            STM32_RCC_IC6CFGR);
   putreg32(RCC_ICCFGR_SEL_PLL1 |
            ((STM32_PLL1_IC1_DIV * 2 - 1) << RCC_ICCFGR_INT_SHIFT),
            STM32_RCC_IC11CFGR);
 
-  putreg32(RCC_DIVENR_IC1EN | RCC_DIVENR_IC2EN | RCC_DIVENR_IC6EN |
-           RCC_DIVENR_IC11EN,
+  putreg32(RCC_DIVENR_IC1EN | RCC_DIVENR_IC2EN | RCC_DIVENR_IC3EN |
+           RCC_DIVENR_IC6EN | RCC_DIVENR_IC11EN,
            STM32_RCC_DIVENSR);
 
   return 0;
@@ -297,6 +311,23 @@ static inline void rcc_switchsysclk(void)
 void stm32n6_clockconfig(void)
 {
   uint32_t regval;
+
+  /* Enable all AXISRAM bank clocks unconditionally, matching
+   * apache/nuttx upstream stm32_rcc_enableperipherals(): the boot
+   * ROM only enables AXISRAM1/2, which is sufficient to reach this
+   * point, but the NuttX heap extends across all SRAM banks (up to
+   * AXISRAM5/6 depending on board.h's memory layout).  Without
+   * this, mm_initialize() writing the heap's tail node can fault
+   * with an IMPRECISERR bus fault the first time it touches an
+   * un-clocked bank.  A previous revision of this function only
+   * did this inside rcc_switchsysclk() (i.e. only when
+   * CONFIG_STM32N6_USE_PLL1 is enabled and PLL1 configuration
+   * succeeds), leaving the default HSI-only build path exposed to
+   * the same fault upstream's comment warns about.
+   */
+
+  putreg32(RCC_MEMENR_ALLAXISRAM | RCC_MEMENR_CACHEAXIRAMEN,
+           STM32_RCC_MEMENSR);
 
 #ifdef CONFIG_STM32N6_USE_PLL1
   regval = getreg32(STM32_RCC_CFGR1);

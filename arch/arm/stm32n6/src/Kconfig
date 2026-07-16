@@ -45,11 +45,18 @@ config STM32N6_HSE_FREQUENCY
 config STM32N6_USE_PLL1
 	bool "Enable PLL1 for system clock"
 	default n
-	depends on STM32N6_USE_HSE
 	---help---
-		Configure PLL1 to generate 800MHz from HSE, with AHB DIV4
-		giving 200MHz conservative system clock. If not set, system
-		runs directly from HSI or HSE.
+		Configure PLL1 as the CPU/system clock source, using the
+		M/N/IC1_DIV parameters from board.h.  PLL1 can be driven
+		from either HSI (default) or HSE (if STM32N6_USE_HSE is
+		also enabled); it does not require HSE.  A previous
+		revision of this option incorrectly declared "depends on
+		STM32N6_USE_HSE", which made the HSI+PLL1 combination
+		board.h's clock-tree comment documents (and
+		stm32n6_rcc.c's rcc_configpll1() already implements via
+		its #ifndef CONFIG_STM32N6_USE_HSE branch) unreachable
+		from menuconfig.  If not set, system runs directly from
+		HSI (or HSE if STM32N6_USE_HSE is set).
 
 endmenu
 
