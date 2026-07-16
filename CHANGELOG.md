@@ -2,6 +2,61 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.7.0] - 2026-07-16
+
+### Fixed
+- Systematic register offset/bitfield audit of all STM32N6 chip
+  drivers against the authoritative CMSIS `stm32n647xx.h` header
+  (and, where available, the upstream `apache/nuttx` STM32N657
+  port), superseding the `[0.6.0]` decision to reference STM32H7 —
+  that reference turned out to be an incorrect data source for
+  several peripherals (see "Superseded decision" below).
+- RCC: `CFGR1` was at the wrong offset, `RTCEN` was in the wrong
+  register, and the PLL/IC divider tree did not match the real
+  hardware network. Rewrote `hardware/stm32_rcc.h`,
+  `stm32n6_rcc.c`, and the `STM32N6_RCC` Renode model from scratch,
+  porting the upstream `stm32_stdclockconfig()` logic.
+- SPI/I2C/SAI/IWDG/OTG/RTC: systematic base address errors
+  corrected against CMSIS; SPI/I2C driver switch statements
+  completed for all instances (SPI1-6, I2C1-4).
+- FDCAN: `CCCR` was mapped at offset 0x000 instead of the real
+  0x018 (with cascading errors in `IR`/`IE`/`ILS`/`ILE`/`TXBAR`).
+- SDMMC: `CMD.WAITRESP`/`CMD.CPSMEN` bitfields were at the wrong
+  bit positions.
+- XSPI: the entire write-path register block
+  (`TCR`/`IR`/`ABR`/`LPTR`/`WP*`) was misaligned, including a
+  functional bug where `LPTR` writes actually landed on `ABR`.
+- EMAC: MAC address and DMA descriptor registers used fictitious
+  offsets that never matched CMSIS `ETH_TypeDef`; corrected to the
+  real `MACA0HR`/`MACA0LR`/`DMACTXDLAR`/`DMACRXDLAR` registers.
+- OTG: FIFO flush never set `GRSTCTL.RXFFLSH`, only `TXFFLSH`, so
+  the Rx FIFO was never actually flushed on init.
+- Renode models (no matching NuttX driver bug, simulation-only):
+  `STM32N6_ADC` was missing `IER` and had `JSQR`/watchdog threshold
+  registers at fictitious offsets inside CMSIS-reserved space;
+  `STM32N6_HPDMA` used a compact non-CMSIS per-channel layout
+  instead of the real `DMA_Channel_TypeDef` shared with GPDMA.
+
+### Changed
+- Renode/Robot test suite grew from 42 to 47 suites (283 test
+  cases, all passing) to cover the above fixes; see
+  `tests/renode/README.md` "CMSIS Alignment Campaign" for the full
+  before/after table.
+- Documented remaining placeholder Renode register layouts (CSI,
+  OTP, DTS, VENC, CRYP, NPU) as team-defined and not CMSIS-derived,
+  since CMSIS does not publish register maps for these blocks —
+  see model header comments and ADR-035/036/037.
+
+### Superseded decision
+- The `[0.6.0]` technical decision "Ethernet/SDMMC/XSPI/LTDC:
+  NuttX native drivers (reference STM32H7)" is superseded. STM32H7
+  register maps do not reliably match STM32N6 for these
+  peripherals (confirmed multiple base address and offset
+  mismatches during this audit). CMSIS `stm32n647xx.h` and, for
+  peripherals with an existing upstream port, `apache/nuttx`
+  STM32N657 sources are now the only authoritative references for
+  STM32N6 driver work.
+
 ## [0.6.0] - 2026-07-11
 
 ### Added

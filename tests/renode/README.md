@@ -59,7 +59,7 @@ for future drivertest binding.
 | GPDMA mem2mem L3 | `011-gpdma` L3-functional cases |
 | I2C master flags L2+ | `014-i2c` L2 + L3 |
 | Every MMIO NuttX driver ≥1 L2-state | See matrix; RCC/GPIO/PWR/UART tagged |
-| Full Robot suite green | **217 pass / 0 fail** (`robot_output.xml`) |
+| Full Robot suite green | **217 pass / 0 fail** (`robot_output.xml`, 2026-07-14 snapshot; see Completeness Campaign and CMSIS Alignment Campaign below for later counts) |
 | `000-boot-regression` green | First-class suite PASS |
 | CLAUDE.md paths | `RENODE_SRC`, `SOFTWARE_PACKAGE` correct |
 
@@ -112,10 +112,10 @@ Max fidelity is the highest tier the model/suite currently supports
 | `STM32N6_LTDC` | `025-ltdc` | ADR-031 | **L2** | Layer CR @ 0x10C/0x20C (CMSIS N6) |
 | `STM32N6_DCMIPP` | `026-dcmipp` | ADR-033 | **L2** | Pipe enable |
 | `STM32N6_RNG` | `039-rng` | ADR-037 | **L2** | DRDY/RNGEN + IRQ; robot# ≠ ADR# |
-| `STM32N6_HPDMA` | `027-hpdma` | ADR-025 | **L3** | mem2mem + IRQ (fixed from L1) |
+| `STM32N6_HPDMA` | `027-hpdma`, `027-hpdma-upgrade` | ADR-025 | **L3** | mem2mem + IRQ; channel register offsets realigned to CMSIS `DMA_Channel_TypeDef` (CCR@+0x14, CTR2@+0x44, CSAR@+0x4C, CDAR@+0x50, ...), matching GPDMA's layout |
 | `STM32N6_TIM` | `028-tim`, `029-tim2` | ADR-026 / ADR-027 | L1 | |
 | `STM32N6_LPTIM` | `030-lptim` | ADR-028 | L1 | |
-| `STM32N6_ADC` | `031-adc` | ADR-029 | L1 | |
+| `STM32N6_ADC` | `031-adc` | ADR-029 | **L2-state** | CFGR1/CFGR2/PCSEL/IER/JSQR/AWD1LTR/AWD1HTR; offsets realigned to CMSIS `ADC_TypeDef` (JSQR@0x4C, not the previous fictitious 0x70) |
 | `STM32N6_DTS` | `032-dts` | ADR-030 | L1 | |
 | `STM32N6_DMA2D` | `033-dma2d` | ADR-032 | L1 | |
 | `STM32N6_CSI` | `034-csi` | ADR-034 | L1 | |
@@ -176,7 +176,41 @@ All eight Renode completeness gaps closed in a single campaign.
 | HPDMA CH1–15 IRQ | CH0 proves pattern; expand if driver uses more |
 | TIM/ADC/LPTIM/DTS/DMA2D/CSI/VENC/NPU/CRYP/OTP L3 | No NuttX driver consuming them yet — leave L1 |
 
-**Full gate:** 42 suites, all PASS. Baseline was 217 pass; current count exceeds after adding IRQ wiring, multi-peripheral, driver-sequence, and firmware-L3 suites.
+**Full gate (2026-07-14 snapshot):** 42 suites, all PASS. Baseline
+was 217 pass; count exceeded after adding IRQ wiring,
+multi-peripheral, driver-sequence, and firmware-L3 suites. See
+"CMSIS Alignment Campaign" below for the current snapshot.
+
+## CMSIS Alignment Campaign — EXIT 2026-07-16
+
+Cross-checked every driver register offset/bitfield and every
+Renode model against the authoritative CMSIS `stm32n647xx.h`
+(and, where upstream NuttX has a matching STM32N657 port, against
+`apache/nuttx`) instead of the earlier STM32H7-derived assumptions
+recorded in `CHANGELOG.md` `[0.6.0]`. That STM32H7 reference
+decision is superseded — see the CHANGELOG entry added alongside
+this campaign.
+
+| Peripheral | Bug found | Fix |
+|---|---|---|
+| RCC | CFGR1 @ wrong offset; RTCEN in wrong register; PLL tree not matching real IC divider network | Full rewrite of `hardware/stm32_rcc.h` + `stm32n6_rcc.c` + `STM32N6_RCC.cs`, ported from upstream `stm32_stdclockconfig()` |
+| SPI/I2C/SAI/IWDG/OTG/RTC | Systematic base address errors | Corrected against CMSIS; SPI/I2C switch statements completed for all instances |
+| FDCAN | `CCCR` at 0x000 instead of 0x018 (and cascading IR/IE/ILS/ILE/TXBAR offsets) | Realigned to CMSIS `FDCAN_GlobalTypeDef` |
+| SDMMC | `WAITRESP`/`CPSMEN` bitfields at wrong bit positions | Corrected to CMSIS `SDMMC_TypeDef.CMD` layout |
+| XSPI | Entire write-path register block (TCR/IR/ABR/LPTR/WP*) misaligned | Corrected to CMSIS `XSPI_TypeDef` |
+| EMAC | MAC address and DMA descriptor registers were fictitious offsets, never matching CMSIS `ETH_TypeDef` | Corrected to real `MACA0HR`/`MACA0LR`/`DMACTXDLAR`/`DMACRXDLAR` offsets |
+| OTG | `GRSTCTL.RXFFLSH` never set during FIFO flush (only `TXFFLSH`) | Added missing bit |
+| ADC (Renode model only, no NuttX driver) | Missing `IER`; `JSQR` at fictitious 0x70 (CMSIS reserved space); watchdog thresholds at fictitious 0x20/0x24 | Rewrote to CMSIS `ADC_TypeDef`; fidelity raised L1 → L2-state |
+| HPDMA (Renode model only) | Compact non-CMSIS per-channel layout instead of the real `DMA_Channel_TypeDef` shared with GPDMA | Realigned every channel register to its CMSIS offset |
+
+**Placeholder models documented (not fixed, since CMSIS does not
+publish these registers at all):** CSI, OTP, DTS, VENC, CRYP, NPU.
+Each model's header comment and the corresponding ADR
+(ADR-035/036/037) now explicitly states the layout is team-defined
+and not an authoritative reference.
+
+**Full gate (2026-07-16 snapshot):** 47 suites (`tests/renode/tests/*.robot`),
+283 test cases, all PASS, 0 fail.
 
 ## Quick run
 

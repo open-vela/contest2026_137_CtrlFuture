@@ -175,7 +175,41 @@ CI 和本地开发均通过此方案实现零侵入编译。
 - USART1 时钟 = APB2（HSI 64MHz）
 - PLL 配置将在 P1 阶段（ADR-005）实现
 
-## 八、AI Coding 使用说明
+## 八、Renode 测试基础设施
+
+`tests/renode/` 下维护一套 STM32N647X0 的 Renode 平台描述
+（`stm32n647x0.repl`）+ 30 个 C# 外设仿真模型（`peripherals/*.cs`）
++ 47 个 Robot Framework 测试套件（`tests/*.robot`，共 283 个测试
+用例，全部通过），用于在没有真实开发板的情况下对驱动代码做**寄存器
+级/驱动逻辑级**的回归验证。
+
+采用 L1/L2/L3 分级（定义见 [tests/renode/README.md](tests/renode/README.md)）：
+
+| 级别 | 含义 |
+|------|------|
+| L1-register | 基础寄存器可读写 |
+| L2-state | 控制/状态位联动行为（如 CR.xxxON → SR.xxxRDY） |
+| L3-functional | 端到端功能路径（如 SPI/I2C/DMA 真实字节搬运、NSH 命令输出） |
+| boot-regression | 启动仍能到达 `nsh>` |
+
+所有驱动的寄存器偏移/位域定义均已用 CMSIS 权威头文件
+（`stm32n647xx.h`）交叉核对，FDCAN/SDMMC/XSPI/EMAC/RCC 等外设并用
+apache/nuttx 官方 STM32N657 端口做二次交叉验证（详见
+[tests/renode/README.md](tests/renode/README.md) 的
+"CMSIS Alignment Campaign" 章节）。
+
+**能力边界**：这套测试验证的是驱动代码与硬件寄存器手册的一致性、
+以及状态位联动逻辑的正确性，**不能替代真机验证**——时钟频率、
+总线时序、电压域、功耗等物理特性仍需 [ADR-004](docs/adr/ADR-004.md)
+中列出的真机+示波器/逻辑分析仪流程。
+
+运行方式：
+
+```bash
+bash contest2026_137_CtrlFuture/scripts/renode-test.sh
+```
+
+## 九、AI Coding 使用说明
 
 > 完整对话日志见 `logs/` 目录（后续补充）。
 
