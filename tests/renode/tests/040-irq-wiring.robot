@@ -64,9 +64,18 @@ GPDMA CH0 IRQ Wired
     ${irq}=    Execute Command    sysbus.gpdma1 IRQ IsSet
     Should Contain    ${irq}    True
 
-EXTI0 IRQ Pending
+EXTI0 SWIER Sets RPR Bit (NVIC Wiring Not Modeled)
     [Tags]    L2-state
     Create STM32N6 Machine
+    # NOTE: this only verifies the EXTI-internal RPR1 sticky-pending
+    # bit, NOT that an NVIC interrupt actually becomes pending.
+    # STM32N6_EXTI.cs documents "Residual: full GPIO edge path and
+    # NVIC line routing not modeled" -- SWIER writes never call the
+    # model's RaiseLine()/Line0.Set(), so even though the .repl
+    # platform wires exti Line0 -> nvic@20, that wiring is never
+    # actually driven by this code path.  See RNG/SPI1/GPDMA/SDMMC/
+    # I2C1 IRQ Wired tests above for cases that do exercise a real
+    # GPIO IRQ line via `sysbus.xxx IRQ IsSet`.
     ${imrAddr}=    Evaluate    ${EXTI_BASE} + 0x80
     ${rtsrAddr}=   Evaluate    ${EXTI_BASE} + 0x00
     ${swierAddr}=  Evaluate    ${EXTI_BASE} + 0x08

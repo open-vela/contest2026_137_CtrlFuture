@@ -1,5 +1,6 @@
 *** Settings ***
 Resource        resources/stm32n6-common.robot
+Force Tags      cache-dma
 
 *** Test Cases ***
 SRAM Region Accessible By CPU

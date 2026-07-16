@@ -1,5 +1,6 @@
 *** Settings ***
 Resource        resources/stm32n6-common.robot
+Force Tags      dts
 
 *** Variables ***
 ${DTS_BASE}     0x4600A000
@@ -19,21 +20,31 @@ Write DTS Register
 
 *** Test Cases ***
 DTS CFGR1 Reset Value
+    [Tags]    L1-register
     Start STM32N6
     ${val}=    Read DTS Register    0x00
     Should Be Equal As Integers    ${val}    0
 
 DTS CFGR2 Writable
+    [Tags]    L1-register
     Start STM32N6
     Write DTS Register    0x04    0x01
     ${val}=    Read DTS Register    0x04
     Should Be Equal As Integers    ${val}    0x01
 
-DTS T0VALR1 Accessible
+DTS TSLPTR Writable
+    [Tags]    L1-register
     Start STM32N6
-    ${val}=    Read DTS Register    0x08
-    Should Be True    int(${val}) >= 0
+    # NOTE: this is a team-defined placeholder register (see
+    # STM32N6_DTS.cs header); write/read round-trip instead of the
+    # previous "int(val) >= 0" check on the read-only T0VALR1
+    # register, which is true for any 32-bit unsigned read.
+    Write DTS Register    0x14    0x12345678
+    ${val}=    Read DTS Register    0x14
+    ${val}=    Convert To Integer    ${val}
+    Should Be Equal As Integers    ${val}    0x12345678
 
 Boot Regression
+    [Tags]    boot-regression
     Start STM32N6
     Wait For NSH

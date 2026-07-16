@@ -1,3 +1,6 @@
+*** Settings ***
+Force Tags      csharp-model
+
 *** Variables ***
 ${MODEL_ADDR}    0x50000000
 
@@ -8,11 +11,13 @@ Create Test Machine
 
 *** Test Cases ***
 Register Reset Value
+    [Tags]    L1-register
     Create Test Machine
     ${val}=    Execute Command    sysbus ReadDoubleWord ${MODEL_ADDR}
     Should Be Equal As Integers    ${val}    0xABCD1234
 
 Register Read Write
+    [Tags]    L1-register
     Create Test Machine
     Execute Command                 sysbus WriteDoubleWord ${MODEL_ADDR} 0x12345678
     ${val}=    Execute Command    sysbus ReadDoubleWord ${MODEL_ADDR}
