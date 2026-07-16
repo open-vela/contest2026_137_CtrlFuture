@@ -18,6 +18,13 @@
  * implied.  See the License for the specific language governing
  * permissions and limitations under the License.
  *
+ * Register offsets and bitfields below are cross-checked against
+ * CMSIS stm32n647xx.h/stm32n657xx.h RCC_TypeDef (identical on both
+ * parts) and against the upstream Apache NuttX STM32N6 port
+ * (arch/arm/src/stm32n6/hardware/stm32n6xxx_rcc.h,
+ * arch/arm/src/stm32n6/stm32n6xx_rcc.c), which targets STM32N657 --
+ * a part sharing the same RCC IP as STM32N647.
+ *
  ****************************************************************************/
 
 #ifndef __ARCH_ARM_SRC_STM32N6_HARDWARE_STM32_RCC_H
@@ -37,83 +44,130 @@
 
 #define STM32_RCC_CR_OFFSET         0x0000  /* Clock control */
 #define STM32_RCC_SR_OFFSET         0x0004  /* Clock status */
-#define STM32_RCC_CFGR1_OFFSET      0x0018  /* Clock configuration 1 */
+#define STM32_RCC_CFGR1_OFFSET      0x0020  /* Clock configuration 1 */
+#define STM32_RCC_CFGR2_OFFSET      0x0024  /* Clock configuration 2 */
 
-/* PLL1 configuration */
+/* PLL1 configuration.  Unlike the legacy STM32Fx/Hx PLL layout, DIVN
+ * (feedback divider) is packed into PLL1CFGR1 alongside SEL/DIVM; there
+ * is no separate "PLL1CFGR2" multiplier register in the clock
+ * configuration sequence used by ST/upstream NuttX, even though CMSIS
+ * still exposes a PLL1CFGR2 address (reserved / unused by this driver).
+ */
 
-#define STM32_RCC_PLL1CFGR1_OFFSET  0x0200  /* PLL1 config 1 (DIVM1, SRC) */
-#define STM32_RCC_PLL1CFGR2_OFFSET  0x0204  /* PLL1 config 2 (DIVN1) */
-#define STM32_RCC_PLL1CFGR3_OFFSET  0x0208  /* PLL1 config 3 (DIVP/Q/R) */
+#define STM32_RCC_PLL1CFGR1_OFFSET  0x0080  /* PLL1 SEL/DIVM/DIVN */
+#define STM32_RCC_PLL1CFGR3_OFFSET  0x0088  /* PLL1 post-dividers */
 
-/* PLL2 configuration */
+/* IC (Interconnect) divider configuration registers.  Each ICxCFGR
+ * selects a PLLn source and an 8-bit integer divider.  Only the ICs
+ * used by the default clock tree (CPU=IC1, SYSCLK=IC2/IC6/IC11) are
+ * named here; add more as needed following the same +0x04 stride from
+ * IC1CFGR.
+ */
 
-#define STM32_RCC_PLL2CFGR1_OFFSET  0x020c  /* PLL2 config 1 */
-#define STM32_RCC_PLL2CFGR2_OFFSET  0x0210  /* PLL2 config 2 */
-#define STM32_RCC_PLL2CFGR3_OFFSET  0x0214  /* PLL2 config 3 */
+#define STM32_RCC_IC1CFGR_OFFSET    0x00c4  /* IC1 config (feeds CPUCLK) */
+#define STM32_RCC_IC2CFGR_OFFSET    0x00c8  /* IC2 config (feeds SYSCLK) */
+#define STM32_RCC_IC3CFGR_OFFSET    0x00cc  /* IC3 config (XSPI2 kernel) */
+#define STM32_RCC_IC6CFGR_OFFSET    0x00d8  /* IC6 config (feeds SYSCLK) */
+#define STM32_RCC_IC11CFGR_OFFSET   0x00ec  /* IC11 config (feeds SYSCLK) */
 
-/* PLL3 configuration */
+/* IC divider enable register (write-only via ENSR/ENCR aliases below) */
 
-#define STM32_RCC_PLL3CFGR1_OFFSET  0x0218  /* PLL3 config 1 */
-#define STM32_RCC_PLL3CFGR2_OFFSET  0x021c  /* PLL3 config 2 */
-#define STM32_RCC_PLL3CFGR3_OFFSET  0x0220  /* PLL3 config 3 */
+#define STM32_RCC_DIVENR_OFFSET     0x0240  /* IC divider enable register */
 
-/* PLL4 configuration */
+/* Peripheral clock enable registers and their atomic Set/Clear alias
+ * pairs (Reference: RM0486 14.5).  A write to xxxENSR performs an
+ * atomic OR on the paired xxxENR; a write to xxxENCR performs an
+ * atomic AND-NOT.  Prefer the Set/Clear aliases over read-modify-write
+ * on the plain ENR address to avoid losing concurrently-set bits.
+ */
 
-#define STM32_RCC_PLL4CFGR1_OFFSET  0x0224  /* PLL4 config 1 */
-#define STM32_RCC_PLL4CFGR2_OFFSET  0x0228  /* PLL4 config 2 */
-#define STM32_RCC_PLL4CFGR3_OFFSET  0x022c  /* PLL4 config 3 */
-
-/* Bus clock enable registers */
-
+#define STM32_RCC_MEMENR_OFFSET     0x024c  /* AXI/AHB SRAM clock enable */
 #define STM32_RCC_AHB1ENR_OFFSET    0x0250  /* AHB1 periph clock enable */
 #define STM32_RCC_AHB2ENR_OFFSET    0x0254  /* AHB2 periph clock enable */
 #define STM32_RCC_AHB3ENR_OFFSET    0x0258  /* AHB3 periph clock enable */
 #define STM32_RCC_AHB4ENR_OFFSET    0x025c  /* AHB4 periph clock enable */
 #define STM32_RCC_AHB5ENR_OFFSET    0x0260  /* AHB5 periph clock enable */
-#define STM32_RCC_APB1ENR_OFFSET    0x0264  /* APB1 periph clock enable */
+#define STM32_RCC_APB1ENR1_OFFSET   0x0264  /* APB1 periph clock enable 1 */
+#define STM32_RCC_APB1ENR2_OFFSET   0x0268  /* APB1 periph clock enable 2 */
 #define STM32_RCC_APB2ENR_OFFSET    0x026c  /* APB2 periph clock enable */
-#define STM32_RCC_APB4ENR_OFFSET    0x0278  /* APB4 periph clock enable */
+#define STM32_RCC_APB4ENR1_OFFSET   0x0274  /* APB4 periph clock enable 1 */
+#define STM32_RCC_APB4ENR2_OFFSET   0x0278  /* APB4 periph clock enable 2 */
 #define STM32_RCC_APB5ENR_OFFSET    0x027c  /* APB5 periph clock enable */
 
-/* Bus clock enable register addresses */
+/* Set/Clear register aliases.  DIVENSR/DIVENCR and the ENSR/ENCR
+ * pairs live in a separate address region (+0x0800/+0x1000 from the
+ * base ENR block) per RM0486; offsets below match the upstream NuttX
+ * STM32N6 port.
+ */
 
-#define STM32_RCC_CR       (STM32_RCC_BASE + STM32_RCC_CR_OFFSET)
-#define STM32_RCC_SR       (STM32_RCC_BASE + STM32_RCC_SR_OFFSET)
-#define STM32_RCC_CFGR1    (STM32_RCC_BASE + STM32_RCC_CFGR1_OFFSET)
+#define STM32_RCC_DIVENSR_OFFSET    0x0a40  /* IC divider enable set */
+#define STM32_RCC_MEMENSR_OFFSET    0x0a4c  /* SRAM clock enable set */
+#define STM32_RCC_AHB4ENSR_OFFSET   0x0a5c  /* AHB4 clock enable set */
+#define STM32_RCC_APB1ENSR1_OFFSET  0x0a64  /* APB1 clock enable set 1 */
+#define STM32_RCC_APB2ENSR_OFFSET   0x0a6c  /* APB2 clock enable set */
+#define STM32_RCC_APB4ENSR1_OFFSET  0x0a78  /* APB4 clock enable set 1 */
 
-#define STM32_RCC_PLL1CFGR1 (STM32_RCC_BASE + STM32_RCC_PLL1CFGR1_OFFSET)
-#define STM32_RCC_PLL1CFGR2 (STM32_RCC_BASE + STM32_RCC_PLL1CFGR2_OFFSET)
-#define STM32_RCC_PLL1CFGR3 (STM32_RCC_BASE + STM32_RCC_PLL1CFGR3_OFFSET)
+#define STM32_RCC_CCR_OFFSET        0x1000  /* Clock control clear */
+#define STM32_RCC_APB2ENCR_OFFSET   0x126c  /* APB2 clock enable clear */
+#define STM32_RCC_CSR_OFFSET        0x0800  /* Clock control set/status */
 
-#define STM32_RCC_PLL2CFGR1 (STM32_RCC_BASE + STM32_RCC_PLL2CFGR1_OFFSET)
-#define STM32_RCC_PLL2CFGR2 (STM32_RCC_BASE + STM32_RCC_PLL2CFGR2_OFFSET)
-#define STM32_RCC_PLL2CFGR3 (STM32_RCC_BASE + STM32_RCC_PLL2CFGR3_OFFSET)
+/* Register Addresses *******************************************************/
 
-#define STM32_RCC_PLL4CFGR1 (STM32_RCC_BASE + STM32_RCC_PLL4CFGR1_OFFSET)
-#define STM32_RCC_PLL4CFGR2 (STM32_RCC_BASE + STM32_RCC_PLL4CFGR2_OFFSET)
-#define STM32_RCC_PLL4CFGR3 (STM32_RCC_BASE + STM32_RCC_PLL4CFGR3_OFFSET)
+#define STM32_RCC_CR         (STM32_RCC_BASE + STM32_RCC_CR_OFFSET)
+#define STM32_RCC_SR         (STM32_RCC_BASE + STM32_RCC_SR_OFFSET)
+#define STM32_RCC_CFGR1      (STM32_RCC_BASE + STM32_RCC_CFGR1_OFFSET)
+#define STM32_RCC_CFGR2      (STM32_RCC_BASE + STM32_RCC_CFGR2_OFFSET)
 
-#define STM32_RCC_AHB1ENR  (STM32_RCC_BASE + STM32_RCC_AHB1ENR_OFFSET)
-#define STM32_RCC_AHB2ENR  (STM32_RCC_BASE + STM32_RCC_AHB2ENR_OFFSET)
-#define STM32_RCC_AHB3ENR  (STM32_RCC_BASE + STM32_RCC_AHB3ENR_OFFSET)
-#define STM32_RCC_AHB4ENR  (STM32_RCC_BASE + STM32_RCC_AHB4ENR_OFFSET)
-#define STM32_RCC_AHB5ENR  (STM32_RCC_BASE + STM32_RCC_AHB5ENR_OFFSET)
-#define STM32_RCC_APB1ENR  (STM32_RCC_BASE + STM32_RCC_APB1ENR_OFFSET)
-#define STM32_RCC_APB2ENR  (STM32_RCC_BASE + STM32_RCC_APB2ENR_OFFSET)
-#define STM32_RCC_APB4ENR  (STM32_RCC_BASE + STM32_RCC_APB4ENR_OFFSET)
-#define STM32_RCC_APB5ENR  (STM32_RCC_BASE + STM32_RCC_APB5ENR_OFFSET)
+#define STM32_RCC_PLL1CFGR1  (STM32_RCC_BASE + STM32_RCC_PLL1CFGR1_OFFSET)
+#define STM32_RCC_PLL1CFGR3  (STM32_RCC_BASE + STM32_RCC_PLL1CFGR3_OFFSET)
 
-/* RCC_CR bits (CMSIS stm32n647xx.h) */
+#define STM32_RCC_IC1CFGR    (STM32_RCC_BASE + STM32_RCC_IC1CFGR_OFFSET)
+#define STM32_RCC_IC2CFGR    (STM32_RCC_BASE + STM32_RCC_IC2CFGR_OFFSET)
+#define STM32_RCC_IC3CFGR    (STM32_RCC_BASE + STM32_RCC_IC3CFGR_OFFSET)
+#define STM32_RCC_IC6CFGR    (STM32_RCC_BASE + STM32_RCC_IC6CFGR_OFFSET)
+#define STM32_RCC_IC11CFGR   (STM32_RCC_BASE + STM32_RCC_IC11CFGR_OFFSET)
+
+#define STM32_RCC_DIVENR     (STM32_RCC_BASE + STM32_RCC_DIVENR_OFFSET)
+#define STM32_RCC_DIVENSR    (STM32_RCC_BASE + STM32_RCC_DIVENSR_OFFSET)
+
+#define STM32_RCC_MEMENR     (STM32_RCC_BASE + STM32_RCC_MEMENR_OFFSET)
+#define STM32_RCC_AHB1ENR    (STM32_RCC_BASE + STM32_RCC_AHB1ENR_OFFSET)
+#define STM32_RCC_AHB2ENR    (STM32_RCC_BASE + STM32_RCC_AHB2ENR_OFFSET)
+#define STM32_RCC_AHB3ENR    (STM32_RCC_BASE + STM32_RCC_AHB3ENR_OFFSET)
+#define STM32_RCC_AHB4ENR    (STM32_RCC_BASE + STM32_RCC_AHB4ENR_OFFSET)
+#define STM32_RCC_AHB5ENR    (STM32_RCC_BASE + STM32_RCC_AHB5ENR_OFFSET)
+#define STM32_RCC_APB1ENR1   (STM32_RCC_BASE + STM32_RCC_APB1ENR1_OFFSET)
+#define STM32_RCC_APB1ENR2   (STM32_RCC_BASE + STM32_RCC_APB1ENR2_OFFSET)
+#define STM32_RCC_APB2ENR    (STM32_RCC_BASE + STM32_RCC_APB2ENR_OFFSET)
+#define STM32_RCC_APB4ENR1   (STM32_RCC_BASE + STM32_RCC_APB4ENR1_OFFSET)
+#define STM32_RCC_APB4ENR2   (STM32_RCC_BASE + STM32_RCC_APB4ENR2_OFFSET)
+#define STM32_RCC_APB5ENR    (STM32_RCC_BASE + STM32_RCC_APB5ENR_OFFSET)
+
+#define STM32_RCC_MEMENSR    (STM32_RCC_BASE + STM32_RCC_MEMENSR_OFFSET)
+#define STM32_RCC_AHB4ENSR   (STM32_RCC_BASE + STM32_RCC_AHB4ENSR_OFFSET)
+#define STM32_RCC_APB1ENSR1  (STM32_RCC_BASE + STM32_RCC_APB1ENSR1_OFFSET)
+#define STM32_RCC_APB2ENSR   (STM32_RCC_BASE + STM32_RCC_APB2ENSR_OFFSET)
+#define STM32_RCC_APB4ENSR1  (STM32_RCC_BASE + STM32_RCC_APB4ENSR1_OFFSET)
+
+#define STM32_RCC_CCR        (STM32_RCC_BASE + STM32_RCC_CCR_OFFSET)
+#define STM32_RCC_APB2ENCR   (STM32_RCC_BASE + STM32_RCC_APB2ENCR_OFFSET)
+#define STM32_RCC_CSR        (STM32_RCC_BASE + STM32_RCC_CSR_OFFSET)
+
+/* Register Bitfield Definitions ********************************************/
+
+/* Clock control register (CMSIS RCC_CR).  Ready flags are read via
+ * STM32_RCC_SR; CR.xxxON bits are toggled through the CCR (clear) /
+ * CSR (set) atomic aliases, not by a read-modify-write on CR itself.
+ */
 
 #define RCC_CR_HSION             (1 << 3)   /* HSI enable */
-#define RCC_CR_HSIRDY            (1 << 2)   /* HSI ready */
 #define RCC_CR_HSEON             (1 << 4)   /* HSE enable */
 #define RCC_CR_PLL1ON            (1 << 8)   /* PLL1 enable */
 #define RCC_CR_PLL2ON            (1 << 9)   /* PLL2 enable */
 #define RCC_CR_PLL3ON            (1 << 10)  /* PLL3 enable */
 #define RCC_CR_PLL4ON            (1 << 11)  /* PLL4 enable */
 
-/* RCC_SR bits */
+/* Clock status register */
 
 #define RCC_SR_HSIRDY            (1 << 3)   /* HSI ready flag */
 #define RCC_SR_HSERDY            (1 << 4)   /* HSE ready flag */
@@ -122,72 +176,124 @@
 #define RCC_SR_PLL3RDY           (1 << 10)  /* PLL3 ready flag */
 #define RCC_SR_PLL4RDY           (1 << 11)  /* PLL4 ready flag */
 
-/* RCC_CFGR1 bits: System clock mux SW[2:0] (bits 0-2) */
+/* Clock configuration register 1.
+ *
+ * IMPORTANT (matches upstream NuttX STM32N6 port comment, verified
+ * against ST clock-tree behavior): CFGR1 latches after its first
+ * write following reset -- CPUSW and SYSSW MUST be written together
+ * in a single putreg32() call, and a second write to CFGR1 after the
+ * switch has taken effect can hang/crash the part (SRAM clock domain
+ * drops).  Callers must check CPUSWS/SYSSWS before attempting to
+ * rewrite CFGR1 (see stm32n6_clockconfig()).
+ *
+ * SYSSW/SYSSWS = 0b11 selects a group of three IC dividers (IC2 for
+ * SYSCLK domain A, IC6 for domain B, IC11 for domain C); the SVD/CMSIS
+ * naming exposes this as a single 2-bit mux value even though three
+ * ICs are actually engaged together.
+ */
 
-#define RCC_CFGR1_SW_MASK        (7 << 0)
-#define RCC_CFGR1_SW_HSI         (0 << 0)   /* HSI as system clock */
-#define RCC_CFGR1_SW_HSE         (1 << 0)   /* HSE as system clock */
-#define RCC_CFGR1_SW_PLL1        (2 << 0)   /* PLL1 as system clock */
+#define RCC_CFGR1_SYSSWS_SHIFT         (28)
+#define RCC_CFGR1_SYSSWS_MASK          (0x3 << RCC_CFGR1_SYSSWS_SHIFT)
+#define RCC_CFGR1_SYSSWS_IC2_IC6_IC11  (3 << RCC_CFGR1_SYSSWS_SHIFT)
 
-/* PLL1CFGR1 bits: PLL1 prescaler DIVM1[5:0] (bits 0-5), SRC[1:0] (8-9) */
+#define RCC_CFGR1_SYSSW_SHIFT          (24)
+#define RCC_CFGR1_SYSSW_MASK           (0x3 << RCC_CFGR1_SYSSW_SHIFT)
+#define RCC_CFGR1_SYSSW_IC2_IC6_IC11   (3 << RCC_CFGR1_SYSSW_SHIFT)
 
-#define RCC_PLL1CFGR1_DIVM1_MASK   (0x3f << 0)
-#define RCC_PLL1CFGR1_DIVM1_SHIFT  0
-#define RCC_PLL1CFGR1_PLL1SRC_MASK (3 << 8)
-#define RCC_PLL1CFGR1_PLL1SRC_HSI  (0 << 8)
-#define RCC_PLL1CFGR1_PLL1SRC_HSE  (1 << 8)
+#define RCC_CFGR1_CPUSWS_SHIFT         (20)
+#define RCC_CFGR1_CPUSWS_MASK          (0x3 << RCC_CFGR1_CPUSWS_SHIFT)
+#define RCC_CFGR1_CPUSWS_IC1           (3 << RCC_CFGR1_CPUSWS_SHIFT)
 
-/* PLL1CFGR2 bits: PLL1 multiplier DIVN1[8:0] (bits 0-8) */
+#define RCC_CFGR1_CPUSW_SHIFT          (16)
+#define RCC_CFGR1_CPUSW_MASK           (0x3 << RCC_CFGR1_CPUSW_SHIFT)
+#define RCC_CFGR1_CPUSW_IC1            (3 << RCC_CFGR1_CPUSW_SHIFT)
 
-#define RCC_PLL1CFGR2_DIVN1_MASK   (0x1ff << 0)
-#define RCC_PLL1CFGR2_DIVN1_SHIFT  0
+/* Clock configuration register 2.  HPRE divides the SYSCLK domain fed
+ * to the AHB/APB bus matrix.
+ */
 
-/* PLL1CFGR3 bits: PLL1 output dividers */
+#define RCC_CFGR2_HPRE_SHIFT      (20)
+#define RCC_CFGR2_HPRE_MASK       (0x7 << RCC_CFGR2_HPRE_SHIFT)
+#define RCC_CFGR2_HPRE_SYSCLK     (0 << RCC_CFGR2_HPRE_SHIFT)
+#define RCC_CFGR2_HPRE_SYSCLKd2   (1 << RCC_CFGR2_HPRE_SHIFT)
+#define RCC_CFGR2_HPRE_SYSCLKd4   (2 << RCC_CFGR2_HPRE_SHIFT)
+#define RCC_CFGR2_HPRE_SYSCLKd8   (3 << RCC_CFGR2_HPRE_SHIFT)
+#define RCC_CFGR2_HPRE_SYSCLKd16  (4 << RCC_CFGR2_HPRE_SHIFT)
 
-#define RCC_PLL1CFGR3_DIVP1_MASK   (0x7f << 0)
-#define RCC_PLL1CFGR3_DIVP1_SHIFT  0
-#define RCC_PLL1CFGR3_DIVQ1_MASK   (0x7f << 8)
-#define RCC_PLL1CFGR3_DIVQ1_SHIFT  8
-#define RCC_PLL1CFGR3_DIVR1_MASK   (0x7f << 16)
-#define RCC_PLL1CFGR3_DIVR1_SHIFT  16
+/* PLL1 configuration register 1.  SEL chooses the PLL1 reference
+ * clock, DIVM is the reference (input) divider, DIVN is the feedback
+ * (multiplier) divider -- all three fields share this single
+ * register; there is no independent DIVN register in the
+ * configuration sequence.
+ */
 
-/* PLL2CFGR1 bits */
+#define RCC_PLL1CFGR1_SEL_SHIFT   (28)
+#define RCC_PLL1CFGR1_SEL_MASK    (0x7 << RCC_PLL1CFGR1_SEL_SHIFT)
+#define RCC_PLL1CFGR1_SEL_HSI     (0 << RCC_PLL1CFGR1_SEL_SHIFT)
+#define RCC_PLL1CFGR1_SEL_HSE     (1 << RCC_PLL1CFGR1_SEL_SHIFT)
 
-#define RCC_PLL2CFGR1_DIVM2_MASK   (0x3f << 0)
-#define RCC_PLL2CFGR1_DIVM2_SHIFT  0
-#define RCC_PLL2CFGR1_PLL2SRC_MASK (3 << 8)
-#define RCC_PLL2CFGR1_PLL2SRC_HSI  (0 << 8)
-#define RCC_PLL2CFGR1_PLL2SRC_HSE  (1 << 8)
+#define RCC_PLL1CFGR1_DIVM_SHIFT  (20)  /* Bits 25-20: reference divider */
+#define RCC_PLL1CFGR1_DIVM_MASK   (0x3f << RCC_PLL1CFGR1_DIVM_SHIFT)
 
-/* PLL2CFGR2 bits */
+#define RCC_PLL1CFGR1_DIVN_SHIFT  (8)   /* Bits 19-8: feedback divider */
+#define RCC_PLL1CFGR1_DIVN_MASK   (0xfff << RCC_PLL1CFGR1_DIVN_SHIFT)
 
-#define RCC_PLL2CFGR2_DIVN2_MASK   (0x1ff << 0)
-#define RCC_PLL2CFGR2_DIVN2_SHIFT  0
+/* PLL1 configuration register 3: post-dividers and modulation control */
 
-/* PLL2CFGR3 bits */
+#define RCC_PLL1CFGR3_PDIVEN      (1 << 30)  /* Post-divider/output enable */
 
-#define RCC_PLL2CFGR3_DIVP2_MASK   (0x7f << 0)
-#define RCC_PLL2CFGR3_DIVP2_SHIFT  0
+#define RCC_PLL1CFGR3_PDIV1_SHIFT (27)  /* Bits 29-27: post-divider 1 */
+#define RCC_PLL1CFGR3_PDIV1_MASK  (0x7 << RCC_PLL1CFGR3_PDIV1_SHIFT)
 
-/* PLL4CFGR1 bits */
+#define RCC_PLL1CFGR3_PDIV2_SHIFT (24)  /* Bits 26-24: post-divider 2 */
+#define RCC_PLL1CFGR3_PDIV2_MASK  (0x7 << RCC_PLL1CFGR3_PDIV2_SHIFT)
 
-#define RCC_PLL4CFGR1_DIVM4_MASK   (0x3f << 0)
-#define RCC_PLL4CFGR1_DIVM4_SHIFT  0
-#define RCC_PLL4CFGR1_PLL4SRC_MASK (3 << 8)
-#define RCC_PLL4CFGR1_PLL4SRC_HSI  (0 << 8)
-#define RCC_PLL4CFGR1_PLL4SRC_HSE  (1 << 8)
+#define RCC_PLL1CFGR3_MODSSDIS    (1 << 2)  /* Modulation spread-spectrum
+                                              * disable */
 
-/* PLL4CFGR2 bits */
+/* IC1..IC20 configuration registers -- all share the same layout.
+ * SEL chooses the PLLn source (PLL1..PLL4); INT is an 8-bit integer
+ * divider field where INT[7:0] = N-1 for a divide ratio of N.
+ */
 
-#define RCC_PLL4CFGR2_DIVN4_MASK   (0x1ff << 0)
-#define RCC_PLL4CFGR2_DIVN4_SHIFT  0
+#define RCC_ICCFGR_SEL_SHIFT      (28)
+#define RCC_ICCFGR_SEL_MASK       (0x3 << RCC_ICCFGR_SEL_SHIFT)
+#define RCC_ICCFGR_SEL_PLL1       (0 << RCC_ICCFGR_SEL_SHIFT)
 
-/* PLL4CFGR3 bits */
+#define RCC_ICCFGR_INT_SHIFT      (16)
+#define RCC_ICCFGR_INT_MASK       (0xff << RCC_ICCFGR_INT_SHIFT)
 
-#define RCC_PLL4CFGR3_DIVP4_MASK   (0x7f << 0)
-#define RCC_PLL4CFGR3_DIVP4_SHIFT  0
+/* IC divider enable register */
 
-/* AHB4ENR bits: GPIO port enables */
+#define RCC_DIVENR_IC1EN          (1 << 0)
+#define RCC_DIVENR_IC2EN          (1 << 1)
+#define RCC_DIVENR_IC3EN          (1 << 2)
+#define RCC_DIVENR_IC6EN          (1 << 5)
+#define RCC_DIVENR_IC11EN         (1 << 10)
+
+/* SRAM clock enable register.  The boot ROM only enables AXISRAM1/2;
+ * the NuttX heap spans additional banks and needs the rest enabled
+ * explicitly (and re-armed after the CFGR1 clock-domain switch, since
+ * some SRAM bank clocks can drop out across that transition).
+ */
+
+#define RCC_MEMENR_CACHEAXIRAMEN  (1 << 10)
+#define RCC_MEMENR_AXISRAM2EN     (1 << 8)
+#define RCC_MEMENR_AXISRAM1EN     (1 << 7)
+#define RCC_MEMENR_AXISRAM6EN     (1 << 3)
+#define RCC_MEMENR_AXISRAM5EN     (1 << 2)
+#define RCC_MEMENR_AXISRAM4EN     (1 << 1)
+#define RCC_MEMENR_AXISRAM3EN     (1 << 0)
+#define RCC_MEMENR_ALLAXISRAM     (RCC_MEMENR_AXISRAM1EN | \
+                                    RCC_MEMENR_AXISRAM2EN | \
+                                    RCC_MEMENR_AXISRAM3EN | \
+                                    RCC_MEMENR_AXISRAM4EN | \
+                                    RCC_MEMENR_AXISRAM5EN | \
+                                    RCC_MEMENR_AXISRAM6EN)
+
+/* AHB4ENR bits: GPIO port + PWR enables (CMSIS-verified positions;
+ * note GPION/O/P/Q are NOT contiguous with GPIOA-H).
+ */
 
 #define RCC_AHB4ENR_GPIOAEN      (1 << 0)
 #define RCC_AHB4ENR_GPIOBEN      (1 << 1)
@@ -197,49 +303,49 @@
 #define RCC_AHB4ENR_GPIOFEN      (1 << 5)
 #define RCC_AHB4ENR_GPIOGEN      (1 << 6)
 #define RCC_AHB4ENR_GPIOHEN      (1 << 7)
-#define RCC_AHB4ENR_GPIONEN      (1 << 12)
-#define RCC_AHB4ENR_GPIOOEN      (1 << 13)
-#define RCC_AHB4ENR_GPIOPEN      (1 << 14)
-#define RCC_AHB4ENR_GPIOQEN      (1 << 15)
-#define RCC_AHB4ENR_RCCEN        (1 << 27)
+#define RCC_AHB4ENR_GPIONEN      (1 << 13)
+#define RCC_AHB4ENR_GPIOOEN      (1 << 14)
+#define RCC_AHB4ENR_GPIOPEN      (1 << 15)
+#define RCC_AHB4ENR_GPIOQEN      (1 << 16)
+#define RCC_AHB4ENR_PWREN        (1 << 18)
 
-/* APB2ENR bits: USART1 enable */
+/* APB2ENR bits: USART1/6, UART9, USART10 enables */
 
 #define RCC_APB2ENR_USART1EN     (1 << 4)
+#define RCC_APB2ENR_USART6EN     (1 << 5)
+#define RCC_APB2ENR_UART9EN      (1 << 7)
+#define RCC_APB2ENR_USART10EN    (1 << 8)
 
 /* AHB3ENR bits: RNG enable */
 
-#define RCC_AHB3ENR_RNGEN       (1 << 0)
+#define RCC_AHB3ENR_RNGEN        (1 << 0)
 
-/* AHB1ENR bits: DMA enables */
+/* AHB1ENR bits: GPDMA1 enable */
 
-#define RCC_AHB1ENR_GPDMA1EN    (1 << 0)
+#define RCC_AHB1ENR_GPDMA1EN     (1 << 0)
 
-/* APB1ENR bits: peripheral enables */
+/* APB1ENR1 bits: peripheral enables */
 
-#define RCC_APB1ENR_USART2EN    (1 << 17)
-#define RCC_APB1ENR_USART3EN    (1 << 18)
-#define RCC_APB1ENR_UART4EN     (1 << 19)
-#define RCC_APB1ENR_UART5EN     (1 << 20)
-#define RCC_APB1ENR_I2C1EN      (1 << 21)
-#define RCC_APB1ENR_I2C2EN      (1 << 22)
-#define RCC_APB1ENR_IWDGEN      (1 << 24)
-#define RCC_APB1ENR_RTCEN       (1 << 26)
+#define RCC_APB1ENR1_TIM2EN      (1 << 0)
+#define RCC_APB1ENR1_USART2EN    (1 << 17)
+#define RCC_APB1ENR1_USART3EN    (1 << 18)
+#define RCC_APB1ENR1_UART4EN     (1 << 19)
+#define RCC_APB1ENR1_UART5EN     (1 << 20)
+#define RCC_APB1ENR1_I2C1EN      (1 << 21)
+#define RCC_APB1ENR1_I2C2EN      (1 << 22)
 
 /* AHB5ENR bits: XSPI/SDMMC enables */
 
-#define RCC_AHB5ENR_XSPI1EN     (1 << 0)
-#define RCC_AHB5ENR_XSPI2EN     (1 << 1)
-#define RCC_AHB5ENR_SDMMC1EN    (1 << 4)
+#define RCC_AHB5ENR_XSPI1EN      (1 << 0)
+#define RCC_AHB5ENR_XSPI2EN      (1 << 1)
+#define RCC_AHB5ENR_SDMMC1EN     (1 << 4)
 
-/* APB4ENR bits: EXTI enable */
+/* APB4ENR1 bits: RTC enable (CMSIS RCC_APB4ENR1_RTCEN, bit 16).
+ * IWDG has no software clock-gating enable bit on STM32N6 (neither
+ * CMSIS nor upstream NuttX define an RCC_*ENR*_IWDGEN); the watchdog
+ * clock is always on once the IWDG is started.
+ */
 
-#define RCC_APB4ENR_EXTIEN      (1 << 0)
-
-/* APB2ENR additional bits */
-
-#define RCC_APB2ENR_USART6EN    (1 << 5)
-#define RCC_APB2ENR_UART9EN     (1 << 7)
-#define RCC_APB2ENR_USART10EN   (1 << 8)
+#define RCC_APB4ENR1_RTCEN       (1 << 16)
 
 #endif /* __ARCH_ARM_SRC_STM32N6_HARDWARE_STM32_RCC_H */

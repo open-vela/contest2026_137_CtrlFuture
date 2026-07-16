@@ -181,11 +181,11 @@ int stm32n6_rtc_initialize(void)
       return OK;
     }
 
-  /* Enable RTC clock in RCC APB1ENR */
+  /* Enable RTC clock in RCC APB4ENR1 (CMSIS RCC_APB4ENR1_RTCEN) */
 
-  regval  = getreg32(STM32_RCC_APB1ENR);
-  regval |= RCC_APB1ENR_RTCEN;
-  putreg32(regval, STM32_RCC_APB1ENR);
+  regval  = getreg32(STM32_RCC_APB4ENR1);
+  regval |= RCC_APB4ENR1_RTCEN;
+  putreg32(regval, STM32_RCC_APB4ENR1);
 
   /* Unlock write protection */
 

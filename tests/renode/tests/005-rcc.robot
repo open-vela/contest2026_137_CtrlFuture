@@ -71,6 +71,74 @@ Peripheral Clock USART1
     ${usart1en}=    Evaluate    (${val} >> 4) & 1
     Should Be Equal As Integers    ${usart1en}    1
 
+CSR Sets PLL1ON Via Atomic Alias
+    [Tags]    L2-state
+    Start STM32N6
+    # CSR @ +0x0800: write-1 to bit 8 sets CR.PLL1ON atomically
+    Write RCC Register    0x0800    0x100
+    ${cr}=    Read RCC Register    ${CR_OFFSET}
+    ${pll1on}=    Evaluate    (${cr} >> 8) & 1
+    Should Be Equal As Integers    ${pll1on}    1
+    # SR.PLL1RDY should mirror it
+    ${sr}=    Read RCC Register    ${SR_OFFSET}
+    ${pll1rdy}=    Evaluate    (${sr} >> 8) & 1
+    Should Be Equal As Integers    ${pll1rdy}    1
+
+CCR Clears PLL1ON Via Atomic Alias
+    [Tags]    L2-state
+    Start STM32N6
+    Write RCC Register    0x0800    0x100
+    # CCR @ +0x1000: write-1 to bit 8 clears CR.PLL1ON atomically
+    Write RCC Register    0x1000    0x100
+    ${cr}=    Read RCC Register    ${CR_OFFSET}
+    ${pll1on}=    Evaluate    (${cr} >> 8) & 1
+    Should Be Equal As Integers    ${pll1on}    0
+
+CFGR1 Switches To IC1 IC2 IC6 IC11 Group
+    [Tags]    L2-state
+    Start STM32N6
+    # CPUSW[17:16]=0b11 selects IC1; SYSSW[25:24]=0b11 selects the
+    # IC2/IC6/IC11 group. Written together per hardware note.
+    Write RCC Register    0x0020    0x03030000
+    ${cfgr1}=    Read RCC Register    0x0020
+    ${cpusws}=    Evaluate    (${cfgr1} >> 20) & 0x3
+    ${syssws}=    Evaluate    (${cfgr1} >> 28) & 0x3
+    Should Be Equal As Integers    ${cpusws}    3
+    Should Be Equal As Integers    ${syssws}    3
+
+CFGR1 Ignores Second Write After Switch
+    [Tags]    L2-state
+    Start STM32N6
+    # First write switches to IC1/IC2+IC6+IC11 (locks CFGR1)
+    Write RCC Register    0x0020    0x03030000
+    # Second write attempting to switch back to reset-value mux
+    # selection must be ignored (models the hardware lock)
+    Write RCC Register    0x0020    0x00000000
+    ${cfgr1}=    Read RCC Register    0x0020
+    ${cpusws}=    Evaluate    (${cfgr1} >> 20) & 0x3
+    Should Be Equal As Integers    ${cpusws}    3
+
+IC1CFGR And DIVENR Are Writable
+    [Tags]    L1-register
+    Start STM32N6
+    # IC1CFGR @ 0x00C4: SEL=PLL1(0), INT=0 (divide by 1)
+    Write RCC Register    0x00C4    0x00000000
+    ${ic1cfgr}=    Read RCC Register    0x00C4
+    Should Be Equal As Integers    ${ic1cfgr}    0x00000000
+    # DIVENR @ 0x0240: enable IC1
+    Write RCC Register    0x0240    0x00000001
+    ${divenr}=    Read RCC Register    0x0240
+    Should Be Equal As Integers    ${divenr}    0x00000001
+
+PLL1CFGR1 Is Writable
+    [Tags]    L1-register
+    Start STM32N6
+    # PLL1CFGR1 @ 0x0080: SEL=HSI(0), DIVM=3 (<<20), DIVN=49 (<<8)
+    ${val}=    Evaluate    (3 << 20) | (49 << 8)
+    Write RCC Register    0x0080    ${val}
+    ${readback}=    Read RCC Register    0x0080
+    Should Be Equal As Integers    ${readback}    ${val}
+
 Boot Regression
     [Tags]    boot-regression
     Start STM32N6

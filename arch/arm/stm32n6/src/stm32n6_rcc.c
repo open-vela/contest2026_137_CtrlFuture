@@ -18,6 +18,13 @@
  * implied.  See the License for the specific language governing
  * permissions and limitations under the License.
  *
+ * PLL1/IC clock-tree configuration is ported from the upstream Apache
+ * NuttX STM32N6 port (arch/arm/src/stm32n6/stm32n6xx_rcc.c,
+ * stm32_stdclockconfig()), which targets STM32N657 -- a part
+ * confirmed (via CMSIS RCC_TypeDef diff) to share the identical RCC
+ * IP with STM32N647.  See docs/adr/ADR-005.md for the clock-tree
+ * architecture rationale.
+ *
  ****************************************************************************/
 
 /****************************************************************************
@@ -40,24 +47,27 @@
 
 #define STM32_HSI_FREQUENCY      64000000ul  /* 64 MHz internal RC */
 
-/* PLL1 configuration: HSE 32MHz -> 800MHz VCO
- * DIVM=1 (prescaler=1), DIVN=25 (mult=25), DIVP=1 (no division)
- * VCO = 32MHz / 1 * 25 = 800MHz
- * PLL1P = 800MHz / 1 = 800MHz
- * Conservative default: AHB DIV4 -> 200MHz SYSCLK
- */
-
-#define PLL1_DIVM               1
-#define PLL1_DIVN               25
-#define PLL1_DIVP               1
-
-/* AHB prescaler: SYSCLK / DIV4 for conservative 200MHz */
-
-#define RCC_CFGR1_HPRE_DIV4     (9 << 4)   /* AHB = SYSCLK / 4 */
-
 /* Timeout for clock ready flags (100ms at ~64MHz loop rate) */
 
 #define CLOCK_READY_TIMEOUT     (100 * CONFIG_BOARD_LOOPSPERMSEC)
+
+/* PLL1/IC divider parameters come from board.h (STM32_PLL1_M,
+ * STM32_PLL1_N, STM32_PLL1_IC1_DIV).  Fall back to a conservative
+ * HSI-only default (no multiplication) if board.h has not defined
+ * them, so this file still compiles standalone.
+ */
+
+#ifndef STM32_PLL1_M
+#  define STM32_PLL1_M        1
+#endif
+
+#ifndef STM32_PLL1_N
+#  define STM32_PLL1_N        1
+#endif
+
+#ifndef STM32_PLL1_IC1_DIV
+#  define STM32_PLL1_IC1_DIV  1
+#endif
 
 /****************************************************************************
  * Private Functions
@@ -109,65 +119,161 @@ static inline int rcc_enablehse(void)
 #endif
 
 #ifdef CONFIG_STM32N6_USE_PLL1
+
+/****************************************************************************
+ * Name: rcc_configpll1
+ *
+ * Description:
+ *   Configure and switch to PLL1 -> IC1/IC2/IC6/IC11 following the
+ *   register-level sequence used by upstream NuttX
+ *   stm32_stdclockconfig() (STM32N6 port).  This chip's clock-domain
+ *   switch fabric differs fundamentally from the legacy STM32Fx/Hx
+ *   PLL+prescaler model:
+ *
+ *     - PLL1CFGR1 packs SEL (reference source), DIVM (input divider),
+ *       and DIVN (feedback divider) into a single register -- there
+ *       is no separate PLL1CFGR2 multiplier register in this
+ *       sequence.
+ *     - PLL1 is enabled/disabled via the CSR (set) / CCR (clear)
+ *       atomic alias registers, not by a read-modify-write on CR.
+ *     - The VCO output feeds a bank of IC (Interconnect) dividers;
+ *       CPUCLK comes from IC1, while SYSCLK is fed by three ICs
+ *       (IC2/IC6/IC11) selected together as a single CFGR1.SYSSW
+ *       group value.
+ *     - CFGR1 latches after its first post-reset write: CPUSW and
+ *       SYSSW MUST be written together in one putreg32(), and this
+ *       function must not be called a second time after the switch
+ *       has taken effect (a second CFGR1 write can hang the part).
+ *       The caller (stm32n6_clockconfig()) checks CPUSWS/SYSSWS
+ *       before invoking this path.
+ *
+ * Returned Value:
+ *   0 on success; -1 if PLL1RDY does not assert within the timeout.
+ *
+ ****************************************************************************/
+
 static inline int rcc_configpll1(void)
 {
   uint32_t regval;
   volatile int timeout;
 
-  /* Configure PLL1 source and prescaler: HSE, DIVM */
+  /* Turn PLL1 off (if running) via the atomic clear alias before
+   * reconfiguring its dividers.
+   */
 
-  regval = (RCC_PLL1CFGR1_PLL1SRC_HSE) |
-           (PLL1_DIVM << RCC_PLL1CFGR1_DIVM1_SHIFT);
-  putreg32(regval, STM32_RCC_PLL1CFGR1);
+  putreg32(RCC_CR_PLL1ON, STM32_RCC_CCR);
 
-  /* Configure PLL1 multiplier: DIVN */
-
-  regval = (PLL1_DIVN - 1) << RCC_PLL1CFGR2_DIVN1_SHIFT;
-  putreg32(regval, STM32_RCC_PLL1CFGR2);
-
-  /* Configure PLL1 output divider: DIVP */
-
-  regval = (PLL1_DIVP - 1) << RCC_PLL1CFGR3_DIVP1_SHIFT;
-  putreg32(regval, STM32_RCC_PLL1CFGR3);
-
-  /* Enable PLL1 */
-
-  regval  = getreg32(STM32_RCC_CR);
-  regval |= RCC_CR_PLL1ON;
-  putreg32(regval, STM32_RCC_CR);
-
-  /* Wait for PLL1RDY with timeout */
-
-  timeout = CLOCK_READY_TIMEOUT;
-
-  while ((getreg32(STM32_RCC_SR) & RCC_SR_PLL1RDY) == 0)
+  for (timeout = CLOCK_READY_TIMEOUT; timeout > 0; timeout--)
     {
-      if (--timeout <= 0)
+      if ((getreg32(STM32_RCC_SR) & RCC_SR_PLL1RDY) == 0)
         {
-          return -1;
+          break;
         }
     }
 
+  /* Configure PLL1 source, input divider (M), and feedback divider
+   * (N) in a single PLL1CFGR1 write.
+   */
+
+#ifdef CONFIG_STM32N6_USE_HSE
+  regval = RCC_PLL1CFGR1_SEL_HSE;
+#else
+  regval = RCC_PLL1CFGR1_SEL_HSI;
+#endif
+
+  regval |= ((STM32_PLL1_M - 1) << RCC_PLL1CFGR1_DIVM_SHIFT) |
+            ((STM32_PLL1_N - 1) << RCC_PLL1CFGR1_DIVN_SHIFT);
+  putreg32(regval, STM32_RCC_PLL1CFGR1);
+
+  /* Post-dividers: enable direct VCO output (PDIV1=PDIV2=1) and
+   * disable spread-spectrum modulation.
+   */
+
+  regval = RCC_PLL1CFGR3_MODSSDIS | RCC_PLL1CFGR3_PDIVEN |
+           (1 << RCC_PLL1CFGR3_PDIV1_SHIFT) |
+           (1 << RCC_PLL1CFGR3_PDIV2_SHIFT);
+  putreg32(regval, STM32_RCC_PLL1CFGR3);
+
+  /* Enable PLL1 via the atomic set alias and wait for ready */
+
+  putreg32(RCC_CR_PLL1ON, STM32_RCC_CSR);
+
+  for (timeout = CLOCK_READY_TIMEOUT; timeout > 0; timeout--)
+    {
+      if ((getreg32(STM32_RCC_SR) & RCC_SR_PLL1RDY) != 0)
+        {
+          break;
+        }
+    }
+
+  if ((getreg32(STM32_RCC_SR) & RCC_SR_PLL1RDY) == 0)
+    {
+      return -1;
+    }
+
+  /* IC dividers: register field is (divider - 1).  IC1 feeds CPUCLK
+   * directly; IC2/IC6/IC11 feed the SYSCLK domain switch group.  The
+   * ratios below mirror the upstream STM32N6 port: IC2 = IC1_DIV*2,
+   * IC6 = IC1_DIV*3, IC11 = IC1_DIV*2 relative to the VCO.
+   */
+
+  putreg32(RCC_ICCFGR_SEL_PLL1 |
+           ((STM32_PLL1_IC1_DIV - 1) << RCC_ICCFGR_INT_SHIFT),
+           STM32_RCC_IC1CFGR);
+  putreg32(RCC_ICCFGR_SEL_PLL1 |
+           ((STM32_PLL1_IC1_DIV * 2 - 1) << RCC_ICCFGR_INT_SHIFT),
+           STM32_RCC_IC2CFGR);
+  putreg32(RCC_ICCFGR_SEL_PLL1 |
+           ((STM32_PLL1_IC1_DIV * 3 - 1) << RCC_ICCFGR_INT_SHIFT),
+           STM32_RCC_IC6CFGR);
+  putreg32(RCC_ICCFGR_SEL_PLL1 |
+           ((STM32_PLL1_IC1_DIV * 2 - 1) << RCC_ICCFGR_INT_SHIFT),
+           STM32_RCC_IC11CFGR);
+
+  putreg32(RCC_DIVENR_IC1EN | RCC_DIVENR_IC2EN | RCC_DIVENR_IC6EN |
+           RCC_DIVENR_IC11EN,
+           STM32_RCC_DIVENSR);
+
   return 0;
 }
+
+/****************************************************************************
+ * Name: rcc_switchsysclk
+ *
+ * Description:
+ *   Switch CPUCLK/SYSCLK from HSI to the IC1/IC2+IC6+IC11 group
+ *   configured by rcc_configpll1().  CFGR2 (bus prescalers) must be
+ *   written before CFGR1, and CFGR1 must be written exactly once
+ *   with both CPUSW and SYSSW set together -- see the CFGR1 hardware
+ *   note in hardware/stm32_rcc.h.
+ *
+ ****************************************************************************/
 
 static inline void rcc_switchsysclk(void)
 {
   uint32_t regval;
 
-  /* Set system clock source to PLL1 */
+  /* AHB prescaler: SYSCLK / 2 (conservative default matching the
+   * upstream STM32N6 port; adjust via board.h if a different HCLK
+   * ratio is required).
+   */
+
+  putreg32(RCC_CFGR2_HPRE_SYSCLKd2, STM32_RCC_CFGR2);
 
   regval  = getreg32(STM32_RCC_CFGR1);
-  regval &= ~RCC_CFGR1_SW_MASK;
-  regval |= RCC_CFGR1_SW_PLL1;
-
-  /* Set AHB prescaler for conservative 200MHz (800MHz / 4) */
-
-  regval &= ~(0xf << 4);
-  regval |= RCC_CFGR1_HPRE_DIV4;
+  regval &= ~(RCC_CFGR1_CPUSW_MASK | RCC_CFGR1_SYSSW_MASK);
+  regval |= RCC_CFGR1_CPUSW_IC1 | RCC_CFGR1_SYSSW_IC2_IC6_IC11;
   putreg32(regval, STM32_RCC_CFGR1);
+
+  /* Some SRAM bank clocks can drop out across the clock-domain
+   * switch; re-arm them so the heap stays alive.
+   */
+
+  putreg32(RCC_MEMENR_ALLAXISRAM | RCC_MEMENR_CACHEAXIRAMEN,
+           STM32_RCC_MEMENSR);
 }
-#endif
+
+#endif /* CONFIG_STM32N6_USE_PLL1 */
 
 /****************************************************************************
  * Public Functions
@@ -177,15 +283,29 @@ static inline void rcc_switchsysclk(void)
  * Name: stm32n6_clockconfig
  *
  * Description:
- *   Configure system clock. If PLL1 is enabled via Kconfig, this sets up
- *   HSE -> PLL1 -> 800MHz with AHB DIV4 (200MHz conservative default).
+ *   Configure system clock. If PLL1 is enabled via Kconfig, this sets
+ *   up HSI (or HSE) -> PLL1 -> IC1/IC2+IC6+IC11 per board.h.
  *   Otherwise falls back to HSI 64MHz.
+ *
+ *   CFGR1 latches after its first post-reset write (see hardware/
+ *   stm32_rcc.h); if a prior boot stage (FSBL) already switched
+ *   CPUSW/SYSSW to the IC group, skip PLL1/CFGR1 reconfiguration
+ *   entirely to avoid a second write that can hang the part.
  *
  ****************************************************************************/
 
 void stm32n6_clockconfig(void)
 {
   uint32_t regval;
+
+#ifdef CONFIG_STM32N6_USE_PLL1
+  regval = getreg32(STM32_RCC_CFGR1);
+  if ((regval & RCC_CFGR1_CPUSWS_MASK) == RCC_CFGR1_CPUSWS_IC1 &&
+      (regval & RCC_CFGR1_SYSSWS_MASK) == RCC_CFGR1_SYSSWS_IC2_IC6_IC11)
+    {
+      goto enable_peripherals;
+    }
+#endif
 
   /* Always start with HSI as fallback */
 
@@ -243,7 +363,11 @@ enable_peripherals:
 uint32_t stm32n6_get_sysclk(void)
 {
 #ifdef CONFIG_STM32N6_USE_PLL1
-  return 800000000ul / 4;  /* PLL1 800MHz / AHB DIV4 = 200MHz */
+#  ifdef STM32_SYSCLK_FREQUENCY
+  return STM32_SYSCLK_FREQUENCY;
+#  else
+  return STM32_HSI_FREQUENCY;
+#  endif
 #else
   return STM32_HSI_FREQUENCY;
 #endif
@@ -259,7 +383,11 @@ uint32_t stm32n6_get_sysclk(void)
 
 uint32_t stm32n6_get_hclk(void)
 {
-  return stm32n6_get_sysclk();  /* Same as SYSCLK for now */
+#if defined(CONFIG_STM32N6_USE_PLL1) && defined(STM32_HCLK_FREQUENCY)
+  return STM32_HCLK_FREQUENCY;
+#else
+  return stm32n6_get_sysclk();
+#endif
 }
 
 /****************************************************************************
@@ -272,7 +400,11 @@ uint32_t stm32n6_get_hclk(void)
 
 uint32_t stm32n6_get_pclk1(void)
 {
-  return stm32n6_get_hclk();  /* APB1 = HCLK for now */
+#if defined(CONFIG_STM32N6_USE_PLL1) && defined(STM32_PCLK1_FREQUENCY)
+  return STM32_PCLK1_FREQUENCY;
+#else
+  return stm32n6_get_hclk();
+#endif
 }
 
 /****************************************************************************
@@ -285,5 +417,9 @@ uint32_t stm32n6_get_pclk1(void)
 
 uint32_t stm32n6_get_pclk2(void)
 {
-  return stm32n6_get_hclk();  /* APB2 = HCLK for now */
+#if defined(CONFIG_STM32N6_USE_PLL1) && defined(STM32_PCLK2_FREQUENCY)
+  return STM32_PCLK2_FREQUENCY;
+#else
+  return stm32n6_get_hclk();
+#endif
 }

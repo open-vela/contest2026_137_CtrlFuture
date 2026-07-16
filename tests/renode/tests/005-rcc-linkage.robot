@@ -70,10 +70,11 @@ RCC APB1ENR1 Enables USART2 Clock
     ${val}=    Read RCC ENR    ${APB1ENR1}
     Should Be Equal As Integers    ${val}    0x00020000
 
-RCC APB4ENR1 Enables EXTI Clock
+RCC APB4ENR1 Enables RTC Clock
     [Tags]    L2-state
     Start STM32N6
-    # EXTIEN = bit 0
-    Write RCC ENR    ${APB4ENR1}    0x00000001
+    # RTCEN = bit 16 (CMSIS RCC_APB4ENR1_RTCEN; there is no EXTIEN bit
+    # on STM32N6 -- EXTI has no software clock gate in this RCC map)
+    Write RCC ENR    ${APB4ENR1}    0x00010000
     ${val}=    Read RCC ENR    ${APB4ENR1}
-    Should Be Equal As Integers    ${val}    0x00000001
+    Should Be Equal As Integers    ${val}    0x00010000
