@@ -2,6 +2,52 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.8.0] - 2026-07-16
+
+### Added
+- Renode test coverage for 20 previously-untested `.repl` peripheral
+  instances that had zero Robot suite coverage:
+  - `045-uart-instances.robot`: USART3/UART4/5/7/8/9/USART10, L1
+    register access, L2 CR1/BRR writes, and L3 TDR-write-reaches-
+    backend checks via a Terminal Tester bound to each instance.
+  - `046-spi-instances.robot`: SPI3/4/5, L1/L2 register behavior
+    plus L3 real TXDR->RXDR byte loopback (same path already
+    proven for SPI1/SPI6).
+  - `047-gpio-instances.robot`: GPIO ports B/C/D/F/G/H/N/O/P/Q, L1
+    register access and L2 output-write behavior (L3 pin-level
+    simulation is not reachable without adding GPIO Connections
+    wiring to the .repl, which is out of scope for a coverage fix).
+- Raised `STM32N6_ADC` Renode model fidelity from L2-state to
+  L3-functional: added a test-only `SIMDR` injection register so
+  `ADEN -> ADSTART -> EOC -> DR` can be exercised end-to-end
+  instead of always reading back 0.
+- Raised `STM32N6_DTS` Renode model fidelity from L1 to L2/L3: added
+  a test-only `SIMTEMPR` injection register so a
+  `CFGR1.START -> TEMPHYSR` measurement cycle can be exercised,
+  instead of every register being a static read/write field with
+  no interaction.
+
+### Fixed
+- `031-adc.robot`: a pre-existing test named "ADC1 CR ADSTART Bit"
+  actually wrote CMSIS `ADEN` (bit 0), not `ADSTART` (bit 2);
+  renamed and corrected the assertion.
+- `STM32N6_GPDMA.cs`/`STM32N6_HPDMA.cs`: documented that DMA
+  transfers complete synchronously inside the `CCR.EN` write
+  callback, so there is no mid-transfer CPU-observable state --
+  matching the "no real X" disclosure already used by the SDMMC/
+  EMAC/FDCAN models.
+- `019-xspi-boot.robot`: was the only suite with no `[Tags]` at
+  all; added tags and replaced a vacuous `int(val) >= 0` check
+  with a real write/read round-trip.
+- `STM32N6_FDCAN.cs`: removed a stale comment claiming
+  `stm32n6_fdcan.c` still had the wrong `CCCR` offset; that driver
+  bug was already fixed in the `[0.7.0]` CMSIS alignment work.
+
+### Changed
+- Renode/Robot suite grew from 47 to 50 suites (351 test cases, up
+  from 283, all passing); see `tests/renode/README.md` "Coverage
+  and Fidelity Optimization Wave" for the full breakdown.
+
 ## [0.7.0] - 2026-07-16
 
 ### Fixed

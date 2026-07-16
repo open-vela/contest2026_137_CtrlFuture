@@ -115,8 +115,8 @@ Max fidelity is the highest tier the model/suite currently supports
 | `STM32N6_HPDMA` | `027-hpdma`, `027-hpdma-upgrade` | ADR-025 | **L3** | mem2mem + IRQ; channel register offsets realigned to CMSIS `DMA_Channel_TypeDef` (CCR@+0x14, CTR2@+0x44, CSAR@+0x4C, CDAR@+0x50, ...), matching GPDMA's layout |
 | `STM32N6_TIM` | `028-tim`, `029-tim2` | ADR-026 / ADR-027 | L1 | |
 | `STM32N6_LPTIM` | `030-lptim` | ADR-028 | L1 | |
-| `STM32N6_ADC` | `031-adc` | ADR-029 | **L2-state** | CFGR1/CFGR2/PCSEL/IER/JSQR/AWD1LTR/AWD1HTR; offsets realigned to CMSIS `ADC_TypeDef` (JSQR@0x4C, not the previous fictitious 0x70) |
-| `STM32N6_DTS` | `032-dts` | ADR-030 | L1 | |
+| `STM32N6_ADC` | `031-adc` | ADR-029 | **L3-functional** | ADEN sets ADRDY; ADSTART only converts if ready, loading DR from an externally-injected SIMDR@0x200 sample, setting EOC, and raising IRQ (nvic@46) if EOCIE is set |
+| `STM32N6_DTS` | `032-dts` | ADR-030 | **L2/L3** | CFGR1.START triggers a measurement that loads TEMPHYSR from an externally-injected SIMTEMPR@0x1F8 sample and sets VALID; register layout is still a team-defined placeholder, not CMSIS-derived (see model header) |
 | `STM32N6_DMA2D` | `033-dma2d` | ADR-032 | L1 | |
 | `STM32N6_CSI` | `034-csi` | ADR-034 | L1 | |
 | `STM32N6_VENC` | `035-venc` | ADR-035 | L1 | |
@@ -211,6 +211,48 @@ and not an authoritative reference.
 
 **Full gate (2026-07-16 snapshot):** 47 suites (`tests/renode/tests/*.robot`),
 283 test cases, all PASS, 0 fail.
+
+## Coverage and Fidelity Optimization Wave — EXIT 2026-07-16
+
+Follow-on to the CMSIS Alignment Campaign, closing coverage gaps
+and raising model fidelity where the campaign's own follow-up
+review identified room to improve within the existing L1/L2/L3
+scheme (no attempt to simulate real electrical/timing
+characteristics — see the repo root README's "能力边界" section for
+why that is explicitly out of scope for this test suite).
+
+**Coverage gaps closed (instances defined in `.repl` but never
+exercised by any suite):**
+
+| Peripheral instances | New suite | Ceiling reached |
+|---|---|---|
+| USART3, UART4/5/7/8/9, USART10 | `045-uart-instances.robot` | **L3-functional** — TDR write confirmed via a Terminal Tester bound to that specific sysbus peripheral, not just a register-bit check |
+| SPI3/4/5 | `046-spi-instances.robot` | **L3-functional** — real TXDR→RXDR byte loopback, same driver-level path already proven for SPI1/SPI6 |
+| GPIO Port B/C/D/F/G/H/N/O/P/Q | `047-gpio-instances.robot` | **L2-state** — output write only; `STM32_GPIOPort` supports pin-level input simulation in principle, but `stm32n647x0.repl` wires no GPIO pin to another peripheral or to itself, so there is no way to drive a real signal into an input pin for an L3 test |
+
+**Model fidelity raised:**
+
+| Model | Before | After | What changed |
+|---|---|---|---|
+| `STM32N6_ADC` | L2-state | **L3-functional** | Added a `SIMDR@0x200` test-only injection register; `CR.ADEN` sets `ISR.ADRDY`, `CR.ADSTART` only converts when ready, loads `DR` from the injected sample, sets `ISR.EOC`, and raises IRQ (wired to `nvic@46`, CMSIS `ADC1_2_IRQn`) if `IER.EOCIE` is set. Also fixed a pre-existing bug in `031-adc.robot` where the "ADSTART" test actually exercised `ADEN` (bit 0) instead of the real `ADSTART` bit (bit 2). |
+| `STM32N6_DTS` | L1 | **L2/L3** | Added a `SIMTEMPR@0x1F8` test-only injection register; `CFGR1` bit 0 (`START`, team-defined) triggers a measurement that loads `TEMPHYSR` from the injected sample and sets the `VALID` bit. Register layout itself is unchanged (still not CMSIS-derived, see model header) since there is no NuttX DTS driver to track a real layout against. |
+
+**Documentation-only fixes:**
+
+- `STM32N6_GPDMA.cs`/`STM32N6_HPDMA.cs`: documented that transfers
+  complete synchronously inside the `CCR.EN` write callback, so
+  there is no mid-transfer CPU-observable state — matching the
+  "no real X" disclosure style already used by SDMMC/EMAC/FDCAN.
+- `019-xspi-boot.robot`: was the only suite in the tree with no
+  `[Tags]` at all; added tags and replaced a vacuous
+  `int(val) >= 0` check with a real write/read round-trip.
+- `STM32N6_FDCAN.cs`: removed a stale comment claiming
+  `stm32n6_fdcan.c` still had the wrong `CCCR` offset; that driver
+  bug was fixed in the CMSIS Alignment Campaign above.
+
+**Full gate (2026-07-16, post-optimization-wave snapshot):** 50
+suites (`tests/renode/tests/*.robot`), 351 test cases, all PASS,
+0 fail.
 
 ## Quick run
 

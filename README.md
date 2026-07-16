@@ -179,7 +179,7 @@ CI 和本地开发均通过此方案实现零侵入编译。
 
 `tests/renode/` 下维护一套 STM32N647X0 的 Renode 平台描述
 （`stm32n647x0.repl`）+ 30 个 C# 外设仿真模型（`peripherals/*.cs`）
-+ 47 个 Robot Framework 测试套件（`tests/*.robot`，共 283 个测试
++ 50 个 Robot Framework 测试套件（`tests/*.robot`，共 351 个测试
 用例，全部通过），用于在没有真实开发板的情况下对驱动代码做**寄存器
 级/驱动逻辑级**的回归验证。
 
