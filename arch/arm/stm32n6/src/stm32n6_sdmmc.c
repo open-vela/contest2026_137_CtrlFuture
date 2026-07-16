@@ -43,10 +43,10 @@
  * Pre-processor Definitions
  ****************************************************************************/
 
-/* SDMMC register base addresses */
+/* SDMMC register base addresses (per CMSIS stm32n647xx.h) */
 
-#define STM32N6_SDMMC1_BASE  0x40012800
-#define STM32N6_SDMMC2_BASE  0x40012C00
+#define STM32N6_SDMMC1_BASE  0x48027000
+#define STM32N6_SDMMC2_BASE  0x48026800
 
 /* SDMMC register offsets */
 
@@ -84,11 +84,11 @@
 /* SDMMC_CMD bits */
 
 #define SDMMC_CMD_CMDINDEX_MASK   0x3F
-#define SDMMC_CMD_WAITRESP_MASK   (3 << 6)
-#define SDMMC_CMD_WAITRESP_NONE   (0 << 6)
-#define SDMMC_CMD_WAITRESP_SHORT  (1 << 6)
-#define SDMMC_CMD_WAITRESP_LONG   (3 << 6)
-#define SDMMC_CMD_CPSMEN          (1 << 10)
+#define SDMMC_CMD_WAITRESP_MASK   (3 << 8)   /* CMSIS: bits 9:8 */
+#define SDMMC_CMD_WAITRESP_NONE   (0 << 8)
+#define SDMMC_CMD_WAITRESP_SHORT  (1 << 8)
+#define SDMMC_CMD_WAITRESP_LONG   (3 << 8)
+#define SDMMC_CMD_CPSMEN          (1 << 12)  /* CMSIS: bit 12 */
 #define SDMMC_CMD_CMDTRANS        (1 << 21)
 
 /* SDMMC_STA bits */
