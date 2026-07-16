@@ -5,6 +5,7 @@ Force Tags      pwr
 *** Variables ***
 ${PWR_BASE}     0x46024800
 ${VOSCR}        0x020
+${DBPCR}        0x02c
 
 *** Keywords ***
 Read PWR Register
@@ -44,6 +45,27 @@ PWR Set VOS Scale 1
     ${val}=    Read PWR Register    ${VOSCR}
     # VOS (bit 0)=1, VOSRDY (bit 1)=1, ACTVOS (bit 16)=1, ACTVOSRDY (bit 17)=1
     Should Be Equal As Integers    ${val}    0x00030003
+
+PWR DBPCR Reset Value
+    [Documentation]    DBPCR should reset to 0 (backup domain
+    ...                write-protected by default), backing
+    ...                stm32n6_pwr_enablebkp()
+    [Tags]    L1-register
+    Create STM32N6 Machine
+    ${val}=    Read PWR Register    ${DBPCR}
+    Should Be Equal As Integers    ${val}    0
+
+PWR DBPCR DBP Writable
+    [Documentation]    Writing DBPCR.DBP=1 should read back set,
+    ...                matching stm32n6_pwr_enablebkp(true)
+    [Tags]    L2-state
+    Create STM32N6 Machine
+    Write PWR Register    ${DBPCR}    0x1
+    ${val}=    Read PWR Register    ${DBPCR}
+    Should Be Equal As Integers    ${val}    0x1
+    Write PWR Register    ${DBPCR}    0x0
+    ${val2}=    Read PWR Register    ${DBPCR}
+    Should Be Equal As Integers    ${val2}    0x0
 
 Boot Regression
     [Documentation]    NSH prompt should still work after PWR model addition

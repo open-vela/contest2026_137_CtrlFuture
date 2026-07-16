@@ -26,6 +26,7 @@
 
 #include <nuttx/config.h>
 
+#include <stdbool.h>
 #include <stdint.h>
 
 #include "arm_internal.h"
@@ -96,4 +97,68 @@ unsigned int stm32n6_pwr_get_voltage_scale(void)
 
   regval = getreg32(STM32_PWR_VOSCR);
   return (regval & PWR_VOSCR_ACTVOS) >> 16;
+}
+
+/****************************************************************************
+ * Name: stm32n6_pwr_enablebkp
+ *
+ * Description:
+ *   Enables or disables write access to the backup domain (RTC
+ *   registers, RTC backup data registers, and backup SRAM).  The
+ *   backup domain defaults to write-protected on reset; RTC
+ *   configuration writes are silently ignored unless this is
+ *   called first with writable=true.  Ported from apache/nuttx
+ *   upstream stm32_pwr_enablebkp().
+ *
+ * Input Parameters:
+ *   writable - true: enable write access to backup domain registers
+ *              false: restore write protection
+ *
+ * Returned Value:
+ *   true if the backup domain was already writable before this call.
+ *
+ ****************************************************************************/
+
+bool stm32n6_pwr_enablebkp(bool writable)
+{
+  uint32_t regval;
+  bool waswritable;
+
+  regval = getreg32(STM32_PWR_DBPCR);
+  waswritable = ((regval & PWR_DBPCR_DBP) != 0);
+
+  if (writable)
+    {
+      regval |= PWR_DBPCR_DBP;
+    }
+  else
+    {
+      regval &= ~PWR_DBPCR_DBP;
+    }
+
+  putreg32(regval, STM32_PWR_DBPCR);
+
+  return waswritable;
+}
+
+/****************************************************************************
+ * Name: stm32n6_pwr_enablevddio
+ *
+ * Description:
+ *   Mark a set of I/O voltage domains as supply-valid in PWR SVMCR3
+ *   and optionally select their VRSEL (1.8V) range.  Ported from
+ *   apache/nuttx upstream stm32_pwr_enablevddio().
+ *
+ * Input Parameters:
+ *   mask - OR of PWR_SVMCR3_VDDIOxSV and PWR_SVMCR3_VDDIOxVRSEL bits.
+ *
+ ****************************************************************************/
+
+void stm32n6_pwr_enablevddio(uint32_t mask)
+{
+  uint32_t regval;
+
+  regval  = getreg32(STM32_PWR_SVMCR3);
+  regval |= mask;
+  putreg32(regval, STM32_PWR_SVMCR3);
 }
