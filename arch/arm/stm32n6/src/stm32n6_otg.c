@@ -104,6 +104,7 @@
 #define OTG_GRSTCTL_CSRST      (1 << 0)  /* Core soft reset */
 #define OTG_GRSTCTL_HSRST      (1 << 1)  /* HCLK soft reset */
 #define OTG_GRSTCTL_TXFNUM_MASK (0x1F << 6)
+#define OTG_GRSTCTL_RXFFLSH    (1 << 4)  /* RxFIFO flush */
 #define OTG_GRSTCTL_TXFFLSH    (1 << 5)  /* TxFIFO flush */
 
 /* GINTSTS bits */
@@ -242,9 +243,12 @@ int stm32n6_otg_device_init(enum usb_otg_speed_e speed)
          OTG_DCFG_DSPD_HS : OTG_DCFG_DSPD_FS;
   otg_putreg(OTG_DCFG_OFFSET, dcfg);
 
-  /* Flush all FIFOs */
+  /* Flush all FIFOs (both Rx and Tx, per CMSIS GRSTCTL bits
+   * RXFFLSH[4] and TXFFLSH[5]/TXFNUM[10:6]=0x10 for "all Tx FIFOs")
+   */
 
   otg_putreg(OTG_GRSTCTL_OFFSET,
+             OTG_GRSTCTL_RXFFLSH |
              OTG_GRSTCTL_TXFFLSH |
              (0x10 << 6));  /* Flush all Tx FIFOs */
 
