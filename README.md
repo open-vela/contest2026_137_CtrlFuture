@@ -29,7 +29,7 @@ contest2026_137_CtrlFuture/
 │   │   ├── stm32n6_serial.c          # NuttX serial 框架驱动
 │   │   ├── stm32n6_irq.c             # NVIC 中断控制器
 │   │   ├── stm32n6_timerisr.c        # SysTick 系统定时器
-│   │   ├── stm32n6_allocateheap.c    # 堆分配
+│   │   ├── stm32n6_idle.c            # up_idle() WFI 低功耗等待
 │   │   └── hardware/stm32_memorymap.h
 │   ├── include/                      # 芯片头文件（symlink → nuttx/arch/arm/include/stm32n6）
 │   └── kconfig-stm32n6.patch         # Kconfig 注入补丁

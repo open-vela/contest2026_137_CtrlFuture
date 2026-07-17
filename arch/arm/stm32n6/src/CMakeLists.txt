@@ -26,10 +26,10 @@ set(SRCS
     stm32n6_lowputc.c
     stm32n6_serial.c
     stm32n6_irq.c
-    stm32n6_allocateheap.c
     stm32n6_gpio.c
     stm32n6_timerisr.c
-    stm32n6_pwr.c)
+    stm32n6_pwr.c
+    stm32n6_idle.c)
 
 if(CONFIG_VIDEO)
   list(APPEND SRCS stm32n6_dcmipp.c)
