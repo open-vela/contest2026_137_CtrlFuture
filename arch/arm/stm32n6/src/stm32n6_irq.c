@@ -163,20 +163,42 @@ void up_irqinitialize(void)
   irq_attach(STM32_IRQ_SVCALL, arm_svcall, NULL);
   irq_attach(STM32_IRQ_HARDFAULT, arm_hardfault, NULL);
 
-  /* Set PendSV and SysTick to lowest priority;
-   * SVCALL to high priority.
+  /* Set PendSV to lowest priority; SVCALL to high priority.
+   *
+   * SysTick's priority is intentionally NOT set here: apache/nuttx
+   * upstream sets it to NVIC_SYSH_PRIORITY_DEFAULT (not MIN) inside
+   * stm32_timerisr.c's up_timer_initialize(), not in this function.
+   * A previous revision of this function set it to
+   * NVIC_SYSH_PRIORITY_MIN here, which both duplicated the
+   * responsibility and used a different priority than upstream.
+   * See stm32n6_timerisr.c for the DEFAULT-priority SysTick setup
+   * ported from upstream.
    */
 
   up_prioritize_irq(STM32_IRQ_PENDSV,
-                    NVIC_SYSH_PRIORITY_MIN);
-  up_prioritize_irq(STM32_IRQ_SYSTICK,
                     NVIC_SYSH_PRIORITY_MIN);
   up_prioritize_irq(STM32_IRQ_SVCALL,
                     NVIC_SYSH_SVCALL_PRIORITY);
 
 #ifdef CONFIG_ARM_MPU
   irq_attach(STM32_IRQ_MEMFAULT, arm_memfault, NULL);
-  up_enable_irq(STM32_IRQ_MEMFAULT);
+
+  /* NOTE: do NOT call up_enable_irq(STM32_IRQ_MEMFAULT) here.
+   * Ported from apache/nuttx upstream stm32_irq.c: on Cortex-M55 in
+   * Secure state, setting MEMFAULTENA in SHCSR causes D-cache
+   * set/way operations (DCCISW) to silently fail, breaking DMA
+   * cache coherency.  MemFault escalates to HardFault when
+   * disabled, which is acceptable since arm_hardfault is always
+   * attached and still decodes the fault: escalated faults
+   * populate CFSR MMFSR bits and MMFAR, and arm_hardfault checks
+   * HFSR.FORCED to recover them.  The only trade-off is losing
+   * independent MemManage priority/preemption, which does not
+   * matter here since all faults are fatal in this configuration.
+   * A previous revision of this function called
+   * up_enable_irq(STM32_IRQ_MEMFAULT) immediately after attaching
+   * the handler, which is exactly the pattern upstream's comment
+   * warns against.
+   */
 #endif
 
 #ifdef CONFIG_ARCH_INTERRUPTSTACK
