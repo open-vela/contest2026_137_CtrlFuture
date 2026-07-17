@@ -101,13 +101,28 @@ void __start(void)
       *dest++ = 0;
     }
 
-  /* Copy .data from flash to SRAM */
+  /* Copy .data from flash to SRAM.
+   *
+   * Ported from apache/nuttx upstream stm32_start.c: skip the copy
+   * if _eronly and _sdata are the same address.  This repo's DEV
+   * boot (SRAM-only, no XSPI flash, no FSBL) linker script
+   * currently always places .data's load address ahead of its
+   * run address, so this check is presently a no-op guard rather
+   * than an active optimization -- but it is cheap, correct in
+   * both cases, and protects against a future linker script
+   * change (e.g. adding a flash-boot target) that made them equal
+   * without this guard, which would otherwise copy .data onto
+   * itself or read past a zero-length source region.
+   */
 
-  src = (const uint32_t *)_eronly;
-  dest = (uint32_t *)_sdata;
-  for (; dest < (uint32_t *)_edata; )
+  if (&_eronly[0] != &_sdata[0])
     {
-      *dest++ = *src++;
+      src = (const uint32_t *)_eronly;
+      dest = (uint32_t *)_sdata;
+      for (; dest < (uint32_t *)_edata; )
+        {
+          *dest++ = *src++;
+        }
     }
 
   /* Configure clocks */

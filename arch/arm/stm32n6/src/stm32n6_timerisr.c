@@ -27,6 +27,7 @@
 #include <nuttx/config.h>
 
 #include <stdint.h>
+#include <time.h>
 
 #include <nuttx/arch.h>
 #include <arch/board/board.h>
@@ -39,8 +40,30 @@
  * Pre-processor Definitions
  ****************************************************************************/
 
-/* SysTick runs at processor clock.  Before PLL is configured,
- * the CPU runs directly from HSI at 64 MHz.
+/* SysTick is clocked from the processor clock (CLKSOURCE=1, the
+ * configuration used below), so in principle the reload value
+ * should track the CPU's actual running frequency.
+ *
+ * apache/nuttx upstream stm32_timerisr.c uses
+ * STM32_CPUCLK_FREQUENCY (a board.h macro) here unconditionally.
+ * This port intentionally does NOT follow that: board.h's
+ * STM32_CPUCLK_FREQUENCY (200 MHz or 800 MHz depending on the
+ * CONFIG_EDGESIGHT_CLOCK_800MHZ branch) describes the frequency
+ * the CPU *would* run at once CONFIG_STM32N6_USE_PLL1 is enabled
+ * and PLL1 is actually configured -- it does not track whether
+ * PLL1 is presently enabled in .config. The shipped default
+ * config has CONFIG_STM32N6_USE_PLL1=n, so the CPU is actually
+ * still running from HSI at STM32_HSI_FREQUENCY (64 MHz).  Using
+ * STM32_CPUCLK_FREQUENCY here in that configuration would compute
+ * a reload value for 200 MHz while the timer is actually clocked
+ * at 64 MHz, making every OS tick ~3.1x too slow (verified: (200e6
+ * / 100) vs (64e6 / 100) reload counts, at real 64 MHz clock
+ * ticks that reload every 31.2 ms instead of every 10 ms).
+ * STM32_HSI_FREQUENCY is kept below because it matches this
+ * board's actual shipped clock configuration.  If/when board.h's
+ * CPUCLK_FREQUENCY macros are made to reflect whichever clock
+ * source is actually selected via Kconfig (HSI vs PLL1), this
+ * should be revisited to use that value instead.
  */
 
 #define STM32N6_SYSTICK_CLOCK  STM32_HSI_FREQUENCY
@@ -81,6 +104,18 @@ static int stm32n6_timerisr(int irq, uint32_t *regs,
 void up_timer_initialize(void)
 {
   uint32_t regval;
+
+  /* Set the SysTick interrupt to the default priority.  Ported
+   * from apache/nuttx upstream stm32_timerisr.c: SysTick's
+   * priority is owned by this file, not stm32n6_irq.c (which no
+   * longer sets it -- see that file's up_irqinitialize()).
+   */
+
+  regval  = getreg32(NVIC_SYSH12_15_PRIORITY);
+  regval &= ~NVIC_SYSH_PRIORITY_PR15_MASK;
+  regval |= (NVIC_SYSH_PRIORITY_DEFAULT <<
+             NVIC_SYSH_PRIORITY_PR15_SHIFT);
+  putreg32(regval, NVIC_SYSH12_15_PRIORITY);
 
   putreg32(SYSTICK_RELOAD, NVIC_SYSTICK_RELOAD);
   putreg32(0, NVIC_SYSTICK_CURRENT);
