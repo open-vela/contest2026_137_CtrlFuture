@@ -14,6 +14,11 @@
 
 > P0/P1 为核心目标，P2/P3 为延伸目标，P4 为远期规划。
 
+> **验证口径说明 (2026-07-20)**：ADR-004（真机验证）仍 PENDING，
+> 表中所有 **DONE** 均为 BUILD + QEMU/Renode 仿真级验证，「验证」列
+> 为目标级别而非已达级别。**PARTIAL** = 设备框架已注册但硬件寄存器
+> 路径未实现；**N/A** = ADR 决策不实现。
+
 ---
 
 ## P0: 最小 NSH 启动
@@ -74,20 +79,27 @@
 
 | # | 模块 | ADR | 依赖 | 验证 | 状态 |
 |---|------|-----|------|------|------|
-| 25 | HPDMA1 高性能 DMA | [025](adr/ADR-025.md) | 011 | MEASURED | |
+| 25 | HPDMA1 高性能 DMA | [025](adr/ADR-025.md) | 011 | — | **N/A**（决策不实现） |
 | 26 | 高级定时器（TIM1/TIM8） | [026](adr/ADR-026.md) | 005 | MEASURED | |
 | 27 | 通用定时器 | [027](adr/ADR-027.md) | 005 | MEASURED | |
 | 28 | 低功耗定时器（LPTIM1-5） | [028](adr/ADR-028.md) | 005, 009 | MEASURED | |
 | 29 | ADC 驱动 | [029](adr/ADR-029.md) | 005, 006, 011 | MEASURED | |
 | 30 | DTS 温度传感器 | [030](adr/ADR-030.md) | 005 | MEASURED | |
-| 31 | LTDC LCD 控制器 | [031](adr/ADR-031.md) | 005, 006, 007, 025 | MEASURED | **DONE** |
+| 31 | LTDC LCD 控制器 | [031](adr/ADR-031.md) | 005, 006, 007, 025 | MEASURED | **PARTIAL** |
 | 32 | GPU2D / DMA2D | [032](adr/ADR-032.md) | 031 | MEASURED | |
-| 33 | DCMIPP 摄像头管线 | [033](adr/ADR-033.md) | 005, 006, 025 | MEASURED | **DONE** |
+| 33 | DCMIPP 摄像头管线 | [033](adr/ADR-033.md) | 005, 006, 025 | MEASURED | **PARTIAL** |
 | 34 | CSI-2 MIPI 接口 | [034](adr/ADR-034.md) | 033 | MEASURED | |
 | 35 | H.264 编码器 | [035](adr/ADR-035.md) | 033 | MEASURED | |
 | 36 | Neural-ART NPU | [036](adr/ADR-036.md) | 005, 007, 008, 025 | MEASURED | |
 | 37 | 加密加速器（SAES, HASH, RNG） | [037](adr/ADR-037.md) | 005 | BUILD | |
 | 38 | Secure Boot | [038](adr/ADR-038.md) | 037, 019 | MEASURED | |
+
+> - **025 N/A**：ADR-025 决策不实现独立 HPDMA 驱动，传输由
+>   DCMIPP/VENC/NPU 硬件管道及 ST 中间件自管理。
+> - **031/033 PARTIAL**：`/dev/fb0`、`/dev/video0` 设备框架已注册，
+>   但 LTDC 寄存器编程与 DCMIPP CMW_CAMERA 调用均未实现；
+>   两者未在任何 defconfig 启用（`CONFIG_VIDEO_FB`/`CONFIG_VIDEO`
+>   门控，CI 不编译）。详见 ADR 内「实现现状」。
 
 ---
 
@@ -131,7 +143,8 @@ P0                          P1                          P2          P3
 
 P4 (高级功能)
 ───
-025 HPDMA ← 011 DMA
+025 HPDMA ← 011 DMA　【N/A：决策不实现独立驱动，031/033/036 的
+  │                    传输由硬件管道 / ST 中间件自管理】
   │
   ├──→ 031 LTDC ← 005,006,007 ──→ 032 GPU2D/DMA2D
   │      │

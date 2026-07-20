@@ -1,6 +1,11 @@
 # Renode L3 Driver-Correctness Simulation Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **执行记录 (2026-07-20 补勾)**: Wave 0–3 已全部落地，Phase-1 exit
+> 于 2026-07-14 记录（217 pass / 0 fail）。证据：`tests/renode/README.md`
+> 「Phase-1 exit checklist (Task 11)」。唯一例外：Task 9（cmocka
+> drivertest 应用）按 Deferred-with-reason 延期，见该任务内备注。
+
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Raise Renode STM32N647 models from L1 register stubs to L2/L3 behavior so NuttX chip drivers can be verified for correctness (state machines, IRQ, DMA/data paths), not only “register readable after boot.”
 
@@ -83,7 +88,7 @@ IRQ numbers: extract from `stm32n647xx.h` / `arch/arm/stm32n6/include/irq.h` whe
 - Modify: `.github/workflows/renode-test.yml` (if it hardcodes wrong path)
 - Optional: `scripts/renode-build.sh` if present
 
-- [ ] **Step 1: Confirm real paths**
+- [x] **Step 1: Confirm real paths**
 
 ```bash
 test -x /home/takumi/mi/open-velao-contest/renode/renode-test && echo OK
@@ -92,7 +97,7 @@ test ! -e /home/takumi/mi/open-velao-contest/ctrl_future/renode && echo NO_WORKS
 
 Expected: `OK` and `NO_WORKSPACE_RENODE`.
 
-- [ ] **Step 2: Patch `scripts/renode-test.sh` path resolution**
+- [x] **Step 2: Patch `scripts/renode-test.sh` path resolution**
 
 Replace:
 
@@ -112,7 +117,7 @@ RENODE_SRC="${RENODE_SRC:-${OPENVELA_ROOT}/renode}"
 
 Keep the existing existence check for `${RENODE_SRC}/renode-test`.
 
-- [ ] **Step 3: Align CI workflow**
+- [x] **Step 3: Align CI workflow**
 
 Open `.github/workflows/renode-test.yml`. Ensure checkout / path for Renode matches CI layout. If CI clones Renode as a sibling or caches under a fixed path, document `RENODE_SRC` env override. Prefer:
 
@@ -123,7 +128,7 @@ env:
 
 If CI currently fails on path, fix in same commit as the script.
 
-- [ ] **Step 4: Smoke the runner (no model change)**
+- [x] **Step 4: Smoke the runner (no model change)**
 
 ```bash
 cd /home/takumi/mi/open-velao-contest/ctrl_future
@@ -134,7 +139,7 @@ bash contest2026_137_CtrlFuture/scripts/renode-test.sh
 
 Expected: script finds renode-test; full suite runs; boot cases PASS (full 157 may take several minutes).
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 cd contest2026_137_CtrlFuture
@@ -158,7 +163,7 @@ EOF
 - Create: `tests/renode/tests/resources/model-tiers.robot` (optional keywords)
 - Document tags in suite headers
 
-- [ ] **Step 1: Define tag convention** (use in every new/changed suite)
+- [x] **Step 1: Define tag convention** (use in every new/changed suite)
 
 ```robot
 *** Settings ***
@@ -166,7 +171,7 @@ Resource        resources/stm32n6-common.robot
 # Tags: L1-register | L2-state | L3-functional | boot-regression
 ```
 
-- [ ] **Step 2: Tag existing RNG suite as L1 (baseline before fix)**
+- [x] **Step 2: Tag existing RNG suite as L1 (baseline before fix)**
 
 In `tests/renode/tests/039-rng.robot` add Force Tags:
 
@@ -176,7 +181,7 @@ Resource        resources/stm32n6-common.robot
 Force Tags      L1-register  rng
 ```
 
-- [ ] **Step 3: Document filter usage** in `scripts/renode-test.sh` comment or README under `tests/renode/`:
+- [x] **Step 3: Document filter usage** in `scripts/renode-test.sh` comment or README under `tests/renode/`:
 
 ```bash
 # Full suite
@@ -185,7 +190,7 @@ bash scripts/renode-test.sh
 # ${RENODE_SRC}/renode-test --include L2-state tests/renode/tests/*.robot
 ```
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add tests/renode/tests/039-rng.robot
@@ -202,7 +207,7 @@ git commit -s -m "tests: tag RNG Robot suite as L1-register baseline"
 - Reference: `arch/arm/stm32n6/src/stm32n6_rng.c`, `arch/arm/stm32n6/src/hardware/stm32_rng.h`
 - Reference CMSIS/HAL: `$SOFTWARE_PACKAGE/STM32Cube_FW_N6_V1.0.0/Drivers/...`
 
-- [ ] **Step 1: Write failing L2 tests first**
+- [x] **Step 1: Write failing L2 tests first**
 
 Append to `039-rng.robot`:
 
@@ -242,7 +247,7 @@ Two DR Reads Differ When Enabled
     Should Be True    ${a} >= 0 and ${b} >= 0
 ```
 
-- [ ] **Step 2: Run only RNG suite — expect DRDY test FAIL**
+- [x] **Step 2: Run only RNG suite — expect DRDY test FAIL**
 
 ```bash
 REPO=/home/takumi/mi/open-velao-contest/ctrl_future/contest2026_137_CtrlFuture
@@ -256,7 +261,7 @@ $RENODE/renode-test $REPO/tests/renode/tests/039-rng.robot \
 
 Expected: `RNGEN Sets DRDY` FAIL (DRDY stays 0).
 
-- [ ] **Step 3: Implement minimal L2 behavior in `STM32N6_RNG.cs`**
+- [x] **Step 3: Implement minimal L2 behavior in `STM32N6_RNG.cs`**
 
 Key behavior (mirror NuttX driver expectations):
 
@@ -310,11 +315,11 @@ valueProviderCallback: _ =>
 }
 ```
 
-- [ ] **Step 4: Rebuild Renode and re-run 039-rng.robot**
+- [x] **Step 4: Rebuild Renode and re-run 039-rng.robot**
 
 Expected: all RNG cases PASS, including Boot Regression.
 
-- [ ] **Step 5: Run full regression**
+- [x] **Step 5: Run full regression**
 
 ```bash
 bash scripts/renode-test.sh
@@ -322,7 +327,7 @@ bash scripts/renode-test.sh
 
 Expected: full suite green.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add tests/renode/peripherals/STM32N6_RNG.cs tests/renode/tests/039-rng.robot
@@ -347,7 +352,7 @@ EOF
 - Reference Renode: `$RENODE_SRC/.../SPI/STM32H7_SPI.cs`, `STM32SPI.cs`
 - CMSIS: SPI_TypeDef in `stm32n647xx.h`
 
-- [ ] **Step 1: Extract SPI register map used by NuttX driver**
+- [x] **Step 1: Extract SPI register map used by NuttX driver**
 
 ```bash
 rg -n "SPI_|CR1|CR2|SR|TXDR|RXDR|CFG" \
@@ -360,7 +365,7 @@ rg -n "typedef struct.*SPI|SPI_TypeDef" \
 
 Document offsets actually touched by the driver (minimum set for L2).
 
-- [ ] **Step 2: Write failing 013-spi.robot (L1 then L2)**
+- [x] **Step 2: Write failing 013-spi.robot (L1 then L2)**
 
 ```robot
 *** Settings ***
@@ -404,9 +409,9 @@ Boot Regression
     Wait For NSH
 ```
 
-- [ ] **Step 3: Run test — expect unhandled access or missing peripheral FAIL**
+- [x] **Step 3: Run test — expect unhandled access or missing peripheral FAIL**
 
-- [ ] **Step 4: Implement `STM32N6_SPI.cs` (minimum L2, then L3 FIFO)**
+- [x] **Step 4: Implement `STM32N6_SPI.cs` (minimum L2, then L3 FIFO)**
 
 Requirements for L2:
 
@@ -422,7 +427,7 @@ Requirements for L3 (same task if time allows; else Task 3b):
 
 Prefer adapting structure from Renode `STM32H7_SPI.cs` rather than inventing a new API.
 
-- [ ] **Step 5: Wire `.repl`**
+- [x] **Step 5: Wire `.repl`**
 
 Add after USART block (and shrink Tags that covered SPI ranges):
 
@@ -449,7 +454,7 @@ spi6: Miscellaneous.STM32N6_SPI @ sysbus 0x46001400
 
 Update Tag ranges in `sysbus: init:` so they no longer swallow these addresses (critical: Tag windows that included `0x42003000` / `0x40003800` must be split).
 
-- [ ] **Step 6: Rebuild Renode, run 013-spi + full suite**
+- [x] **Step 6: Rebuild Renode, run 013-spi + full suite**
 
 ```bash
 bash scripts/renode-test.sh
@@ -457,7 +462,7 @@ bash scripts/renode-test.sh
 
 Expected: SPI suite PASS; no boot regression.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add tests/renode/peripherals/STM32N6_SPI.cs \
@@ -481,7 +486,7 @@ EOF
 - Modify: `stm32n647x0.repl` IRQ lines
 - Modify: corresponding Robot suite with L2 IRQ test
 
-- [ ] **Step 1: Pick first IRQ to wire**
+- [x] **Step 1: Pick first IRQ to wire**
 
 Prefer **RNG** or **SPI1** if model has IE + event; else EXTI line already modeled.
 
@@ -493,7 +498,7 @@ rg -n "RNG_IRQn|SPI1_IRQn" \
   arch/arm/stm32n6/include/irq.h
 ```
 
-- [ ] **Step 2: Add `public GPIO IRQ { get; }` to C# model**
+- [x] **Step 2: Add `public GPIO IRQ { get; }` to C# model**
 
 Pattern:
 
@@ -504,16 +509,16 @@ public GPIO IRQ { get; } = new GPIO();
 // on flag clear / W1C: IRQ.Set(false);
 ```
 
-- [ ] **Step 3: Connect in `.repl`**
+- [x] **Step 3: Connect in `.repl`**
 
 ```
 rng: Miscellaneous.STM32N6_RNG @ sysbus 0x44020000
     IRQ -> nvic@<RNG_IRQn>
 ```
 
-- [ ] **Step 4: Robot test** — enable IE, trigger event, read NVIC pending or observe no hang; at minimum assert model does not throw and SR flags match.
+- [x] **Step 4: Robot test** — enable IE, trigger event, read NVIC pending or observe no hang; at minimum assert model does not throw and SR flags match.
 
-- [ ] **Step 5: Full regression + commit**
+- [x] **Step 5: Full regression + commit**
 
 ```bash
 git commit -s -m "tests: wire RNG IRQ to NVIC in Renode platform"
@@ -529,13 +534,13 @@ git commit -s -m "tests: wire RNG IRQ to NVIC in Renode platform"
 - Reference: `arch/arm/stm32n6/src/stm32n6_dma.c`
 - Reference Renode: `DMA/STM32WBA_GPDMA.cs`, `STM32DMA.cs`
 
-- [ ] **Step 1: Map NuttX DMA programming sequence** (channel enable, SAR/DAR/LLR, TCF)
+- [x] **Step 1: Map NuttX DMA programming sequence** (channel enable, SAR/DAR/LLR, TCF)
 
 ```bash
 rg -n "GPDMA|CCR|CTR1|CSAR|CDAR|cllr|TCF" arch/arm/stm32n6/src/stm32n6_dma.c | head -60
 ```
 
-- [ ] **Step 2: Failing Robot tests for one memory-to-memory transfer**
+- [x] **Step 2: Failing Robot tests for one memory-to-memory transfer**
 
 ```robot
 GPDMA Mem2Mem Word Copy
@@ -549,7 +554,7 @@ GPDMA Mem2Mem Word Copy
 
 Fill exact offsets from model + CMSIS after reading `STM32N6_GPDMA.cs` and TypeDef.
 
-- [ ] **Step 3: Implement transfer engine in C#**
+- [x] **Step 3: Implement transfer engine in C#**
 
 On channel enable with valid config:
 
@@ -559,7 +564,7 @@ On channel enable with valid config:
 
 Do **not** attempt full linked-list LLI in first pass unless driver requires it for basic path.
 
-- [ ] **Step 4: Regression + commit**
+- [x] **Step 4: Regression + commit**
 
 ```bash
 git commit -s -m "tests: upgrade GPDMA Renode model to L3 mem2mem (ADR-011)"
@@ -574,13 +579,13 @@ git commit -s -m "tests: upgrade GPDMA Renode model to L3 mem2mem (ADR-011)"
 - Modify: `tests/renode/tests/014-i2c.robot`
 - Reference: Renode `I2C/STM32F7_I2C.cs`
 
-- [ ] **Step 1: Failing tests** — PE enable, START, TXIS/RXNE or N6 equivalents, STOPF.
+- [x] **Step 1: Failing tests** — PE enable, START, TXIS/RXNE or N6 equivalents, STOPF.
 
-- [ ] **Step 2: Implement master TX/RX with optional `I2CPeripheral` dummy slave** (Renode pattern) or loopback-to-self for register-level only first.
+- [x] **Step 2: Implement master TX/RX with optional `I2CPeripheral` dummy slave** (Renode pattern) or loopback-to-self for register-level only first.
 
-- [ ] **Step 3: Wire I2C1 IRQ in `.repl` when IE paths are ready.
+- [x] **Step 3: Wire I2C1 IRQ in `.repl` when IE paths are ready.
 
-- [ ] **Step 4: Full suite + commit**
+- [x] **Step 4: Full suite + commit**
 
 ```bash
 git commit -s -m "tests: upgrade I2C Renode model toward L3 master path (ADR-014)"
@@ -595,13 +600,13 @@ git commit -s -m "tests: upgrade I2C Renode model toward L3 master path (ADR-014
 - Modify: `tests/renode/tests/020-sdmmc.robot`
 - Reference: `arch/arm/stm32n6/src/stm32n6_sdmmc.c`, Renode SD host models under `Peripherals/SD/`
 
-- [ ] **Step 1: Capture CMD0/CMD8/ACMD41 sequence from driver init.**
+- [x] **Step 1: Capture CMD0/CMD8/ACMD41 sequence from driver init.**
 
-- [ ] **Step 2: Failing tests for POWER + CLOCK enable + CMD response flags.**
+- [x] **Step 2: Failing tests for POWER + CLOCK enable + CMD response flags.**
 
-- [ ] **Step 3: Implement minimal card state machine (idle → ready → transfer) with canned CID/CSD responses sufficient for driver probe success.
+- [x] **Step 3: Implement minimal card state machine (idle → ready → transfer) with canned CID/CSD responses sufficient for driver probe success.
 
-- [ ] **Step 4: Regression + commit**
+- [x] **Step 4: Regression + commit**
 
 ```bash
 git commit -s -m "tests: upgrade SDMMC Renode model for driver probe path"
@@ -628,15 +633,21 @@ Apply the same TDD loop (failing Robot → C# → rebuild → full suite → com
 
 Per peripheral steps (repeat):
 
-- [ ] **Step A:** List registers/bits the NuttX driver **writes and waits on**.
-- [ ] **Step B:** Add Robot cases that reproduce those waits (timeouts = current L1 failure mode).
-- [ ] **Step C:** Implement callbacks so waits complete without infinite spin.
-- [ ] **Step D:** `bash scripts/renode-test.sh` must stay green.
-- [ ] **Step E:** One commit per peripheral: `tests: raise <periph> Renode model to L2 (ADR-NNN)`.
+- [x] **Step A:** List registers/bits the NuttX driver **writes and waits on**.
+- [x] **Step B:** Add Robot cases that reproduce those waits (timeouts = current L1 failure mode).
+- [x] **Step C:** Implement callbacks so waits complete without infinite spin.
+- [x] **Step D:** `bash scripts/renode-test.sh` must stay green.
+- [x] **Step E:** One commit per peripheral: `tests: raise <periph> Renode model to L2 (ADR-NNN)`.
 
 ---
 
 ### Task 9: Optional drivertest apps on Renode (L3 end-to-end)
+
+> **状态: DEFERRED-WITH-REASON（不阻塞 Phase-1 exit）** —— cmocka
+> drivertest 受竞赛隔离（不可改 upstream apps 打包）与 1MB 体积
+> 限制约束而延期；固件级 L3 已由 `044-firmware-l3.robot` 覆盖
+> （NSH help/hello 路径）。延期依据记录在 `tests/renode/README.md`
+> Deferred-with-reason 表。
 
 **Files:**
 - Create: `app/drivertest/` (or enable upstream `apps/testing/drivers`)
@@ -670,9 +681,9 @@ UART Drivertest Passes
 - Modify: `docs/ROADMAP.md` if Renode fidelity is tracked
 - Optional: `tests/renode/README.md` (only if useful; keep short)
 
-- [ ] **Step 1:** Add fidelity table (L1/L2/L3 per model) to `docs/DEV-METHODOLOGY.md` or `tests/renode/README.md`.
+- [x] **Step 1:** Add fidelity table (L1/L2/L3 per model) to `docs/DEV-METHODOLOGY.md` or `tests/renode/README.md`.
 
-- [ ] **Step 2:** Note robot number ≠ ADR number; do **not** mass-rename suites unless a dedicated chore ADR is opened (high churn). Document mapping instead:
+- [x] **Step 2:** Note robot number ≠ ADR number; do **not** mass-rename suites unless a dedicated chore ADR is opened (high churn). Document mapping instead:
 
 ```
 013-spi → SPI (missing ADR link or ADR-013)
@@ -681,7 +692,7 @@ UART Drivertest Passes
 ...
 ```
 
-- [ ] **Step 3:** Commit docs only:
+- [x] **Step 3:** Commit docs only:
 
 ```bash
 git commit -s -m "docs: record Renode L2/L3 fidelity matrix and path layout"
