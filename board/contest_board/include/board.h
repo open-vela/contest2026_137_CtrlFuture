@@ -120,6 +120,30 @@
 
 #endif /* CONFIG_EDGESIGHT_CLOCK_800MHZ */
 
+/* The frequency values above describe the clock tree PLL1 *would*
+ * produce.  stm32n6_clockconfig() only programs and switches to PLL1
+ * when CONFIG_STM32N6_USE_PLL1 is set; otherwise the CPU stays in its
+ * HSI reset state (all muxes select HSI, all prescalers /1), so the
+ * whole core clock tree runs at STM32_HSI_FREQUENCY.  Override the
+ * core-tree macros in that case so consumers such as the SysTick
+ * reload compute values for the clock actually running.  (The
+ * peripheral kernel-clock macros in the 800 MHz branch are left as-is
+ * because those peripherals imply PLL1 is enabled.)
+ */
+
+#ifndef CONFIG_STM32N6_USE_PLL1
+#  undef STM32_CPUCLK_FREQUENCY
+#  undef STM32_SYSCLK_FREQUENCY
+#  undef STM32_HCLK_FREQUENCY
+#  undef STM32_PCLK1_FREQUENCY
+#  undef STM32_PCLK2_FREQUENCY
+#  define STM32_CPUCLK_FREQUENCY  STM32_HSI_FREQUENCY
+#  define STM32_SYSCLK_FREQUENCY  STM32_HSI_FREQUENCY
+#  define STM32_HCLK_FREQUENCY    STM32_HSI_FREQUENCY
+#  define STM32_PCLK1_FREQUENCY   STM32_HSI_FREQUENCY
+#  define STM32_PCLK2_FREQUENCY   STM32_HSI_FREQUENCY
+#endif
+
 /* Timer input clock = SYSCLK (TIMPRE=0 default) */
 
 #define STM32_APB1_TIM_FREQUENCY STM32_SYSCLK_FREQUENCY

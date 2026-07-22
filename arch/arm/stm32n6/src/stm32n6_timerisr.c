@@ -41,32 +41,20 @@
  ****************************************************************************/
 
 /* SysTick is clocked from the processor clock (CLKSOURCE=1, the
- * configuration used below), so in principle the reload value
- * should track the CPU's actual running frequency.
+ * configuration used below), so the reload value must track the CPU's
+ * actual running frequency.
  *
- * apache/nuttx upstream stm32_timerisr.c uses
- * STM32_CPUCLK_FREQUENCY (a board.h macro) here unconditionally.
- * This port intentionally does NOT follow that: board.h's
- * STM32_CPUCLK_FREQUENCY (200 MHz or 800 MHz depending on the
- * CONFIG_EDGESIGHT_CLOCK_800MHZ branch) describes the frequency
- * the CPU *would* run at once CONFIG_STM32N6_USE_PLL1 is enabled
- * and PLL1 is actually configured -- it does not track whether
- * PLL1 is presently enabled in .config. The shipped default
- * config has CONFIG_STM32N6_USE_PLL1=n, so the CPU is actually
- * still running from HSI at STM32_HSI_FREQUENCY (64 MHz).  Using
- * STM32_CPUCLK_FREQUENCY here in that configuration would compute
- * a reload value for 200 MHz while the timer is actually clocked
- * at 64 MHz, making every OS tick ~3.1x too slow (verified: (200e6
- * / 100) vs (64e6 / 100) reload counts, at real 64 MHz clock
- * ticks that reload every 31.2 ms instead of every 10 ms).
- * STM32_HSI_FREQUENCY is kept below because it matches this
- * board's actual shipped clock configuration.  If/when board.h's
- * CPUCLK_FREQUENCY macros are made to reflect whichever clock
- * source is actually selected via Kconfig (HSI vs PLL1), this
- * should be revisited to use that value instead.
+ * Use STM32_CPUCLK_FREQUENCY (a board.h macro), matching apache/nuttx
+ * upstream stm32_timerisr.c.  board.h now defines this macro to reflect
+ * the clock source actually selected via Kconfig: it collapses to
+ * STM32_HSI_FREQUENCY (64 MHz) when CONFIG_STM32N6_USE_PLL1 is not set
+ * (the shipped default, CPU running from HSI), and to the PLL1 target
+ * (200 MHz or 800 MHz) when PLL1 is enabled and programmed by
+ * stm32n6_clockconfig().  This keeps the OS tick period correct in both
+ * configurations without the driver having to know which clock is live.
  */
 
-#define STM32N6_SYSTICK_CLOCK  STM32_HSI_FREQUENCY
+#define STM32N6_SYSTICK_CLOCK  STM32_CPUCLK_FREQUENCY
 #define SYSTICK_RELOAD \
   ((STM32N6_SYSTICK_CLOCK / CLK_TCK) - 1)
 
