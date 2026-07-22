@@ -46,6 +46,7 @@
 #define STM32_RCC_SR_OFFSET         0x0004  /* Clock status */
 #define STM32_RCC_CFGR1_OFFSET      0x0020  /* Clock configuration 1 */
 #define STM32_RCC_CFGR2_OFFSET      0x0024  /* Clock configuration 2 */
+#define STM32_RCC_CCIPR13_OFFSET    0x0174  /* Kernel clock select 13 */
 
 /* PLL1 configuration.  Unlike the legacy STM32Fx/Hx PLL layout, DIVN
  * (feedback divider) is packed into PLL1CFGR1 alongside SEL/DIVM; there
@@ -105,7 +106,11 @@
 #define STM32_RCC_AHB4ENSR_OFFSET   0x0a5c  /* AHB4 clock enable set */
 #define STM32_RCC_APB1ENSR1_OFFSET  0x0a64  /* APB1 clock enable set 1 */
 #define STM32_RCC_APB2ENSR_OFFSET   0x0a6c  /* APB2 clock enable set */
-#define STM32_RCC_APB4ENSR1_OFFSET  0x0a78  /* APB4 clock enable set 1 */
+#define STM32_RCC_APB4ENSR1_OFFSET  0x0a74  /* APB4 clock enable set 1 */
+#define STM32_RCC_APB4ENSR2_OFFSET  0x0a78  /* APB4 clock enable set 2 */
+#define STM32_RCC_BUSLPENSR_OFFSET  0x0a84  /* Bus LP clock enable set */
+#define STM32_RCC_MEMLPENSR_OFFSET  0x0a8c  /* SRAM LP clock enable set */
+#define STM32_RCC_APB2LPENSR_OFFSET 0x0aac  /* APB2 LP clock enable set */
 
 #define STM32_RCC_CCR_OFFSET        0x1000  /* Clock control clear */
 #define STM32_RCC_APB2ENCR_OFFSET   0x126c  /* APB2 clock enable clear */
@@ -117,6 +122,7 @@
 #define STM32_RCC_SR         (STM32_RCC_BASE + STM32_RCC_SR_OFFSET)
 #define STM32_RCC_CFGR1      (STM32_RCC_BASE + STM32_RCC_CFGR1_OFFSET)
 #define STM32_RCC_CFGR2      (STM32_RCC_BASE + STM32_RCC_CFGR2_OFFSET)
+#define STM32_RCC_CCIPR13    (STM32_RCC_BASE + STM32_RCC_CCIPR13_OFFSET)
 
 #define STM32_RCC_PLL1CFGR1  (STM32_RCC_BASE + STM32_RCC_PLL1CFGR1_OFFSET)
 #define STM32_RCC_PLL1CFGR3  (STM32_RCC_BASE + STM32_RCC_PLL1CFGR3_OFFSET)
@@ -148,6 +154,10 @@
 #define STM32_RCC_APB1ENSR1  (STM32_RCC_BASE + STM32_RCC_APB1ENSR1_OFFSET)
 #define STM32_RCC_APB2ENSR   (STM32_RCC_BASE + STM32_RCC_APB2ENSR_OFFSET)
 #define STM32_RCC_APB4ENSR1  (STM32_RCC_BASE + STM32_RCC_APB4ENSR1_OFFSET)
+#define STM32_RCC_APB4ENSR2  (STM32_RCC_BASE + STM32_RCC_APB4ENSR2_OFFSET)
+#define STM32_RCC_BUSLPENSR  (STM32_RCC_BASE + STM32_RCC_BUSLPENSR_OFFSET)
+#define STM32_RCC_MEMLPENSR  (STM32_RCC_BASE + STM32_RCC_MEMLPENSR_OFFSET)
+#define STM32_RCC_APB2LPENSR (STM32_RCC_BASE + STM32_RCC_APB2LPENSR_OFFSET)
 
 #define STM32_RCC_CCR        (STM32_RCC_BASE + STM32_RCC_CCR_OFFSET)
 #define STM32_RCC_APB2ENCR   (STM32_RCC_BASE + STM32_RCC_APB2ENCR_OFFSET)
@@ -347,5 +357,56 @@
  */
 
 #define RCC_APB4ENR1_RTCEN       (1 << 16)
+
+/* APB4ENR2 bits (CMSIS RCC_APB4ENR2_*).  SYSCFGEN gates the SYSCFG
+ * block used for the ES0620 I/O-compensation writes; BSECEN must stay
+ * set or WFI/sleep fails (ES0620).  Written via the APB4ENSR2 set
+ * alias.
+ */
+
+#define RCC_APB4ENR2_SYSCFGEN    (1 << 0)
+#define RCC_APB4ENR2_BSECEN      (1 << 1)
+
+/* BUSLPENR bits: keep the AXI-node bus clocks running through CSLEEP
+ * (WFI).  Without these the AXISRAM banks lose their bus clock during
+ * WFI and the core never wakes.  Written via the BUSLPENSR set alias.
+ */
+
+#define RCC_BUSLPENR_ACLKNLPEN   (1 << 0)
+#define RCC_BUSLPENR_ACLKNCLPEN  (1 << 1)
+
+/* MEMLPENR bits: keep the AXISRAM banks (and the cache-backing AXIRAM)
+ * clocked through CSLEEP (WFI).  Mirrors the MEMENR layout above but
+ * for the low-power (sleep) clock gate.  Written via MEMLPENSR.
+ */
+
+#define RCC_MEMLPENR_CACHEAXIRAMLPEN (1 << 10)
+#define RCC_MEMLPENR_AXISRAM2LPEN    (1 << 8)
+#define RCC_MEMLPENR_AXISRAM1LPEN    (1 << 7)
+#define RCC_MEMLPENR_AXISRAM6LPEN    (1 << 3)
+#define RCC_MEMLPENR_AXISRAM5LPEN    (1 << 2)
+#define RCC_MEMLPENR_AXISRAM4LPEN    (1 << 1)
+#define RCC_MEMLPENR_AXISRAM3LPEN    (1 << 0)
+#define RCC_MEMLPENR_ALLAXISRAM      (RCC_MEMLPENR_AXISRAM1LPEN | \
+                                      RCC_MEMLPENR_AXISRAM2LPEN | \
+                                      RCC_MEMLPENR_AXISRAM3LPEN | \
+                                      RCC_MEMLPENR_AXISRAM4LPEN | \
+                                      RCC_MEMLPENR_AXISRAM5LPEN | \
+                                      RCC_MEMLPENR_AXISRAM6LPEN)
+
+/* APB2LPENR bits: keep USART1 clocked through CSLEEP so the console
+ * survives WFI.  Written via the APB2LPENSR set alias.
+ */
+
+#define RCC_APB2LPENR_USART1LPEN (1 << 4)
+
+/* CCIPR13: USART1 kernel clock source select (bits 0-2).  Value 6
+ * selects HSI, matching CMSIS RCC_CCIPR13_USART1SEL and the value the
+ * upstream NuttX port uses so BRR stays independent of SYSCLK.
+ */
+
+#define RCC_CCIPR13_USART1SEL_SHIFT  (0)
+#define RCC_CCIPR13_USART1SEL_MASK   (0x7 << RCC_CCIPR13_USART1SEL_SHIFT)
+#define RCC_CCIPR13_USART1SEL_HSI    (6 << RCC_CCIPR13_USART1SEL_SHIFT)
 
 #endif /* __ARCH_ARM_SRC_STM32N6_HARDWARE_STM32_RCC_H */
