@@ -68,37 +68,34 @@ simpler single-purpose board, not one this contest board's
 broader driver set needs to copy. No functional bug here, just a
 different (also valid) design.
 
-## 4. RCC: `STM32_CPUCLK_FREQUENCY`-based SysTick reload
+## 4. RCC: `STM32_CPUCLK_FREQUENCY`-based SysTick reload -- PORTED
 
 **Upstream:** `stm32_timerisr.c`'s `SYSTICK_RELOAD` macro uses
 `STM32_CPUCLK_FREQUENCY` (a board.h macro) unconditionally.
 
-**This repo:** `stm32n6_timerisr.c` keeps `STM32_HSI_FREQUENCY`
-(64 MHz) hardcoded.
+**This repo (now):** `stm32n6_timerisr.c` uses `STM32_CPUCLK_FREQUENCY`,
+matching upstream.  The prerequisite blocker below was resolved:
+board.h's core-tree macros (`STM32_CPUCLK_FREQUENCY`/
+`STM32_SYSCLK_FREQUENCY`/`STM32_HCLK_FREQUENCY`/`STM32_PCLK1`/`PCLK2`)
+are now overridden to `STM32_HSI_FREQUENCY` when
+`CONFIG_STM32N6_USE_PLL1` is not set, so the macro always describes the
+clock source actually selected via Kconfig.  With the shipped default
+(`USE_PLL1=n`) this collapses to 64 MHz, giving the correct 10 ms tick;
+enabling PLL1 makes it track the 200/800 MHz target `stm32n6_clock-
+config()` actually programs.
 
-**Why not ported:** verified with an explicit calculation (see
-commit `0e97e28`) that board.h's `STM32_CPUCLK_FREQUENCY` describes
-the frequency the CPU *would* run at once `CONFIG_STM32N6_USE_PLL1`
-is enabled (200 MHz or 800 MHz depending on the
-`CONFIG_EDGESIGHT_CLOCK_800MHZ` branch) -- it does not track whether
-PLL1 is actually enabled in `.config`. The shipped default has
-`CONFIG_STM32N6_USE_PLL1=n`, so the CPU is still running from HSI at
-64 MHz. Using `STM32_CPUCLK_FREQUENCY` in that configuration would
-make every OS tick ~3.1x too slow (computed: 200 MHz reload count
-divided by the real 64 MHz clock rate gives a 31.2 ms tick instead of
-the intended 10 ms).
+**Original blocker (resolved):** board.h previously defined
+`STM32_CPUCLK_FREQUENCY` as the PLL1 *target* unconditionally, so using
+it while PLL1 was disabled would have computed a 200 MHz reload against
+a real 64 MHz clock -- a ~3.1x-too-slow tick (31.2 ms instead of
+10 ms).
 
-**What needs to happen before this can be revisited:** board.h's
-`STM32_CPUCLK_FREQUENCY`/`STM32_SYSCLK_FREQUENCY`/etc. macros need to
-be made conditional on whether `CONFIG_STM32N6_USE_PLL1` is actually
-set, so they always describe the *actual* running frequency rather
-than the frequency PLL1 *would* produce if enabled. Once that's true,
-switch `stm32n6_timerisr.c` to use `STM32_CPUCLK_FREQUENCY`
-unconditionally, matching upstream, and re-verify the tick rate on
-real hardware with a logic analyzer or scope on a GPIO toggled once
-per `nxsched_process_timer()` call.
+**Still to verify on real hardware (ADR-004):** confirm the tick rate
+with a scope/logic analyzer on a GPIO toggled once per
+`nxsched_process_timer()` call, in both `USE_PLL1=n` and `USE_PLL1=y`
+builds.
 
-## 5. `__start()`: naked dispatcher clearing MSPLIM/PSPLIM
+## 5. `__start()`: naked dispatcher clearing MSPLIM/PSPLIM -- PORTED
 
 **Upstream:** `__start()` is `naked` + `noinstrument_function` and
 its first act is `msr msplim, r0` / `msr psplim, r0` (both zeroed)
@@ -106,24 +103,34 @@ before tail-calling `__start_c()`, because "the STM32N6 boot ROM (DEV
 mode) leaves MSPLIM and PSPLIM set such that the first stack push
 from C code can fault."
 
-**This repo:** `__start()` is an ordinary (non-naked) C function; no
-MSPLIM/PSPLIM handling.
+**This repo (now):** `__start()` is a `naked` + `noinstrument_function`
+dispatcher that zeroes MSPLIM/PSPLIM and tail-calls `__start_c()`,
+matching upstream.  The real boot logic moved into `__start_c()`.  As
+part of the same change, `__start_c()` now points VTOR at the SRAM
+vector table (`putreg32(_vectors, NVIC_VECTAB)`) as its first action,
+closing the reset-to-`up_irqinitialize()` window during which VTOR
+would otherwise still point at the boot ROM's table and dispatch any
+early fault into ROM.
 
-**Why not ported:** this repo has never observed the boot-time stack
-fault upstream's comment describes, and there is no way to confirm
-whether it is present on this board's actual boot ROM revision
-without a real device and a debugger session to inspect MSPLIM/PSPLIM
-at reset. Porting a `naked` function with inline assembly on
-unverified assumptions about register state risks introducing a
-*new*, harder-to-diagnose boot failure if the assumptions don't hold
-for this specific board/boot-ROM combination.
+**Why the earlier "defer" reasoning was wrong:** the previous revision
+of this doc deferred this fix on the grounds that the boot-time stack
+fault had "never been observed."  That was circular -- the port had
+only ever run under QEMU (mps3-an547) and this repo's Renode model,
+neither of which emulates the STM32N6 DEV boot ROM, so neither leaves a
+non-zero MSPLIM for the first C-code push to hit.  "Not observed in
+simulators that cannot reproduce the trigger" is not evidence of
+absence on real silicon.  Because `__start()` is a C function with
+locals and calls, its compiler prologue pushes immediately, so a
+non-zero ROM-set MSPLIM would fault before the first UART character --
+a silent hang, since VTOR still pointed at ROM.  This is the single
+most likely cause of a "flashed image produces no output" failure, and
+the fix (naked prologue-free clear) is pure software with no downside
+even if MSPLIM happens to already be zero.
 
-**What needs to happen before this can be revisited:** with a
-debugger attached at reset (before any NuttX code runs), read
-MSPLIM and PSPLIM. If they are non-zero and would fault on the first
-stack push, port this fix. If they are already zero, this fix is not
-needed for this board's boot ROM revision and should stay
-undocumented-as-unnecessary rather than blindly copied.
+**Still to verify on real hardware (ADR-004):** with a debugger at
+reset, read MSPLIM/PSPLIM to confirm the ROM leaves them non-zero (the
+assumption motivating the fix), and confirm the image now boots to the
+NSH prompt.
 
 ## 6. `__start_c()`: SysTick disable + PENDSTCLR (FSBL chain-load compatibility)
 
@@ -172,7 +179,7 @@ LE-form loops that need this bit), port `stm32_enable_lob()` and
 verify with a disassembly that the relevant loops actually execute
 correctly with and without the bit set.
 
-## 8. ES0620 / BSEC / SYSCFG erratum mitigations
+## 8. ES0620 / BSEC / SYSCFG erratum mitigations -- PARTIALLY PORTED
 
 **Upstream:** `__start_c()` sets `RCC_APB4HENR_BSECEN` "per ES0620,
 BSECEN must remain set or WFI/sleep fails," configures `LPEN` bits
@@ -181,38 +188,43 @@ so clocks keep running through WFI, calls
 `SYSCFG_CCCR_ES0620_MANUAL` to `STM32_SYSCFG_VDDIO2CCCR`/
 `VDDIO3CCCR`/`VDDCCCR` as an "ES0620 I/O-compensation mitigation."
 
-**This repo:** none of this is implemented. `stm32_pwr_enablevddio()`
-itself *was* ported as an API in commit `925a6fd` (PWR stage), but
-it is not yet called from `__start_c()`/`stm32n6_start.c`, and none
-of the SYSCFG/BSEC/LPEN erratum-specific register writes were
-ported.
+**This repo -- what is now ported (the WFI-survival subset):**
+`__start_c()` now sets `RCC_APB4ENR2_BSECEN | RCC_APB4ENR2_SYSCFGEN`
+(via the `APB4ENSR2` set alias) and the `BUSLPENR` (ACLKN/ACLKNC) +
+`MEMLPENR` (all AXISRAM + CACHEAXIRAM) + `APB2LPENR` (USART1) LPEN
+bits.  These were split out from the rest of ES0620 and ported because
+they are *not* speculative erratum mitigations -- they are required
+for `up_idle()`'s `WFI` to be survivable: this image runs from AXISRAM,
+and without the LPEN bits the RAM/bus clock stops during CSLEEP and the
+core never wakes from the SysTick interrupt.  BSECEN is kept set for
+the same WFI-survival reason ST documents.  (Note the register-naming
+difference from upstream: the BSEC/SYSCFG enables live in `APB4ENR2`
+here, per CMSIS `RCC_APB4ENR2_*`, not upstream's `APB4HENR` name.)
 
-**Why not ported:** ES0620 is a specific silicon errata entry from
-ST's errata sheet for this chip family. Whether this repo's actual
-silicon revision is affected, and whether the specific mitigation
-sequence upstream uses is complete and correct for this board's
-power/IO configuration, cannot be determined without: (a) the errata
-sheet for the exact silicon revision on hand, and (b) real hardware
-to confirm the symptom (WFI/sleep failing, or I/O compensation
-issues) is actually present, and that the mitigation resolves it
-without side effects. Copying an erratum workaround for a chip
-revision that may not need it is not free -- it changes BSEC/SYSCFG/
-LPEN register state on every boot for no benefit if the erratum does
-not apply here, and a wrong sequence could mask a real problem or
-introduce a new one.
+**This repo -- what is still NOT ported (the true I/O-compensation
+erratum):** the `stm32_pwr_enablevddio(BOARD_PWR_VDDIO)` call site and
+the `SYSCFG_CCCR_ES0620_MANUAL` writes to `VDDIO2CCCR`/`VDDIO3CCCR`/
+`VDDCCCR`.  `stm32_pwr_enablevddio()` still exists only as an unused
+API (ported in commit `925a6fd`); the SYSCFG CCCR registers are not
+even defined in this repo's headers yet.
 
-**What needs to happen before this can be revisited:**
+**Why the I/O-compensation part stays deferred:** the VDDIO/CCCR writes
+are a genuine silicon-errata mitigation whose applicability depends on
+the exact silicon revision and this board's power/IO wiring, and a
+wrong compensation value can *degrade* I/O timing rather than fix it.
+Unlike the LPEN bits (which have an unambiguous, testable
+failure mode -- WFI never wakes), the CCCR mitigation cannot be
+validated without the errata sheet for the silicon on hand plus a real
+board to measure I/O behaviour before/after.
+
+**What needs to happen before the rest can be revisited:**
 1. Confirm the exact STM32N647X0 silicon revision/date code on the
-   real board once available, and check it against ST's ES0620
-   errata sheet to see if it is affected.
-2. If affected, port `stm32_pwr_enablevddio(BOARD_PWR_VDDIO)`'s call
-   site into `stm32n6_start.c`, along with the `RCC_APB4HENR_BSECEN`/
-   `SYSCFGEN` set, the `BUSLPENR`/`MEMLPENR`/`APB2LPENR` LPEN bits,
-   and the `SYSCFG_CCCR_ES0620_MANUAL` writes -- verify WFI/sleep
-   actually works (or actually fails without the fix) on real
-   hardware before and after.
-3. If not affected, leave this undone; do not port erratum code for
-   a problem that does not exist on this board's silicon.
+   real board, and check it against ST's ES0620 errata sheet.
+2. If affected, define the `SYSCFG_*CCCR` registers, port
+   `stm32_pwr_enablevddio(BOARD_PWR_VDDIO)`'s call site and the
+   `SYSCFG_CCCR_ES0620_MANUAL` writes into `__start_c()`, and measure
+   I/O compensation behaviour on hardware before/after.
+3. If not affected, leave the I/O-compensation writes undone.
 
 ## 9. `.data` copy guard (partially ported, one difference remains)
 
