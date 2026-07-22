@@ -188,25 +188,35 @@ so clocks keep running through WFI, calls
 `SYSCFG_CCCR_ES0620_MANUAL` to `STM32_SYSCFG_VDDIO2CCCR`/
 `VDDIO3CCCR`/`VDDCCCR` as an "ES0620 I/O-compensation mitigation."
 
-**This repo -- what is now ported (the WFI-survival subset):**
+**This repo -- what is now ported (WFI survival + VDDIO supply-valid):**
 `__start_c()` now sets `RCC_APB4ENR2_BSECEN | RCC_APB4ENR2_SYSCFGEN`
 (via the `APB4ENSR2` set alias) and the `BUSLPENR` (ACLKN/ACLKNC) +
 `MEMLPENR` (all AXISRAM + CACHEAXIRAM) + `APB2LPENR` (USART1) LPEN
-bits.  These were split out from the rest of ES0620 and ported because
-they are *not* speculative erratum mitigations -- they are required
-for `up_idle()`'s `WFI` to be survivable: this image runs from AXISRAM,
-and without the LPEN bits the RAM/bus clock stops during CSLEEP and the
-core never wakes from the SysTick interrupt.  BSECEN is kept set for
-the same WFI-survival reason ST documents.  (Note the register-naming
-difference from upstream: the BSEC/SYSCFG enables live in `APB4ENR2`
-here, per CMSIS `RCC_APB4ENR2_*`, not upstream's `APB4HENR` name.)
+bits, and it now also calls `stm32n6_pwr_enablevddio(BOARD_PWR_VDDIO)`
+before `stm32n6_lowsetup()` drives the console pins.  These were split
+out from the rest of ES0620 and ported because they are *not*
+speculative erratum mitigations -- they are hard boot prerequisites:
+
+- The LPEN bits + BSECEN are required for `up_idle()`'s `WFI` to be
+  survivable: this image runs from AXISRAM, and without them the
+  RAM/bus clock stops during CSLEEP and the core never wakes from the
+  SysTick interrupt.
+- The `enablevddio()` call is required for the console to emit anything
+  at all.  USART1's PE5/PE6 (AF7) are on GPIO port E, which the
+  datasheet (DS14791 Table 18, notes 9/10) places on the VDDIO3/VDDIO2
+  domains; those reset as not-supply-valid, so the pads cannot drive a
+  level until the `PWR_SVMCR3` SV bits (in `BOARD_PWR_VDDIO`) are set.
+  This is the same port-E-on-VddIO2/3 fact upstream's nucleo board.h
+  documents, and our board.h uses a bit-identical `BOARD_PWR_VDDIO`.
+
+(Note the register-naming difference from upstream: the BSEC/SYSCFG
+enables live in `APB4ENR2` here, per CMSIS `RCC_APB4ENR2_*`, not
+upstream's `APB4HENR` name.)
 
 **This repo -- what is still NOT ported (the true I/O-compensation
-erratum):** the `stm32_pwr_enablevddio(BOARD_PWR_VDDIO)` call site and
-the `SYSCFG_CCCR_ES0620_MANUAL` writes to `VDDIO2CCCR`/`VDDIO3CCCR`/
-`VDDCCCR`.  `stm32_pwr_enablevddio()` still exists only as an unused
-API (ported in commit `925a6fd`); the SYSCFG CCCR registers are not
-even defined in this repo's headers yet.
+erratum):** the `SYSCFG_CCCR_ES0620_MANUAL` writes to `VDDIO2CCCR`/
+`VDDIO3CCCR`/`VDDCCCR`, and the `INITSVTORCR` secure-vector write.  The
+SYSCFG CCCR registers are not even defined in this repo's headers yet.
 
 **Why the I/O-compensation part stays deferred:** the VDDIO/CCCR writes
 are a genuine silicon-errata mitigation whose applicability depends on

@@ -36,7 +36,9 @@
 #include "arm_internal.h"
 #include "nvic.h"
 #include "hardware/stm32_rcc.h"
+#include "hardware/stm32_pwr.h"
 #include "stm32n6_rcc.h"
+#include "stm32n6_pwr.h"
 #include "stm32n6_lowputc.h"
 
 /****************************************************************************
@@ -205,6 +207,19 @@ void __start_c(void)
 
   putreg32(RCC_CCIPR13_USART1SEL_HSI, STM32_RCC_CCIPR13);
 #endif
+
+  /* Mark the board's I/O voltage domains as supply-valid before any GPIO
+   * pad is driven.  The USART1 console pins PE5/PE6 (AF7) are on GPIO
+   * port E, which the datasheet (DS14791 Table 18 notes 9/10) places on
+   * the VDDIO3/VDDIO2 domains; those domains reset as not-supply-valid,
+   * so their pads cannot drive a level until the matching SV bits are
+   * set.  Without this the CPU boots but the UART emits nothing.  The
+   * PWR_SVMCR3_* mask is board-specific and supplied by board.h via
+   * BOARD_PWR_VDDIO.  (PWR is on an always-on domain and needs no clock
+   * gate, matching upstream's call site.)
+   */
+
+  stm32n6_pwr_enablevddio(BOARD_PWR_VDDIO);
 
   /* Enable instruction and data caches.
    *
