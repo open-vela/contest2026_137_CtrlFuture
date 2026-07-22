@@ -52,11 +52,15 @@
  *   scheduler and timer tick both work correctly either way; the CPU
  *   simply never enters a low-power WFI wait state while idle).
  *
- *   SLEEPDEEP is cleared once at boot (see stm32n6_start.c's __start()),
- *   so WFI here enters plain SLEEP mode: the system clock keeps running
- *   and SysTick continues to fire, waking the CPU on the next tick.
- *   This repo has no CONFIG_ARCH_LEDS/LED_IDLE board LED abstraction, so
- *   upstream's BEGIN_IDLE()/END_IDLE() LED hooks are omitted.
+ *   SLEEPDEEP is cleared once at boot (see stm32n6_start.c's
+ *   __start_c()), so WFI here enters plain SLEEP mode.  __start_c() also
+ *   sets the BUSLPENR/MEMLPENR LPEN bits (and, per ES0620, keeps BSECEN
+ *   set) so the AXISRAM bus/RAM clocks this image runs from keep running
+ *   through CSLEEP; SysTick therefore continues to fire and wakes the
+ *   CPU on the next tick.  Without those LPEN bits WFI would stall the
+ *   RAM clock and the core would never wake.  This repo has no
+ *   CONFIG_ARCH_LEDS/LED_IDLE board LED abstraction, so upstream's
+ *   BEGIN_IDLE()/END_IDLE() LED hooks are omitted.
  *
  ****************************************************************************/
 
