@@ -137,17 +137,29 @@
 #  undef STM32_HCLK_FREQUENCY
 #  undef STM32_PCLK1_FREQUENCY
 #  undef STM32_PCLK2_FREQUENCY
+
+/* CPU/SYSCLK stay on HSI, but the FSBL leaves the AHB prescaler at /2
+ * (verified live on real silicon: RCC_CFGR2 HPRE field = SYSCLKd2).  The
+ * Cortex-M55 core clock (CPUCLK, which drives SysTick via CLKSOURCE=1) is
+ * taken ahead of HPRE and stays at the full HSI rate, but the AXI/AHB bus
+ * and every APB peripheral (timers included) run at HCLK = SYSCLK/2.
+ */
+
 #  define STM32_CPUCLK_FREQUENCY  STM32_HSI_FREQUENCY
 #  define STM32_SYSCLK_FREQUENCY  STM32_HSI_FREQUENCY
-#  define STM32_HCLK_FREQUENCY    STM32_HSI_FREQUENCY
-#  define STM32_PCLK1_FREQUENCY   STM32_HSI_FREQUENCY
-#  define STM32_PCLK2_FREQUENCY   STM32_HSI_FREQUENCY
+#  define STM32_HCLK_FREQUENCY    (STM32_HSI_FREQUENCY / 2)
+#  define STM32_PCLK1_FREQUENCY   STM32_HCLK_FREQUENCY
+#  define STM32_PCLK2_FREQUENCY   STM32_HCLK_FREQUENCY
 #endif
 
-/* Timer input clock = SYSCLK (TIMPRE=0 default) */
+/* APB timer kernel clock.  On STM32N6 the timer domain derives from the
+ * bus clock (PCLKx) through HPRE/PPREx, NOT directly from SYSCLK.  With
+ * PPREx=/1 and TIMPRE=0 there is no timer-clock doubling, so the timer
+ * input clock equals PCLKx.
+ */
 
-#define STM32_APB1_TIM_FREQUENCY STM32_SYSCLK_FREQUENCY
-#define STM32_APB2_TIM_FREQUENCY STM32_SYSCLK_FREQUENCY
+#define STM32_APB1_TIM_FREQUENCY STM32_PCLK1_FREQUENCY
+#define STM32_APB2_TIM_FREQUENCY STM32_PCLK2_FREQUENCY
 
 /* I/O voltage domains ******************************************************/
 

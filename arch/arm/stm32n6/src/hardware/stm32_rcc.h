@@ -91,6 +91,7 @@
 #define STM32_RCC_AHB5ENR_OFFSET    0x0260  /* AHB5 periph clock enable */
 #define STM32_RCC_APB1ENR1_OFFSET   0x0264  /* APB1 periph clock enable 1 */
 #define STM32_RCC_APB1ENR2_OFFSET   0x0268  /* APB1 periph clock enable 2 */
+#define STM32_RCC_APB1LPENR1_OFFSET 0x02a4  /* APB1 sleep clock enable 1 */
 #define STM32_RCC_APB2ENR_OFFSET    0x026c  /* APB2 periph clock enable */
 #define STM32_RCC_APB4ENR1_OFFSET   0x0274  /* APB4 periph clock enable 1 */
 #define STM32_RCC_APB4ENR2_OFFSET   0x0278  /* APB4 periph clock enable 2 */
@@ -146,6 +147,7 @@
 #define STM32_RCC_AHB5ENR    (STM32_RCC_BASE + STM32_RCC_AHB5ENR_OFFSET)
 #define STM32_RCC_APB1ENR1   (STM32_RCC_BASE + STM32_RCC_APB1ENR1_OFFSET)
 #define STM32_RCC_APB1ENR2   (STM32_RCC_BASE + STM32_RCC_APB1ENR2_OFFSET)
+#define STM32_RCC_APB1LPENR1 (STM32_RCC_BASE + STM32_RCC_APB1LPENR1_OFFSET)
 #define STM32_RCC_APB2ENR    (STM32_RCC_BASE + STM32_RCC_APB2ENR_OFFSET)
 #define STM32_RCC_APB4ENR1   (STM32_RCC_BASE + STM32_RCC_APB4ENR1_OFFSET)
 #define STM32_RCC_APB4ENR2   (STM32_RCC_BASE + STM32_RCC_APB4ENR2_OFFSET)
@@ -345,6 +347,14 @@
 /* AHB1ENR bits: GPDMA1 enable */
 
 #define RCC_AHB1ENR_GPDMA1EN     (1 << 0)
+
+/* APB1LPENR1 bits: keep the peripheral clock running through CPU Sleep
+ * (WFI).  Without the matching LPEN bit an APB1 peripheral's clock gates
+ * while the core idles, so its counter freezes and never raises an update
+ * interrupt to wake the CPU.
+ */
+
+#define RCC_APB1LPENR1_TIM2LPEN  (1 << 0)
 
 /* APB1ENR1 bits: peripheral enables */
 
