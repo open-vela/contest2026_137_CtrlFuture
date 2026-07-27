@@ -47,6 +47,7 @@
 #define STM32_RCC_CFGR1_OFFSET      0x0020  /* Clock configuration 1 */
 #define STM32_RCC_CFGR2_OFFSET      0x0024  /* Clock configuration 2 */
 #define STM32_RCC_CCIPR7_OFFSET     0x015c  /* Kernel clock select 7 (RTC) */
+#define STM32_RCC_CCIPR12_OFFSET    0x0170  /* Kernel clock select 12 (LPTIM1) */
 #define STM32_RCC_CCIPR13_OFFSET    0x0174  /* Kernel clock select 13 */
 
 /* PLL1 configuration.  Unlike the legacy STM32Fx/Hx PLL layout, DIVN
@@ -125,6 +126,7 @@
 #define STM32_RCC_CFGR1      (STM32_RCC_BASE + STM32_RCC_CFGR1_OFFSET)
 #define STM32_RCC_CFGR2      (STM32_RCC_BASE + STM32_RCC_CFGR2_OFFSET)
 #define STM32_RCC_CCIPR7     (STM32_RCC_BASE + STM32_RCC_CCIPR7_OFFSET)
+#define STM32_RCC_CCIPR12    (STM32_RCC_BASE + STM32_RCC_CCIPR12_OFFSET)
 #define STM32_RCC_CCIPR13    (STM32_RCC_BASE + STM32_RCC_CCIPR13_OFFSET)
 
 #define STM32_RCC_PLL1CFGR1  (STM32_RCC_BASE + STM32_RCC_PLL1CFGR1_OFFSET)
@@ -199,6 +201,14 @@
 #define RCC_CCIPR7_RTCSEL_SHIFT  (8)
 #define RCC_CCIPR7_RTCSEL_MASK   (0x3 << RCC_CCIPR7_RTCSEL_SHIFT)
 #define RCC_CCIPR7_RTCSEL_LSI    (0x2 << RCC_CCIPR7_RTCSEL_SHIFT)
+
+/* Kernel clock select 12: LPTIM1 clock source (CMSIS RCC_CCIPR12_LPTIM1SEL,
+ * bits 10:8).  Encoding per ST LL: 0=PCLK1, 1=CLKP, 2=LSE, 4=LSI.
+ */
+
+#define RCC_CCIPR12_LPTIM1SEL_SHIFT (8)
+#define RCC_CCIPR12_LPTIM1SEL_MASK  (0x7 << RCC_CCIPR12_LPTIM1SEL_SHIFT)
+#define RCC_CCIPR12_LPTIM1SEL_LSI   (0x4 << RCC_CCIPR12_LPTIM1SEL_SHIFT)
 
 /* Clock configuration register 1.
  *
@@ -357,11 +367,13 @@
 
 #define RCC_APB1LPENR1_TIM2LPEN  (1 << 0)
 #define RCC_APB1LPENR1_TIM5LPEN  (1 << 3)
+#define RCC_APB1LPENR1_LPTIM1LPEN (1 << 9)
 
 /* APB1ENR1 bits: peripheral enables */
 
 #define RCC_APB1ENR1_TIM2EN      (1 << 0)
 #define RCC_APB1ENR1_TIM5EN      (1 << 3)
+#define RCC_APB1ENR1_LPTIM1EN    (1 << 9)
 #define RCC_APB1ENR1_USART2EN    (1 << 17)
 #define RCC_APB1ENR1_USART3EN    (1 << 18)
 #define RCC_APB1ENR1_UART4EN     (1 << 19)
