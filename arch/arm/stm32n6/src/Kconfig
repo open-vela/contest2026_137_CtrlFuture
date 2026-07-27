@@ -118,6 +118,16 @@ config STM32_TIM2
 		character device (/dev/timerN). TIM2 is a 32-bit timer on
 		APB1, driven at a fixed 1 MHz tick (1 us resolution).
 
+config STM32_TIM5
+	bool "TIM5 (32-bit one-shot timer)"
+	default n
+	select ONESHOT
+	---help---
+		Enable the TIM5 timer as a NuttX one-shot lower-half
+		(/dev/oneshot). TIM5 is a 32-bit timer on APB1, run as a
+		free-running counter at a 1 MHz tick with an output-compare
+		alarm for the one-shot deadline.
+
 config STM32_RTC
 	bool "RTC (Real-Time Clock)"
 	default n

@@ -42,9 +42,12 @@
 #define STM32_TIM_DIER_OFFSET    0x000c  /* DMA/interrupt enable register */
 #define STM32_TIM_SR_OFFSET      0x0010  /* Status register */
 #define STM32_TIM_EGR_OFFSET     0x0014  /* Event generation register */
+#define STM32_TIM_CCMR1_OFFSET   0x0018  /* Capture/compare mode register 1 */
+#define STM32_TIM_CCER_OFFSET    0x0020  /* Capture/compare enable register */
 #define STM32_TIM_CNT_OFFSET     0x0024  /* Counter register */
 #define STM32_TIM_PSC_OFFSET     0x0028  /* Prescaler register */
 #define STM32_TIM_ARR_OFFSET     0x002c  /* Auto-reload register */
+#define STM32_TIM_CCR1_OFFSET    0x0034  /* Capture/compare register 1 */
 
 /* Register Addresses *******************************************************/
 
@@ -73,13 +76,19 @@
 /* DMA/interrupt enable register (DIER) */
 
 #define TIM_DIER_UIE             (1 << 0)  /* Update interrupt enable */
+#define TIM_DIER_CC1IE           (1 << 1)  /* Capture/compare 1 int enable */
 
 /* Status register (SR) */
 
 #define TIM_SR_UIF               (1 << 0)  /* Update interrupt flag */
+#define TIM_SR_CC1IF             (1 << 1)  /* Capture/compare 1 int flag */
 
 /* Event generation register (EGR) */
 
 #define TIM_EGR_UG               (1 << 0)  /* Update generation */
+
+/* Capture/compare enable register (CCER) */
+
+#define TIM_CCER_CC1E            (1 << 0)  /* Capture/compare 1 output enable */
 
 #endif /* __ARCH_ARM_SRC_STM32N6_HARDWARE_STM32_TIM_H */
