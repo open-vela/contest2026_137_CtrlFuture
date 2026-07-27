@@ -95,7 +95,7 @@
 
 struct stm32n6_lptim_lowerhalf_s
 {
-  const struct timer_ops_s *ops;      /* Lower-half operations (must be 1st) */
+  const struct timer_ops_s *ops;      /* Lower-half ops (must be 1st) */
   uint32_t                  base;     /* LPTIM register base address */
   int                       irq;      /* LPTIM global IRQ number */
   tccb_t                    callback; /* Upper-half timeout callback */

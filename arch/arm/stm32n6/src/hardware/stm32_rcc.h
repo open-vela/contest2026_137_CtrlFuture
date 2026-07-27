@@ -47,7 +47,7 @@
 #define STM32_RCC_CFGR1_OFFSET      0x0020  /* Clock configuration 1 */
 #define STM32_RCC_CFGR2_OFFSET      0x0024  /* Clock configuration 2 */
 #define STM32_RCC_CCIPR7_OFFSET     0x015c  /* Kernel clock select 7 (RTC) */
-#define STM32_RCC_CCIPR12_OFFSET    0x0170  /* Kernel clock select 12 (LPTIM1) */
+#define STM32_RCC_CCIPR12_OFFSET    0x0170  /* Kernel clk sel 12 (LPTIM1) */
 #define STM32_RCC_CCIPR13_OFFSET    0x0174  /* Kernel clock select 13 */
 
 /* PLL1 configuration.  Unlike the legacy STM32Fx/Hx PLL layout, DIVN

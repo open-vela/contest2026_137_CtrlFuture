@@ -73,7 +73,7 @@
  * dead wait -- Embedded Programming Rule 2).
  */
 
-#define ADC_TIMEOUT_US       10000  /* Regulator / calibration / ready / EOC */
+#define ADC_TIMEOUT_US       10000  /* Regulator/calibration/ready/EOC */
 #define ADC_REGUL_STAB_US    10     /* Voltage-regulator stabilization */
 #define ADC_VREFINT_STAB_US  12     /* VREFINT internal-path stabilization */
 

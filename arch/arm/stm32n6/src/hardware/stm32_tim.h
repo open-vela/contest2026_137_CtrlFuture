@@ -89,6 +89,6 @@
 
 /* Capture/compare enable register (CCER) */
 
-#define TIM_CCER_CC1E            (1 << 0)  /* Capture/compare 1 output enable */
+#define TIM_CCER_CC1E            (1 << 0)  /* Capture/compare 1 out enable */
 
 #endif /* __ARCH_ARM_SRC_STM32N6_HARDWARE_STM32_TIM_H */

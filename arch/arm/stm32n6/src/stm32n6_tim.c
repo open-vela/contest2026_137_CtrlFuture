@@ -76,7 +76,7 @@
 
 struct stm32n6_tim_lowerhalf_s
 {
-  const struct timer_ops_s *ops;      /* Lower-half operations (must be 1st) */
+  const struct timer_ops_s *ops;      /* Lower-half ops (must be 1st) */
   uint32_t                  base;     /* Timer register base address */
   uint32_t                  timclk;   /* Timer input clock (Hz) */
   int                       irq;      /* Timer update IRQ number */
