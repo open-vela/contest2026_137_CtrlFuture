@@ -48,6 +48,9 @@
 #  ifdef CONFIG_STM32_TIM2
 #    include "stm32n6_tim.h"
 #  endif
+#  ifdef CONFIG_STM32_TIM5
+#    include "stm32n6_oneshot.h"
+#  endif
 #endif
 
 #include <arch/board/board.h>
@@ -141,6 +144,28 @@ static int board_bringup(void)
   if (ret < 0)
     {
       syslog(LOG_ERR, "ERROR: TIM2 init failed: %d\n", ret);
+    }
+#  endif
+
+#  ifdef CONFIG_STM32_TIM5
+  /* Register TIM5 as the one-shot timer /dev/oneshot for the cmocka
+   * drivertest_oneshot suite.
+   */
+
+    {
+      struct oneshot_lowerhalf_s *os = stm32n6_oneshot_initialize(5);
+      if (os == NULL)
+        {
+          syslog(LOG_ERR, "ERROR: TIM5 oneshot init failed\n");
+        }
+      else
+        {
+          ret = oneshot_register("/dev/oneshot", os);
+          if (ret < 0)
+            {
+              syslog(LOG_ERR, "ERROR: oneshot_register failed: %d\n", ret);
+            }
+        }
     }
 #  endif
 
