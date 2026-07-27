@@ -45,9 +45,7 @@ ${CHANGED}
 - [x] Build nsh-qemu (QEMU target) passed
 - [x] QEMU smoke test (NSH prompt) passed
 - [x] Renode regression (all Robot tests) passed
-- [x] Local verification complete
-
-🤖 Generated with [Claude Code](https://claude.ai/code)"
+- [x] Local verification complete"
 fi
 
 # Check if PR already exists for this branch
