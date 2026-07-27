@@ -35,6 +35,7 @@
 #include "arm_internal.h"
 #include "stm32n6_gpio.h"
 #include "hardware/stm32_memorymap.h"
+#include "hardware/stm32_rcc.h"
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -86,6 +87,28 @@ static const uintptr_t g_gpiobase[] =
   STM32_GPIOQ_BASE,   /* 11: GPIOQ */
 };
 
+/* Per-port AHB4ENR clock-enable bit, indexed identically to g_gpiobase.
+ * GPION/O/P/Q are NOT contiguous with GPIOA-H (bits 13-16 vs 0-7), so a
+ * table lookup is required.  Positions verified against CMSIS
+ * stm32n647xx.h RCC_AHB4ENR_GPIOxEN_Pos.
+ */
+
+static const uint32_t g_gpioclken[] =
+{
+  RCC_AHB4ENR_GPIOAEN,   /* 0: GPIOA */
+  RCC_AHB4ENR_GPIOBEN,   /* 1: GPIOB */
+  RCC_AHB4ENR_GPIOCEN,   /* 2: GPIOC */
+  RCC_AHB4ENR_GPIODEN,   /* 3: GPIOD */
+  RCC_AHB4ENR_GPIOEEN,   /* 4: GPIOE */
+  RCC_AHB4ENR_GPIOFEN,   /* 5: GPIOF */
+  RCC_AHB4ENR_GPIOGEN,   /* 6: GPIOG */
+  RCC_AHB4ENR_GPIOHEN,   /* 7: GPIOH */
+  RCC_AHB4ENR_GPIONEN,   /* 8: GPION */
+  RCC_AHB4ENR_GPIOOEN,   /* 9: GPIOO */
+  RCC_AHB4ENR_GPIOPEN,   /* 10: GPIOP */
+  RCC_AHB4ENR_GPIOQEN,   /* 11: GPIOQ */
+};
+
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
@@ -129,6 +152,22 @@ int stm32n6_configgpio(uint32_t cfgset)
     }
 
   base = g_gpiobase[port];
+
+  /* Enable the port's peripheral clock before touching any of its
+   * registers.  The reset RCC state leaves most GPIO port clocks
+   * gated, so writes to a gated port are silently dropped and reads
+   * return zero -- which on real silicon manifests as an output pin
+   * that never drives and an input that never changes.  (Renode does
+   * not model this gating, so it masks the bug.)  Serialize the
+   * read-modify-write with the same lock used for the port config
+   * registers below.
+   */
+
+  flags = spin_lock_irqsave(&g_configgpio_lock);
+  regval  = getreg32(STM32_RCC_AHB4ENR);
+  regval |= g_gpioclken[port];
+  putreg32(regval, STM32_RCC_AHB4ENR);
+  spin_unlock_irqrestore(&g_configgpio_lock, flags);
 
   /* If this pin is being configured as an output, drive the
    * requested initial level (GPIO_OUTPUT_SET) on the ODR/BSRR
