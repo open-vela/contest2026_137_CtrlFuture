@@ -51,6 +51,9 @@
 #  ifdef CONFIG_STM32_TIM5
 #    include "stm32n6_oneshot.h"
 #  endif
+#  ifdef CONFIG_STM32_LPTIM1
+#    include "stm32n6_lptim.h"
+#  endif
 #  ifdef CONFIG_STM32_ADC1
 #    include "stm32n6_adc.h"
 #  endif
@@ -169,6 +172,18 @@ static int board_bringup(void)
               syslog(LOG_ERR, "ERROR: oneshot_register failed: %d\n", ret);
             }
         }
+    }
+#  endif
+
+#  ifdef CONFIG_STM32_LPTIM1
+  /* Register LPTIM1 as the timer character device /dev/timer1 for the
+   * cmocka drivertest_timer suite (LSI-clocked periodic timeouts).
+   */
+
+  ret = stm32n6_lptim_initialize("/dev/timer1", 1);
+  if (ret < 0)
+    {
+      syslog(LOG_ERR, "ERROR: LPTIM1 init failed: %d\n", ret);
     }
 #  endif
 

@@ -128,6 +128,17 @@ config STM32_TIM5
 		free-running counter at a 1 MHz tick with an output-compare
 		alarm for the one-shot deadline.
 
+config STM32_LPTIM1
+	bool "LPTIM1 (low-power timer)"
+	default n
+	select TIMER
+	---help---
+		Enable LPTIM1 as a NuttX timer character device (/dev/timerN).
+		LPTIM1 is a 16-bit low-power timer clocked from the LSI
+		(~32kHz), run here as a plain periodic timer.  Its low-power
+		Stop-mode wake and PWM-output functions are separate ADR-028
+		sub-items and are not exposed by this driver.
+
 config STM32_ADC1
 	bool "ADC1 (12-bit analog-to-digital converter)"
 	default n
