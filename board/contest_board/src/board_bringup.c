@@ -45,6 +45,9 @@
 #  ifdef CONFIG_DEV_GPIO
 #    include "stm32n6_gpio.h"
 #  endif
+#  ifdef CONFIG_STM32_TIM2
+#    include "stm32n6_tim.h"
+#  endif
 #endif
 
 #include <arch/board/board.h>
@@ -126,6 +129,18 @@ static int board_bringup(void)
   if (ret < 0)
     {
       syslog(LOG_ERR, "ERROR: gpio2 (PC6) init failed: %d\n", ret);
+    }
+#  endif
+
+#  ifdef CONFIG_STM32_TIM2
+  /* Register TIM2 as the timer character device /dev/timer0 for the
+   * cmocka drivertest_timer suite (periodic 1 us-resolution timeouts).
+   */
+
+  ret = stm32n6_timer_initialize("/dev/timer0", 2);
+  if (ret < 0)
+    {
+      syslog(LOG_ERR, "ERROR: TIM2 init failed: %d\n", ret);
     }
 #  endif
 
