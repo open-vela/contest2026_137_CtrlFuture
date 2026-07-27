@@ -51,6 +51,9 @@
 #  ifdef CONFIG_STM32_TIM5
 #    include "stm32n6_oneshot.h"
 #  endif
+#  ifdef CONFIG_STM32_ADC1
+#    include "stm32n6_adc.h"
+#  endif
 #endif
 
 #include <arch/board/board.h>
@@ -166,6 +169,18 @@ static int board_bringup(void)
               syslog(LOG_ERR, "ERROR: oneshot_register failed: %d\n", ret);
             }
         }
+    }
+#  endif
+
+#  ifdef CONFIG_STM32_ADC1
+  /* Register ADC1 as /dev/adc0 for the cmocka drivertest_adc suite.  It
+   * samples the chip-internal VREFINT source (no external wiring).
+   */
+
+  ret = stm32n6_adc_initialize("/dev/adc0", 1);
+  if (ret < 0)
+    {
+      syslog(LOG_ERR, "ERROR: ADC1 init failed: %d\n", ret);
     }
 #  endif
 

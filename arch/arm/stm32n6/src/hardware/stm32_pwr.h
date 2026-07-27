@@ -70,8 +70,10 @@
  * from CMSIS PWR_SVMCR3)
  */
 
+#define PWR_SVMCR3_AVMEN        (1 << 4)  /* VDDA18ADC voltage monitor en */
 #define PWR_SVMCR3_VDDIO2SV     (1 << 8)
 #define PWR_SVMCR3_VDDIO3SV     (1 << 9)
+#define PWR_SVMCR3_ASV          (1 << 12) /* VDDA18ADC supply valid */
 #define PWR_SVMCR3_VDDIO2VRSEL  (1 << 16)
 #define PWR_SVMCR3_VDDIO3VRSEL  (1 << 17)
 
