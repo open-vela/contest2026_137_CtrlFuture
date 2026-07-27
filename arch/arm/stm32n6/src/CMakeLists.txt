@@ -43,4 +43,11 @@ if(CONFIG_STM32_RNG)
   list(APPEND SRCS stm32n6_rng.c)
 endif()
 
+if(CONFIG_STM32_RTC)
+  list(APPEND SRCS stm32n6_rtc.c)
+  if(CONFIG_RTC_DRIVER)
+    list(APPEND SRCS stm32n6_rtc_lowerhalf.c)
+  endif()
+endif()
+
 target_sources(arch PRIVATE ${SRCS})

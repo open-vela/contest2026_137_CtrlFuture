@@ -41,6 +41,9 @@ endif
 
 ifeq ($(CONFIG_STM32_RTC),y)
   CHIP_CSRCS += stm32n6_rtc.c
+ifeq ($(CONFIG_RTC_DRIVER),y)
+  CHIP_CSRCS += stm32n6_rtc_lowerhalf.c
+endif
 endif
 
 ifneq ($(filter y,$(CONFIG_STM32_I2C1) $(CONFIG_STM32_I2C2)),)

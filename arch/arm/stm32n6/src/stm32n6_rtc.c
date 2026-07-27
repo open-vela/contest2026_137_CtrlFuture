@@ -32,11 +32,15 @@
 #include <errno.h>
 #include <debug.h>
 
+#include <time.h>
+
 #include <nuttx/arch.h>
 #include <nuttx/clock.h>
 
 #include "arm_internal.h"
 #include "stm32n6_rtc.h"
+#include "hardware/stm32_pwr.h"
+#include "hardware/stm32_rcc.h"
 #include "hardware/stm32_rtc.h"
 
 /****************************************************************************
@@ -174,6 +178,7 @@ static void rtc_exit_init(void)
 int stm32n6_rtc_initialize(void)
 {
   uint32_t regval;
+  uint32_t timeout;
   int ret;
 
   if (g_rtc_initialized)
@@ -186,6 +191,42 @@ int stm32n6_rtc_initialize(void)
   regval  = getreg32(STM32_RCC_APB4ENR1);
   regval |= RCC_APB4ENR1_RTCEN;
   putreg32(regval, STM32_RCC_APB4ENR1);
+
+  /* Configure the RTC kernel clock source.  RTCEN above only gates the
+   * APB register-interface clock; without a running kernel clock the RTC
+   * never enters init mode (INITF stays low).  Enable backup-domain write
+   * access, start the LSI oscillator, and select it as the RTC source.
+   */
+
+  regval  = getreg32(STM32_PWR_DBPCR);
+  regval |= PWR_DBPCR_DBP;
+  putreg32(regval, STM32_PWR_DBPCR);
+
+  /* Enable LSI (~32kHz) via the CSR atomic set alias, then wait for
+   * RCC_SR.LSIRDY with a bounded timeout (never spin forever on HW).
+   */
+
+  putreg32(RCC_CR_LSION, STM32_RCC_CSR);
+  for (timeout = 0; timeout < INITMODE_TIMEOUT; timeout++)
+    {
+      if ((getreg32(STM32_RCC_SR) & RCC_SR_LSIRDY) != 0)
+        {
+          break;
+        }
+    }
+
+  if ((getreg32(STM32_RCC_SR) & RCC_SR_LSIRDY) == 0)
+    {
+      rtcerr("ERROR: LSI failed to start\n");
+      return -ETIMEDOUT;
+    }
+
+  /* Select LSI as the RTC kernel clock (CCIPR7.RTCSEL = LSI) */
+
+  regval  = getreg32(STM32_RCC_CCIPR7);
+  regval &= ~RCC_CCIPR7_RTCSEL_MASK;
+  regval |= RCC_CCIPR7_RTCSEL_LSI;
+  putreg32(regval, STM32_RCC_CCIPR7);
 
   /* Unlock write protection */
 
@@ -409,3 +450,76 @@ bool stm32n6_rtc_havesettime(void)
 {
   return getreg32(STM32N6_RTC_BKP0R) == STM32N6_RTC_MAGIC_TIME_SET;
 }
+
+/****************************************************************************
+ * NuttX RTC framework bridge (CONFIG_RTC)
+ *
+ * The NuttX clock subsystem drives the RTC through the standard up_rtc_*
+ * interface and the g_rtc_enabled flag.  These wrappers adapt that interface
+ * onto the stm32n6_rtc_* primitives above.
+ ****************************************************************************/
+
+#ifdef CONFIG_RTC
+
+/* Set true once the RTC has been successfully initialized */
+
+volatile bool g_rtc_enabled = false;
+
+/****************************************************************************
+ * Name: up_rtc_initialize
+ ****************************************************************************/
+
+int up_rtc_initialize(void)
+{
+  int ret = stm32n6_rtc_initialize();
+  if (ret >= 0)
+    {
+      g_rtc_enabled = true;
+    }
+
+  return ret;
+}
+
+/****************************************************************************
+ * Name: up_rtc_getdatetime
+ ****************************************************************************/
+
+int up_rtc_getdatetime(struct tm *tp)
+{
+  return stm32n6_rtc_getdatetime(tp);
+}
+
+/****************************************************************************
+ * Name: up_rtc_time
+ ****************************************************************************/
+
+time_t up_rtc_time(void)
+{
+  struct tm tm;
+
+  if (stm32n6_rtc_getdatetime(&tm) < 0)
+    {
+      return 0;
+    }
+
+  return timegm(&tm);
+}
+
+/****************************************************************************
+ * Name: up_rtc_settime
+ ****************************************************************************/
+
+int up_rtc_settime(const struct timespec *tp)
+{
+  struct tm tm;
+
+  if (tp == NULL)
+    {
+      return -EINVAL;
+    }
+
+  gmtime_r(&tp->tv_sec, &tm);
+  return stm32n6_rtc_setdatetime(&tm);
+}
+
+#endif /* CONFIG_RTC */

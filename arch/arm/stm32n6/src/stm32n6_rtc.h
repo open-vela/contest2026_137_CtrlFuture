@@ -114,4 +114,23 @@ int stm32n6_rtc_initialize(void);
 
 bool stm32n6_rtc_havesettime(void);
 
+/****************************************************************************
+ * Name: stm32n6_rtc_lowerhalf
+ *
+ * Description:
+ *   Instantiate the RTC lower half driver for the STM32N6.  General usage:
+ *
+ *     lower = stm32n6_rtc_lowerhalf();
+ *     rtc_initialize(0, lower);
+ *
+ * Returned Value:
+ *   On success, a non-NULL RTC lower half handle is returned.  NULL is
+ *   returned on any failure.
+ *
+ ****************************************************************************/
+
+#ifdef CONFIG_RTC_DRIVER
+struct rtc_lowerhalf_s *stm32n6_rtc_lowerhalf(void);
+#endif
+
 #endif /* __ARCH_ARM_SRC_STM32N6_STM32N6_RTC_H */

@@ -46,6 +46,7 @@
 #define STM32_RCC_SR_OFFSET         0x0004  /* Clock status */
 #define STM32_RCC_CFGR1_OFFSET      0x0020  /* Clock configuration 1 */
 #define STM32_RCC_CFGR2_OFFSET      0x0024  /* Clock configuration 2 */
+#define STM32_RCC_CCIPR7_OFFSET     0x015c  /* Kernel clock select 7 (RTC) */
 #define STM32_RCC_CCIPR13_OFFSET    0x0174  /* Kernel clock select 13 */
 
 /* PLL1 configuration.  Unlike the legacy STM32Fx/Hx PLL layout, DIVN
@@ -122,6 +123,7 @@
 #define STM32_RCC_SR         (STM32_RCC_BASE + STM32_RCC_SR_OFFSET)
 #define STM32_RCC_CFGR1      (STM32_RCC_BASE + STM32_RCC_CFGR1_OFFSET)
 #define STM32_RCC_CFGR2      (STM32_RCC_BASE + STM32_RCC_CFGR2_OFFSET)
+#define STM32_RCC_CCIPR7     (STM32_RCC_BASE + STM32_RCC_CCIPR7_OFFSET)
 #define STM32_RCC_CCIPR13    (STM32_RCC_BASE + STM32_RCC_CCIPR13_OFFSET)
 
 #define STM32_RCC_PLL1CFGR1  (STM32_RCC_BASE + STM32_RCC_PLL1CFGR1_OFFSET)
@@ -170,6 +172,7 @@
  * CSR (set) atomic aliases, not by a read-modify-write on CR itself.
  */
 
+#define RCC_CR_LSION             (1 << 0)   /* LSI enable (CMSIS RCC_CR_LSION) */
 #define RCC_CR_HSION             (1 << 3)   /* HSI enable */
 #define RCC_CR_HSEON             (1 << 4)   /* HSE enable */
 #define RCC_CR_PLL1ON            (1 << 8)   /* PLL1 enable */
@@ -179,12 +182,21 @@
 
 /* Clock status register */
 
+#define RCC_SR_LSIRDY            (1 << 0)   /* LSI ready flag (CMSIS RCC_SR_LSIRDY) */
 #define RCC_SR_HSIRDY            (1 << 3)   /* HSI ready flag */
 #define RCC_SR_HSERDY            (1 << 4)   /* HSE ready flag */
 #define RCC_SR_PLL1RDY           (1 << 8)   /* PLL1 ready flag */
 #define RCC_SR_PLL2RDY           (1 << 9)   /* PLL2 ready flag */
 #define RCC_SR_PLL3RDY           (1 << 10)  /* PLL3 ready flag */
 #define RCC_SR_PLL4RDY           (1 << 11)  /* PLL4 ready flag */
+
+/* Kernel clock select 7: RTC clock source (CMSIS RCC_CCIPR7_RTCSEL,
+ * bits 9:8).  Encoding per ST HAL: 0=no clock, 1=LSE, 2=LSI, 3=HSE/div.
+ */
+
+#define RCC_CCIPR7_RTCSEL_SHIFT  (8)
+#define RCC_CCIPR7_RTCSEL_MASK   (0x3 << RCC_CCIPR7_RTCSEL_SHIFT)
+#define RCC_CCIPR7_RTCSEL_LSI    (0x2 << RCC_CCIPR7_RTCSEL_SHIFT)
 
 /* Clock configuration register 1.
  *
