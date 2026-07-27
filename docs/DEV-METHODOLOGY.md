@@ -35,8 +35,15 @@ P0 (ADR-001~003) 已完成，NuttX NSH 在 Renode 中成功启动。需要建立
 ### CI 部署
 
 ```
-本地开发 → 本地全套测试 → git push → CI 自动测试 → PR 审查
+本地开发 → 本地仿真验证 (ci-check + renode) → 真机验证 (hw-verify, MEASURED)
+        → git push → CI 自动测试 (仿真, 无真机) → PR 审查
 ```
+
+真机验证是本地链路中保真度最高的一道门, 无法进云端 CI (云端无板、
+不能依赖通电的远程板 + SSH 密码), 因此以本地 `scripts/hw-verify.sh`
+的形式固化。**测试结果以真机为准**: Renode 仿真与真机冲突时信真机
+(参见 stm32n6 boot 案例——同一固件真机全绿而 Renode 因 M55 msr MSP
+保真度缺口报错)。
 
 Renode CI 方案：
 - 使用 Renode portable tar.gz（自带 dotnet runtime，无外部依赖）
@@ -84,10 +91,21 @@ CLAUDE.md 新增一节引用：
 │    - Robot Framework: 寄存器级 + 集成级                               │
 │    - cmocka drivertest: 功能验证应用（如需要）                        │
 ├─────────────────────────────────────────────────────────────────────┤
-│ 5. Phase E: 本地验证                                                 │
+│ 5. Phase E1: 本地仿真验证                                            │
 │    - scripts/ci-check.sh (nxstyle + 编译 + QEMU)                    │
 │    - 编译 Renode (build.sh --no-gui)                                │
 │    - renode-test tests/renode/tests/ (全套回归)                      │
+├─────────────────────────────────────────────────────────────────────┤
+│ 5b. Phase E2: 真机验证 (MEASURED) —— 影响真机行为的 ADR 强制         │
+│    - export SSHPASS='<跳板机密码>' (仅注入环境变量, 不入库)          │
+│    - bash scripts/hw-verify.sh   (本地脚本, 两跳 SSH 到真机)         │
+│      两跳传 ELF (经跳板机 C:\Users\mi\remote 暂存) → 目标机;         │
+│      GDB reset/load/continue 驱动 DEV boot; stty+cat 抓串口;         │
+│      断言 ABCD / NSH / hello / uname / ps, 无 irq_unexpected_isr     │
+│    - 触发条件: ADR 改动 boot / console / 时钟 / 中断 / 任何真机       │
+│      可观测行为 → 提交前必须 HW VERIFY PASSED                        │
+│    - 豁免: 纯 Renode 模型/文档改动, 或板子物理不可用 → 可跳过,       │
+│      但须在 PR/commit 说明"未真机验证"及原因                          │
 ├─────────────────────────────────────────────────────────────────────┤
 │ 6. Phase F: 提交                                                     │
 │    - Commit 1: arch: add <periph> driver for STM32N6 (ADR-NNN)      │
@@ -102,8 +120,8 @@ CLAUDE.md 新增一节引用：
 ├─────────────────────────────────────────────────────────────────────┤
 │ 8. Phase H: 关闭                                                     │
 │    - PR 合入后，关闭对应 GitHub Issue                                 │
-│    - Issue 评论中记录验证结果                                         │
-│    - 如有真机验证，补充 MEASURED 结果                                  │
+│    - Issue 评论中记录验证结果 (仿真 + 真机 MEASURED)                  │
+│    - 真机验证的 ADR: 在 ADR 状态表标 MEASURED, 附 hw-verify 摘要      │
 └─────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -182,7 +200,8 @@ contest2026_137_CtrlFuture/
 │   ├── pr-create.sh                      (existing)
 │   ├── qemu-smoke.sh                     (existing)
 │   ├── renode-build.sh                   # 编译含自定义外设的 Renode
-│   └── renode-test.sh                    # 运行全套 Robot 测试
+│   ├── renode-test.sh                    # 运行全套 Robot 测试
+│   └── hw-verify.sh                      # 真机验证门禁 (本地不入库/gitignore)
 └── .github/workflows/
     ├── build.yml                          (existing → 扩展 renode stage)
     └── renode-test.yml                    # 新增：Renode 回归测试
@@ -396,10 +415,12 @@ Robot 文件名前缀是历史落地顺序，**不等于** ROADMAP ADR 号。
 关键检查点：
 1. 开始前：确认 GitHub Issue 存在且状态为 Open
 2. 开发中：双轨并行（驱动 + Renode 模型），互不参考
-3. 提交前：本地 `scripts/ci-check.sh` + `scripts/renode-test.sh` 全部通过
-4. 提交时：分离 commit（驱动 / 模型+测试 / 文档），标题含 (ADR-NNN)
-5. 提交后：更新 CHANGELOG.md + ADR 状态
-6. PR 合入后：关闭对应 Issue，评论验证结果
+3. 提交前（仿真）：本地 `scripts/ci-check.sh` + `scripts/renode-test.sh` 全部通过
+4. 提交前（真机，影响真机行为的 ADR 强制）：`scripts/hw-verify.sh`
+   HW VERIFY PASSED；纯模型/文档改动或板子不可用时可豁免并记录原因
+5. 提交时：分离 commit（驱动 / 模型+测试 / 文档），标题含 (ADR-NNN)
+6. 提交后：更新 CHANGELOG.md + ADR 状态（真机验证标 MEASURED）
+7. PR 合入后：关闭对应 Issue，评论验证结果（仿真 + 真机）
 
 ## Renode Custom Build
 
@@ -413,9 +434,14 @@ Robot 文件名前缀是历史落地顺序，**不等于** ROADMAP ADR 号。
 
 ## Test Commands
 
-    # 本地全套验证（提交前必须通过）
+    # 本地仿真验证（提交前必须通过）
     bash scripts/ci-check.sh           # nxstyle + 编译 + QEMU
     bash scripts/renode-test.sh        # Renode 全套回归
+
+    # 真机验证（影响真机行为的 ADR 提交前强制；本地脚本, 不入库）
+    export SSHPASS='<跳板机密码>'       # 仅注入环境变量, 切勿写入文件/提交
+    bash scripts/hw-verify.sh          # 两跳到真机: flash + 抓串口 + 断言
+    bash scripts/hw-verify.sh --no-build   # 复用已构建固件
 
     # 单个 ADR 测试
     renode-test tests/renode/tests/005-rcc.robot
