@@ -50,4 +50,8 @@ if(CONFIG_STM32_RTC)
   endif()
 endif()
 
+if(CONFIG_DEV_GPIO)
+  list(APPEND SRCS stm32n6_gpio_lower.c)
+endif()
+
 target_sources(arch PRIVATE ${SRCS})

@@ -30,6 +30,10 @@
 #include <nuttx/config.h>
 #include <stdint.h>
 
+#ifdef CONFIG_DEV_GPIO
+#  include <nuttx/ioexpander/gpio.h>
+#endif
+
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
@@ -148,5 +152,22 @@ int stm32n6_configgpio(uint32_t cfgset);
 int stm32n6_unconfiggpio(uint32_t cfgset);
 bool stm32n6_gpioread(uint32_t pinset);
 void stm32n6_gpiowrite(uint32_t pinset, bool value);
+
+#ifdef CONFIG_DEV_GPIO
+
+/****************************************************************************
+ * Name: stm32n6_gpio_lower_initialize
+ *
+ * Description:
+ *   Configure one physical pin for the given initial pintype and register
+ *   it with the GPIO character-device upper half as /dev/gpioN.  pinset
+ *   need only encode the port and pin; the mode bits are supplied by the
+ *   lower half from the pintype.
+ *
+ ****************************************************************************/
+
+int stm32n6_gpio_lower_initialize(uint32_t pinset, int minor,
+                                  enum gpio_pintype_e pintype);
+#endif
 
 #endif /* __ARCH_ARM_SRC_STM32N6_STM32N6_GPIO_H */
