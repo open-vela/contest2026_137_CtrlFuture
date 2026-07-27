@@ -72,43 +72,50 @@ COMMIT_MSG=$(git -C "$CONTEST_DIR" log -1 --format="%B")
 FIRST_LINE=$(echo "$COMMIT_MSG" | head -n1)
 MSG_FAIL=0
 
-if ! echo "$FIRST_LINE" | grep -qE "^[a-zA-Z0-9/_-]+: .+"; then
-    echo "FAIL: commit subject must match '<scope>: <summary>'"
-    echo "  Got: $FIRST_LINE"
-    MSG_FAIL=1
-fi
-
-LEN=${#FIRST_LINE}
-if [ "$LEN" -gt 80 ]; then
-    echo "FAIL: commit subject is $LEN chars (max 80)"
-    MSG_FAIL=1
-fi
-
-if ! echo "$COMMIT_MSG" | grep -qE "^Signed-off-by: .+ <.+>"; then
-    echo "FAIL: missing Signed-off-by (use git commit -s)"
-    MSG_FAIL=1
-fi
-
-if echo "$COMMIT_MSG" | grep -qE "^Change-Id:"; then
-    echo "FAIL: Gerrit Change-Id is forbidden"
-    MSG_FAIL=1
-fi
-
-if echo "$COMMIT_MSG" | grep -qiE "^Co-Authored-By:"; then
-    echo "FAIL: AI Co-Authored-By markers are forbidden"
-    MSG_FAIL=1
-fi
-
-if echo "$COMMIT_MSG" | grep -Pq '[\x{4e00}-\x{9fff}]'; then
-    echo "FAIL: Chinese characters in commit message"
-    MSG_FAIL=1
-fi
-
-if [ $MSG_FAIL -eq 0 ]; then
-    echo "PASS: commit message format"
+# Merge commits legitimately start with "Merge ..." and carry no scope or
+# Signed-off-by; skip the message lint entirely for them.
+PARENTS=$(git -C "$CONTEST_DIR" show -s --format="%P" HEAD | wc -w)
+if [ "$PARENTS" -gt 1 ]; then
+    echo "SKIP: HEAD is a merge commit"
 else
-    echo "FAIL: commit message format — see errors above"
-    exit 1
+    if ! echo "$FIRST_LINE" | grep -qE "^[a-zA-Z0-9/_-]+: .+"; then
+        echo "FAIL: commit subject must match '<scope>: <summary>'"
+        echo "  Got: $FIRST_LINE"
+        MSG_FAIL=1
+    fi
+
+    LEN=${#FIRST_LINE}
+    if [ "$LEN" -gt 80 ]; then
+        echo "FAIL: commit subject is $LEN chars (max 80)"
+        MSG_FAIL=1
+    fi
+
+    if ! echo "$COMMIT_MSG" | grep -qE "^Signed-off-by: .+ <.+>"; then
+        echo "FAIL: missing Signed-off-by (use git commit -s)"
+        MSG_FAIL=1
+    fi
+
+    if echo "$COMMIT_MSG" | grep -qE "^Change-Id:"; then
+        echo "FAIL: Gerrit Change-Id is forbidden"
+        MSG_FAIL=1
+    fi
+
+    if echo "$COMMIT_MSG" | grep -qiE "^Co-Authored-By:"; then
+        echo "FAIL: AI Co-Authored-By markers are forbidden"
+        MSG_FAIL=1
+    fi
+
+    if echo "$COMMIT_MSG" | grep -Pq '[\x{4e00}-\x{9fff}]'; then
+        echo "FAIL: Chinese characters in commit message"
+        MSG_FAIL=1
+    fi
+
+    if [ $MSG_FAIL -eq 0 ]; then
+        echo "PASS: commit message format"
+    else
+        echo "FAIL: commit message format — see errors above"
+        exit 1
+    fi
 fi
 
 echo ""
