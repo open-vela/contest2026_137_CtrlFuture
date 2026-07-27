@@ -37,6 +37,7 @@
 #include "nvic.h"
 #include "hardware/stm32_rcc.h"
 #include "hardware/stm32_pwr.h"
+#include "hardware/stm32_syscfg.h"
 #include "stm32n6_rcc.h"
 #include "stm32n6_pwr.h"
 #include "stm32n6_lowputc.h"
@@ -88,6 +89,28 @@ static inline void showprogress(char c)
 #else
 #  define showprogress(c)
 #endif
+
+/****************************************************************************
+ * Name: stm32n6_enable_lob
+ *
+ * Description:
+ *   Enable the Cortex-M55 ARMv8.1-M Low-Overhead Branch extension
+ *   (CCR.LOB).  This gates the WLS/DLS/LE loop instructions the compiler
+ *   may emit and the MVE data path.  CCR.LOB resets to 0, so it must be
+ *   set before any loop the compiler could lower with LE runs.  Matches
+ *   upstream stm32_start.c stm32_enable_lob().
+ *
+ ****************************************************************************/
+
+static inline void stm32n6_enable_lob(void)
+{
+  uint32_t regval;
+
+  regval  = getreg32(NVIC_CFGCON);
+  regval |= NVIC_CFGCON_LOB;
+  putreg32(regval, NVIC_CFGCON);
+  UP_ISB();
+}
 
 /****************************************************************************
  * Public Functions
@@ -151,6 +174,15 @@ void __start_c(void)
 
   putreg32((uint32_t)_vectors, NVIC_VECTAB);
 
+  /* When chain-loaded by an FSBL that called HAL_Init(), SysTick may be
+   * left running.  Disable it and clear any pending SysTick interrupt so
+   * it does not fire before NuttX has attached its handler.  Matches
+   * upstream stm32_start.c.
+   */
+
+  putreg32(0, NVIC_SYSTICK_CTRL);
+  putreg32(NVIC_INTCTRL_PENDSTCLR, NVIC_INTCTRL);
+
   /* Force plain SLEEP (not DEEPSLEEP) on WFI so the system clock keeps
    * running and SysTick continues to wake us.  Cleared once here so
    * up_idle()'s WFI stays a shallow sleep on every idle entry.  (Resets
@@ -159,6 +191,15 @@ void __start_c(void)
    */
 
   modifyreg32(NVIC_SYSCON, NVIC_SYSCON_SLEEPDEEP, 0);
+
+  /* Enable the FPU before stm32n6_clockconfig and the rest of init.  With
+   * the hard-float ABI the compiler may emit FPU instructions later, and
+   * any exception entry will try to push FP context -- both require
+   * CP10/CP11 to be enabled.  arm_fpuconfig() is a no-op unless
+   * CONFIG_ARCH_FPU is set.
+   */
+
+  arm_fpuconfig();
 
   /* Clear .bss */
 
@@ -190,6 +231,12 @@ void __start_c(void)
           *dest++ = *src++;
         }
     }
+
+  /* Enable the Cortex-M55 Low-Overhead-Branch extension before any code
+   * that the compiler may have lowered with LE/WLS/DLS runs.
+   */
+
+  stm32n6_enable_lob();
 
   /* Configure clocks */
 
@@ -237,25 +284,36 @@ void __start_c(void)
 
   stm32n6_pwr_enablevddio(BOARD_PWR_VDDIO);
 
-  /* Enable instruction and data caches.
-   *
-   * The MPU is compiled in (CONFIG_ARM_MPU) but no region is programmed
-   * in the boot path, so the default background memory map applies: the
-   * SRAM at 0x34000000 is normal cacheable memory, which matches these
-   * cache enables.  Upstream's nucleo-n657x0-q board does not enable the
-   * caches in its boot path at all; this port does, and doing so here
-   * (before any MPU region could change an attribute) is safe precisely
-   * because no MPU region is ever programmed.
+  /* Apply the ES0620 I/O-compensation mitigation (write 0x287) to the
+   * domains we use.  Only VDDIO2 and VDDIO3 are touched: the other
+   * VDDIOxCCCR registers cannot be accessed without their VDDIOxSV bit
+   * set first (a separate ES0620 constraint), and only VDDIO2/3 are
+   * declared supply-valid in BOARD_PWR_VDDIO above.  The register
+   * offsets come from ST CMSIS stm32n647xx.h (VDDIO2CCCR=0x44,
+   * VDDIO3CCCR=0x4c), not from upstream nuttx (which mislabels 0x54/0x5c
+   * -- those are VDDIO4/5 on this silicon).  See stm32_syscfg.h.
    */
 
-#ifdef CONFIG_ARMV8M_ICACHE
-  up_enable_icache();
-#endif
-#ifdef CONFIG_ARMV8M_DCACHE
-  up_enable_dcache();
-#endif
+  putreg32(SYSCFG_CCCR_ES0620_MANUAL, STM32_SYSCFG_VDDIO2CCCR);
+  putreg32(SYSCFG_CCCR_ES0620_MANUAL, STM32_SYSCFG_VDDIO3CCCR);
+  putreg32(SYSCFG_CCCR_ES0620_MANUAL, STM32_SYSCFG_VDDCCCR);
 
-  /* Configure the UART for early debug output */
+  /* Point the Cortex-M55 secure vector-table base at our SRAM vectors,
+   * matching upstream stm32_start.c.
+   */
+
+  putreg32((uint32_t)_vectors, STM32_SYSCFG_INITSVTORCR);
+
+  /* Read-back to ensure the prior SYSCFG writes have completed before we
+   * start driving pads.
+   */
+
+  (void)getreg32(STM32_SYSCFG_VDDCCCR);
+
+  /* Configure the UART for early debug output.  From this point on
+   * showprogress() can emit characters, so the markers below let us
+   * pinpoint the boot stage by the last character printed.
+   */
 
   stm32n6_lowsetup();
   showprogress('A');
@@ -270,12 +328,19 @@ void __start_c(void)
 #endif
   showprogress('C');
 
-  /* Barrier after the SCB (VTOR) and SYSCON writes above before handing
-   * off to NuttX.
+  /* Barrier after the SCB (VTOR), SYSCON and SYSCFG (INITSVTORCR) writes
+   * above before handing off to NuttX.
    */
 
   UP_DSB();
   UP_ISB();
+
+  /* 'D' means __start_c ran to completion; anything that faults after
+   * this marker is inside nx_start() (heap init, up_irqinitialize,
+   * up_timer_initialize, board late init, ...).
+   */
+
+  showprogress('D');
 
   /* Start NuttX */
 

@@ -87,6 +87,13 @@
 #define STM32_BSEC_BASE        (STM32_APB4_BASE + 0x9000)
 #define STM32_DTS_BASE         (STM32_APB4_BASE + 0xa000)
 
+/* SYSCFG lives on APB4 at +0x8000.  CMSIS stm32n647xx.h places SYSCFG_NS
+ * at APB4PERIPH_BASE_NS + 0x8000 = 0x46008000; this port uses the
+ * non-secure alias throughout (APB4 base 0x46000000).
+ */
+
+#define STM32_SYSCFG_BASE      (STM32_APB4_BASE + 0x8000)
+
 /* AHB4 peripherals
  *
  * CMSIS stm32n647xx.h confirms this chip has GPIO ports A-H plus
