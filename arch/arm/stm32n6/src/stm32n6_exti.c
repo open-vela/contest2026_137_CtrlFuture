@@ -146,7 +146,7 @@ static void stm32n6_exti_config_line(unsigned int port,
   idx   = STM32N6_EXTI_EXTICR_INDEX(line);
   shift = STM32N6_EXTI_EXTICR_SHIFT(line);
 
-  flags = enter_critical_section();
+  flags = up_irq_save();
 
   /* Configure EXTICR: select which GPIO port maps to this EXTI line.
    * Each EXTICR entry is 8 bits wide, 4 entries per register.
@@ -182,7 +182,7 @@ static void stm32n6_exti_config_line(unsigned int port,
       modifyreg32(STM32N6_EXTI_FTSR1, mask, 0);
     }
 
-  leave_critical_section(flags);
+  up_irq_restore(flags);
 }
 
 /****************************************************************************
@@ -201,7 +201,7 @@ static void stm32n6_exti_enable_interrupt(unsigned int line, bool enable)
   DEBUGASSERT(line < 22);  /* Bank 1 covers lines 0-21 */
 
   mask  = STM32N6_EXTI_LINE_MASK(line);
-  flags = enter_critical_section();
+  flags = up_irq_save();
 
   if (enable)
     {
@@ -212,7 +212,7 @@ static void stm32n6_exti_enable_interrupt(unsigned int line, bool enable)
       modifyreg32(STM32N6_EXTI_IMR1, mask, 0);
     }
 
-  leave_critical_section(flags);
+  up_irq_restore(flags);
 }
 
 /****************************************************************************
