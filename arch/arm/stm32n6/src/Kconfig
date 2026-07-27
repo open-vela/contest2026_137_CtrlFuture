@@ -109,6 +109,15 @@ config STM32_EXTI
 		driver. Supports GPIO pin edge-triggered interrupts for
 		buttons, external events, and wakeup sources.
 
+config STM32_TIM2
+	bool "TIM2 (32-bit general-purpose timer)"
+	default n
+	select TIMER
+	---help---
+		Enable the TIM2 general-purpose timer as a NuttX timer
+		character device (/dev/timerN). TIM2 is a 32-bit timer on
+		APB1, driven at a fixed 1 MHz tick (1 us resolution).
+
 config STM32_RTC
 	bool "RTC (Real-Time Clock)"
 	default n

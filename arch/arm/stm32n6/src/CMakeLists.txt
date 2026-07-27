@@ -54,4 +54,8 @@ if(CONFIG_DEV_GPIO)
   list(APPEND SRCS stm32n6_gpio_lower.c)
 endif()
 
+if(CONFIG_STM32_TIM2)
+  list(APPEND SRCS stm32n6_tim.c)
+endif()
+
 target_sources(arch PRIVATE ${SRCS})
