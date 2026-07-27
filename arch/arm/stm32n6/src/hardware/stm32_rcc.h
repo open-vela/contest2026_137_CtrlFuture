@@ -355,10 +355,12 @@
  */
 
 #define RCC_APB1LPENR1_TIM2LPEN  (1 << 0)
+#define RCC_APB1LPENR1_TIM5LPEN  (1 << 3)
 
 /* APB1ENR1 bits: peripheral enables */
 
 #define RCC_APB1ENR1_TIM2EN      (1 << 0)
+#define RCC_APB1ENR1_TIM5EN      (1 << 3)
 #define RCC_APB1ENR1_USART2EN    (1 << 17)
 #define RCC_APB1ENR1_USART3EN    (1 << 18)
 #define RCC_APB1ENR1_UART4EN     (1 << 19)
