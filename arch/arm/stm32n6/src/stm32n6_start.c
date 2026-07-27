@@ -97,10 +97,22 @@ static inline void showprogress(char c)
  * Name: __start
  *
  * Description:
- *   Reset entry point.  The STM32N6 boot ROM (DEV mode) leaves MSPLIM and
- *   PSPLIM set such that the first stack push from C code can fault.  This
- *   function is naked so the limits can be cleared before any
- *   compiler-generated prologue runs, then it tail-calls __start_c.
+ *   Reset entry point.  In DEV boot the STM32N6 boot ROM does not perform a
+ *   Cortex-M reset sequence into our image: it *branches* to _stext with
+ *   MSP still pointing at the boot ROM's own high stack region, and with
+ *   MSPLIM/PSPLIM left set such that the first stack push from C code can
+ *   fault.  Because MSP is never reloaded from _vectors[0] the way a real
+ *   reset would, the running stack sits ~800 KiB above g_idle_topstack.
+ *   arm_stack_color(idle_stack, 0) then colours everything from the idle
+ *   stack base up to the *current* SP with STACK_COLOR (0xdeadbeef),
+ *   overwriting the heap metadata that lives at g_idle_topstack and
+ *   corrupting delay.head -> UNALIGNED UsageFault on the first malloc.
+ *
+ *   This function is naked so MSP can be reloaded to our idle-thread stack
+ *   top and the stack limits cleared before any compiler-generated
+ *   prologue runs, then it tail-calls __start_c.  On a platform that does
+ *   reset normally (e.g. Renode) MSP already equals g_idle_topstack, so the
+ *   reload is a harmless no-op.
  *
  ****************************************************************************/
 
@@ -109,6 +121,10 @@ void __attribute__((naked)) noinstrument_function __start(void)
   __asm__ volatile ("mov r0, #0\n\t"
                     "msr msplim, r0\n\t"
                     "msr psplim, r0\n\t"
+                    "ldr r0, =g_idle_topstack\n\t"
+                    "ldr r0, [r0]\n\t"
+                    "msr msp, r0\n\t"
+                    "isb\n\t"
                     "b __start_c\n\t");
 }
 
