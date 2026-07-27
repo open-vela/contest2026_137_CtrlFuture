@@ -62,6 +62,10 @@ ifeq ($(CONFIG_STM32_TIM5),y)
   CHIP_CSRCS += stm32n6_oneshot.c
 endif
 
+ifeq ($(CONFIG_STM32_ADC1),y)
+  CHIP_CSRCS += stm32n6_adc.c
+endif
+
 ifeq ($(CONFIG_DEV_GPIO),y)
   CHIP_CSRCS += stm32n6_gpio_lower.c
 endif

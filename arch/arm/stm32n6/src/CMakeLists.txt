@@ -62,4 +62,8 @@ if(CONFIG_STM32_TIM5)
   list(APPEND SRCS stm32n6_oneshot.c)
 endif()
 
+if(CONFIG_STM32_ADC1)
+  list(APPEND SRCS stm32n6_adc.c)
+endif()
+
 target_sources(arch PRIVATE ${SRCS})

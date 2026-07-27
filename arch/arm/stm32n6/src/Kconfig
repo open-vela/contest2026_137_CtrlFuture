@@ -128,6 +128,17 @@ config STM32_TIM5
 		free-running counter at a 1 MHz tick with an output-compare
 		alarm for the one-shot deadline.
 
+config STM32_ADC1
+	bool "ADC1 (12-bit analog-to-digital converter)"
+	default n
+	select ANALOG
+	select ADC
+	---help---
+		Enable ADC1 as a NuttX ADC character device (/dev/adc0).
+		Samples the chip's internal analog sources (VREFINT) that
+		need no external wiring; conversions are software-triggered
+		and read back by polling end-of-conversion.
+
 config STM32_RTC
 	bool "RTC (Real-Time Clock)"
 	default n
