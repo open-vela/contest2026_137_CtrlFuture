@@ -83,7 +83,9 @@ jobs:
           FAIL=0
           BASE=${{ github.event.pull_request.base.sha }}
           HEAD=${{ github.event.pull_request.head.sha }}
-          for sha in $(git log --format="%H" "$BASE".."$HEAD"); do
+          # Skip merge commits: their subjects legitimately carry no scope
+          # prefix and no Signed-off-by trailer.
+          for sha in $(git log --no-merges --format="%H" "$BASE".."$HEAD"); do
             MSG=$(git log -1 --format="%B" "$sha")
             FIRST=$(echo "$MSG" | head -n1)
             if ! echo "$FIRST" | grep -qE "^[a-zA-Z0-9/_-]+: .+"; then
