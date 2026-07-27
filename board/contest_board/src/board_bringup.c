@@ -33,10 +33,15 @@
 #include <nuttx/board.h>
 #include <nuttx/fs/fs.h>
 
+#ifdef CONFIG_RTC_DRIVER
+#  include <nuttx/timers/rtc.h>
+#endif
+
 #ifdef CONFIG_ARCH_CHIP_STM32N6
 #  include "arm_internal.h"
 #  include "stm32n6_dcmipp.h"
 #  include "stm32n6_ltdc.h"
+#  include "stm32n6_rtc.h"
 #endif
 
 #include <arch/board/board.h>
@@ -77,6 +82,28 @@ static int board_bringup(void)
 #endif
 
 #ifdef CONFIG_ARCH_CHIP_STM32N6
+#  ifdef CONFIG_STM32_RTC
+  /* Initialize the RTC peripheral (clock, prescaler, calendar) */
+
+  ret = stm32n6_rtc_initialize();
+  if (ret < 0)
+    {
+      syslog(LOG_ERR, "ERROR: RTC init failed: %d\n", ret);
+    }
+#    ifdef CONFIG_RTC_DRIVER
+  else
+    {
+      /* Register the RTC upper-half character driver at /dev/rtc0 */
+
+      ret = rtc_initialize(0, stm32n6_rtc_lowerhalf());
+      if (ret < 0)
+        {
+          syslog(LOG_ERR, "ERROR: rtc_initialize failed: %d\n", ret);
+        }
+    }
+#    endif
+#  endif
+
 #  ifdef CONFIG_VIDEO
   /* Initialize DCMIPP camera (800x480 @ 30fps) */
 
