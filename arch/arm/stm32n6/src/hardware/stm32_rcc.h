@@ -172,7 +172,7 @@
  * CSR (set) atomic aliases, not by a read-modify-write on CR itself.
  */
 
-#define RCC_CR_LSION             (1 << 0)   /* LSI enable (CMSIS RCC_CR_LSION) */
+#define RCC_CR_LSION             (1 << 0)   /* LSI oscillator enable */
 #define RCC_CR_HSION             (1 << 3)   /* HSI enable */
 #define RCC_CR_HSEON             (1 << 4)   /* HSE enable */
 #define RCC_CR_PLL1ON            (1 << 8)   /* PLL1 enable */
@@ -182,7 +182,7 @@
 
 /* Clock status register */
 
-#define RCC_SR_LSIRDY            (1 << 0)   /* LSI ready flag (CMSIS RCC_SR_LSIRDY) */
+#define RCC_SR_LSIRDY            (1 << 0)   /* LSI ready flag */
 #define RCC_SR_HSIRDY            (1 << 3)   /* HSI ready flag */
 #define RCC_SR_HSERDY            (1 << 4)   /* HSE ready flag */
 #define RCC_SR_PLL1RDY           (1 << 8)   /* PLL1 ready flag */
