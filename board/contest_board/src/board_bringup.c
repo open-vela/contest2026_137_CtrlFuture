@@ -42,6 +42,9 @@
 #  include "stm32n6_dcmipp.h"
 #  include "stm32n6_ltdc.h"
 #  include "stm32n6_rtc.h"
+#  ifdef CONFIG_DEV_GPIO
+#    include "stm32n6_gpio.h"
+#  endif
 #endif
 
 #include <arch/board/board.h>
@@ -102,6 +105,28 @@ static int board_bringup(void)
         }
     }
 #    endif
+#  endif
+
+#  ifdef CONFIG_DEV_GPIO
+  /* Register GPIO character devices for the cmocka drivertest_gpio suite.
+   * Pins follow the ALIENTEK STM32N647 board (ST SoftwarePackage BSP):
+   *   /dev/gpio1 = LED0 (PG10) push-pull output  -> write/readback tests
+   *   /dev/gpio2 = KEY0 (PC6)  EXTI input         -> interrupt test
+   */
+
+  ret = stm32n6_gpio_lower_initialize(GPIO_PORTG | GPIO_PIN(10), 1,
+                                      GPIO_OUTPUT_PIN);
+  if (ret < 0)
+    {
+      syslog(LOG_ERR, "ERROR: gpio1 (PG10) init failed: %d\n", ret);
+    }
+
+  ret = stm32n6_gpio_lower_initialize(GPIO_PORTC | GPIO_PIN(6), 2,
+                                      GPIO_INTERRUPT_PIN);
+  if (ret < 0)
+    {
+      syslog(LOG_ERR, "ERROR: gpio2 (PC6) init failed: %d\n", ret);
+    }
 #  endif
 
 #  ifdef CONFIG_VIDEO
