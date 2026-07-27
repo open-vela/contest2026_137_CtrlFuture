@@ -2,3 +2,4 @@ CLAUDE.md
 .claude
 nuttx
 scripts/hw-verify.sh
+scripts/hw-verify-drivertest.sh
