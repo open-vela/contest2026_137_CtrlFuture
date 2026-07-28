@@ -147,9 +147,43 @@ config STM32_LPTIM1
 	---help---
 		Enable LPTIM1 as a NuttX timer character device (/dev/timerN).
 		LPTIM1 is a 16-bit low-power timer clocked from the LSI
-		(~32kHz), run here as a plain periodic timer.  Its low-power
-		Stop-mode wake and PWM-output functions are separate ADR-028
-		sub-items and are not exposed by this driver.
+		(~32kHz), run here as a plain periodic timer.
+
+config STM32_LPTIM2
+	bool "LPTIM2 (low-power timer)"
+	default n
+	select TIMER
+	---help---
+		Enable LPTIM2 as a NuttX timer character device (/dev/timerN).
+		LPTIM2 is a 16-bit low-power timer on APB4, clocked from the
+		LSI (~32kHz), run here as a plain periodic timer.
+
+config STM32_LPTIM3
+	bool "LPTIM3 (low-power timer)"
+	default n
+	select TIMER
+	---help---
+		Enable LPTIM3 as a NuttX timer character device (/dev/timerN).
+		LPTIM3 is a 16-bit low-power timer on APB4, clocked from the
+		LSI (~32kHz), run here as a plain periodic timer.
+
+config STM32_LPTIM4
+	bool "LPTIM4 (low-power timer)"
+	default n
+	select TIMER
+	---help---
+		Enable LPTIM4 as a NuttX timer character device (/dev/timerN).
+		LPTIM4 is a 16-bit low-power timer on APB4, clocked from the
+		LSI (~32kHz), run here as a plain periodic timer.
+
+config STM32_LPTIM5
+	bool "LPTIM5 (low-power timer)"
+	default n
+	select TIMER
+	---help---
+		Enable LPTIM5 as a NuttX timer character device (/dev/timerN).
+		LPTIM5 is a 16-bit low-power timer on APB4, clocked from the
+		LSI (~32kHz), run here as a plain periodic timer.
 
 config STM32_ADC1
 	bool "ADC1 (12-bit analog-to-digital converter)"

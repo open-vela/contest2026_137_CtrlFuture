@@ -51,7 +51,8 @@ extern "C"
  *
  * Input Parameters:
  *   devpath - Character device path (e.g. "/dev/timer1").
- *   timer   - LPTIM peripheral number (currently only 1 is supported).
+ *   timer   - LPTIM peripheral number.  LPTIM1 lives on APB1; LPTIM2..5
+ *             live on APB4.  Any of 1..5 is supported.
  *
  * Returned Value:
  *   Zero (OK) on success; a negated errno value on failure.
