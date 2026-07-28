@@ -385,7 +385,7 @@
 
 /* AHB1ENR bits: GPDMA1, ADC12 enable */
 
-#define RCC_AHB1ENR_GPDMA1EN     (1 << 0)
+#define RCC_AHB1ENR_GPDMA1EN     (1 << 4)
 #define RCC_AHB1ENR_ADC12EN      (1 << 5)
 
 /* APB1LPENR1 bits: keep the peripheral clock running through CPU Sleep

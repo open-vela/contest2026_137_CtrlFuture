@@ -36,7 +36,9 @@
 #include <syslog.h>
 #include <string.h>
 
+#include "arm_internal.h"
 #include "stm32n6_dma.h"
+#include "hardware/stm32_rcc.h"
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -46,6 +48,14 @@
 
 #define STM32N6_GPDMA1_BASE  0x40021000
 #define STM32N6_GPDMA2_BASE  0x40021400
+
+/* Channel 0 register block starts 0x50 past the GPDMA base (per CMSIS
+ * GPDMA1_Channel0_BASE = GPDMA1_BASE + 0x50); channels are 0x80 apart.
+ * The offsets below are relative to a channel's own base.
+ */
+
+#define GPDMA_CH_BASE          0x50
+#define GPDMA_CH_STRIDE        0x80
 
 /* GPDMA channel register offsets (per CMSIS DMA_Channel_TypeDef) */
 
@@ -81,12 +91,26 @@
 #define GPDMA_CCR_TOIE          (1 << 13)  /* Trigger overrun IE */
 #define GPDMA_CCR_SWRIOIE       (1 << 14)  /* Software request overrun IE */
 
-/* GPDMA_CTR2 (Transfer Register 2) bits */
+/* GPDMA_CTR1 (Transfer Register 1) bits: source/destination data width and
+ * address increment.  Data width is log2(bytes): 0=byte, 1=half, 2=word.
+ */
 
-#define GPDMA_CTR2_DREQ        (1 << 0)   /* Destination request */
-#define GPDMA_CTR2_SWREQ       (1 << 9)   /* Software request */
-#define GPDMA_CTR2_DREQ_MASK   (0x7f << 4)
-#define GPDMA_CTR2_TCEM_MASK   (3 << 14)  /* Transfer complete event mode */
+#define GPDMA_CTR1_SDW_SHIFT   0          /* Source data width (log2 bytes) */
+#define GPDMA_CTR1_SINC        (1 << 3)   /* Source address increment */
+#define GPDMA_CTR1_DDW_SHIFT   16         /* Destination data width (log2) */
+#define GPDMA_CTR1_DINC        (1 << 19)  /* Destination address increment */
+#define GPDMA_CTR1_DW_WORD     2          /* 32-bit data width */
+
+/* GPDMA_CTR2 (Transfer Register 2) bits.  Per CMSIS the hardware request
+ * selector is REQSEL[7:0]; SWREQ (bit 9) picks software request; DREQ (bit
+ * 10) makes the peripheral the *destination* request (default is source,
+ * i.e. peripheral-to-memory).
+ */
+
+#define GPDMA_CTR2_REQSEL_MASK (0xff << 0)  /* Hardware request line select */
+#define GPDMA_CTR2_SWREQ       (1 << 9)     /* Software request */
+#define GPDMA_CTR2_DREQ        (1 << 10)    /* Peripheral is destination */
+#define GPDMA_CTR2_TCEM_MASK   (3 << 30)    /* Transfer complete event mode */
 
 /* GPDMA_CBR1 (Block Register 1) bits */
 
@@ -122,14 +146,16 @@ static struct stm32n6_dma_priv_s g_dma_channels[16];
 static inline uint32_t dma_getreg(
     struct stm32n6_dma_priv_s *priv, uint32_t offset)
 {
-  return *(volatile uint32_t *)(priv->base + priv->channel * 0x80 + offset);
+  return *(volatile uint32_t *)(priv->base + GPDMA_CH_BASE +
+                                priv->channel * GPDMA_CH_STRIDE + offset);
 }
 
 static inline void dma_putreg(
     struct stm32n6_dma_priv_s *priv, uint32_t offset,
     uint32_t value)
 {
-  *(volatile uint32_t *)(priv->base + priv->channel * 0x80 + offset) = value;
+  *(volatile uint32_t *)(priv->base + GPDMA_CH_BASE +
+                         priv->channel * GPDMA_CH_STRIDE + offset) = value;
 }
 
 /****************************************************************************
@@ -157,6 +183,14 @@ int stm32n6_dma_init(int channel)
 
   nxsem_init(&priv->lock, 0, 1);
   nxsem_init(&priv->wait, 0, 0);
+
+  /* Open the AHB1 peripheral clock gate feeding GPDMA1.  Without this every
+   * channel-register write is silently dropped and reads return zero (proven
+   * on real silicon -- Renode does not model clock gating, so this was
+   * invisible in simulation).
+   */
+
+  modifyreg32(STM32_RCC_AHB1ENR, 0, RCC_AHB1ENR_GPDMA1EN);
 
   /* Disable channel */
 
@@ -218,10 +252,62 @@ int stm32n6_dma_start(int channel, uint32_t src, uint32_t dst,
   return 0;
 }
 
+int stm32n6_dma_start_p2m(int channel, uint32_t paddr, uint32_t maddr,
+                          uint32_t size, uint8_t request)
+{
+  struct stm32n6_dma_priv_s *priv;
+
+  if (channel < 0 || channel >= 16)
+    {
+      return -EINVAL;
+    }
+
+  priv = &g_dma_channels[channel];
+
+  if (!priv->initialized)
+    {
+      return -ENODEV;
+    }
+
+  nxsem_wait(&priv->lock);
+
+  priv->src_addr = paddr;
+  priv->dst_addr = maddr;
+  priv->block_size = size;
+  priv->complete = false;
+
+  /* Source = peripheral (fixed address, word width); destination = memory
+   * (incrementing, word width).  A word transfer matches the ADC data
+   * register and keeps each sample in its own 32-bit slot.
+   */
+
+  dma_putreg(priv, GPDMA_CTR1_OFFSET,
+             (GPDMA_CTR1_DW_WORD << GPDMA_CTR1_SDW_SHIFT) |
+             (GPDMA_CTR1_DW_WORD << GPDMA_CTR1_DDW_SHIFT) |
+             GPDMA_CTR1_DINC);
+
+  /* Hardware request on the given line; peripheral is the source (no DREQ,
+   * no SWREQ) so the flow is peripheral-to-memory.
+   */
+
+  dma_putreg(priv, GPDMA_CTR2_OFFSET,
+             (uint32_t)request & GPDMA_CTR2_REQSEL_MASK);
+
+  dma_putreg(priv, GPDMA_CSAR_OFFSET, paddr);
+  dma_putreg(priv, GPDMA_CDAR_OFFSET, maddr);
+  dma_putreg(priv, GPDMA_CBR1_OFFSET, size & GPDMA_CBR1_BNDT_MASK);
+
+  /* Enable the channel with transfer-complete interrupt */
+
+  dma_putreg(priv, GPDMA_CCR_OFFSET, GPDMA_CCR_EN | GPDMA_CCR_TCIE);
+
+  nxsem_post(&priv->lock);
+  return 0;
+}
+
 int stm32n6_dma_wait(int channel, int timeout_ms)
 {
   struct stm32n6_dma_priv_s *priv;
-  int ret;
 
   if (channel < 0 || channel >= 16)
     {
