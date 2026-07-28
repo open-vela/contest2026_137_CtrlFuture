@@ -98,6 +98,19 @@ struct stm32n6_lptim_lowerhalf_s
   const struct timer_ops_s *ops;      /* Lower-half ops (must be 1st) */
   uint32_t                  base;     /* LPTIM register base address */
   int                       irq;      /* LPTIM global IRQ number */
+
+  /* Per-instance clocking.  LPTIM1 sits on APB1; LPTIM2-5 sit on APB4, so
+   * the enable / sleep-keep-alive registers and the CCIPR12 kernel-clock
+   * select field differ per instance.  These make enableclk() data-driven.
+   */
+
+  uint32_t                  clken;    /* RCC bus clock-enable register */
+  uint32_t                  clkbit;   /* Enable bit within clken */
+  uint32_t                  lpen;     /* RCC sleep clock-enable register */
+  uint32_t                  lpbit;    /* Keep-alive bit within lpen */
+  uint32_t                  selmask;  /* CCIPR12 kernel-clock select mask */
+  uint32_t                  sellsi;   /* CCIPR12 LSI select value */
+
   tccb_t                    callback; /* Upper-half timeout callback */
   void                     *arg;      /* Argument for the callback */
   uint32_t                  timeout;  /* Current timeout (microseconds) */
@@ -136,9 +149,75 @@ static const struct timer_ops_s g_stm32n6_lptim_ops =
 #ifdef CONFIG_STM32_LPTIM1
 static struct stm32n6_lptim_lowerhalf_s g_lptim1_lowerhalf =
 {
-  .ops  = &g_stm32n6_lptim_ops,
-  .base = STM32_LPTIM1_BASE,
-  .irq  = STM32_IRQ_LPTIM1,
+  .ops     = &g_stm32n6_lptim_ops,
+  .base    = STM32_LPTIM1_BASE,
+  .irq     = STM32_IRQ_LPTIM1,
+  .clken   = STM32_RCC_APB1ENR1,
+  .clkbit  = RCC_APB1ENR1_LPTIM1EN,
+  .lpen    = STM32_RCC_APB1LPENR1,
+  .lpbit   = RCC_APB1LPENR1_LPTIM1LPEN,
+  .selmask = RCC_CCIPR12_LPTIM1SEL_MASK,
+  .sellsi  = RCC_CCIPR12_LPTIM1SEL_LSI,
+};
+#endif
+
+#ifdef CONFIG_STM32_LPTIM2
+static struct stm32n6_lptim_lowerhalf_s g_lptim2_lowerhalf =
+{
+  .ops     = &g_stm32n6_lptim_ops,
+  .base    = STM32_LPTIM2_BASE,
+  .irq     = STM32_IRQ_LPTIM2,
+  .clken   = STM32_RCC_APB4ENR1,
+  .clkbit  = RCC_APB4ENR1_LPTIM2EN,
+  .lpen    = STM32_RCC_APB4LPENR1,
+  .lpbit   = RCC_APB4LPENR1_LPTIM2LPEN,
+  .selmask = RCC_CCIPR12_LPTIM2SEL_MASK,
+  .sellsi  = RCC_CCIPR12_LPTIM2SEL_LSI,
+};
+#endif
+
+#ifdef CONFIG_STM32_LPTIM3
+static struct stm32n6_lptim_lowerhalf_s g_lptim3_lowerhalf =
+{
+  .ops     = &g_stm32n6_lptim_ops,
+  .base    = STM32_LPTIM3_BASE,
+  .irq     = STM32_IRQ_LPTIM3,
+  .clken   = STM32_RCC_APB4ENR1,
+  .clkbit  = RCC_APB4ENR1_LPTIM3EN,
+  .lpen    = STM32_RCC_APB4LPENR1,
+  .lpbit   = RCC_APB4LPENR1_LPTIM3LPEN,
+  .selmask = RCC_CCIPR12_LPTIM3SEL_MASK,
+  .sellsi  = RCC_CCIPR12_LPTIM3SEL_LSI,
+};
+#endif
+
+#ifdef CONFIG_STM32_LPTIM4
+static struct stm32n6_lptim_lowerhalf_s g_lptim4_lowerhalf =
+{
+  .ops     = &g_stm32n6_lptim_ops,
+  .base    = STM32_LPTIM4_BASE,
+  .irq     = STM32_IRQ_LPTIM4,
+  .clken   = STM32_RCC_APB4ENR1,
+  .clkbit  = RCC_APB4ENR1_LPTIM4EN,
+  .lpen    = STM32_RCC_APB4LPENR1,
+  .lpbit   = RCC_APB4LPENR1_LPTIM4LPEN,
+  .selmask = RCC_CCIPR12_LPTIM4SEL_MASK,
+  .sellsi  = RCC_CCIPR12_LPTIM4SEL_LSI,
+};
+#endif
+
+#ifdef CONFIG_STM32_LPTIM5
+static struct stm32n6_lptim_lowerhalf_s g_lptim5_lowerhalf =
+{
+  .ops     = &g_stm32n6_lptim_ops,
+  .base    = STM32_LPTIM5_BASE,
+  .irq     = STM32_IRQ_LPTIM5,
+  .clken   = STM32_RCC_APB4ENR1,
+  .clkbit  = RCC_APB4ENR1_LPTIM5EN,
+  .lpen    = STM32_RCC_APB4LPENR1,
+  .lpbit   = RCC_APB4LPENR1_LPTIM5LPEN,
+  .selmask = RCC_CCIPR12_LPTIM5SEL_MASK,
+  .sellsi  = RCC_CCIPR12_LPTIM5SEL_LSI,
 };
 #endif
 
@@ -216,8 +295,6 @@ static int stm32n6_lptim_enableclk(struct stm32n6_lptim_lowerhalf_s *priv)
   int i;
   int ret = -ETIMEDOUT;
 
-  UNUSED(priv);
-
   flags = spin_lock_irqsave(&g_lptim_lock);
 
   /* Enable LSI (write to the CSR set-alias) and wait for it to stabilize */
@@ -241,22 +318,24 @@ static int stm32n6_lptim_enableclk(struct stm32n6_lptim_lowerhalf_s *priv)
       return ret;
     }
 
-  /* Select LSI as the LPTIM1 kernel clock */
+  /* Select LSI as this LPTIM's kernel clock (CCIPR12 carries all five) */
 
   regval  = getreg32(STM32_RCC_CCIPR12);
-  regval &= ~RCC_CCIPR12_LPTIM1SEL_MASK;
-  regval |= RCC_CCIPR12_LPTIM1SEL_LSI;
+  regval &= ~priv->selmask;
+  regval |= priv->sellsi;
   putreg32(regval, STM32_RCC_CCIPR12);
 
-  /* Open the APB1 peripheral gate and its Sleep-mode keep-alive */
+  /* Open the peripheral bus gate and its Sleep-mode keep-alive.  LPTIM1
+   * lives on APB1, LPTIM2-5 on APB4; the register/bit pair is per instance.
+   */
 
-  regval  = getreg32(STM32_RCC_APB1ENR1);
-  regval |= RCC_APB1ENR1_LPTIM1EN;
-  putreg32(regval, STM32_RCC_APB1ENR1);
+  regval  = getreg32(priv->clken);
+  regval |= priv->clkbit;
+  putreg32(regval, priv->clken);
 
-  regval  = getreg32(STM32_RCC_APB1LPENR1);
-  regval |= RCC_APB1LPENR1_LPTIM1LPEN;
-  putreg32(regval, STM32_RCC_APB1LPENR1);
+  regval  = getreg32(priv->lpen);
+  regval |= priv->lpbit;
+  putreg32(regval, priv->lpen);
 
   spin_unlock_irqrestore(&g_lptim_lock, flags);
 
@@ -606,6 +685,30 @@ int stm32n6_lptim_initialize(const char *devpath, int timer)
 #ifdef CONFIG_STM32_LPTIM1
       case 1:
         priv = &g_lptim1_lowerhalf;
+        break;
+#endif
+
+#ifdef CONFIG_STM32_LPTIM2
+      case 2:
+        priv = &g_lptim2_lowerhalf;
+        break;
+#endif
+
+#ifdef CONFIG_STM32_LPTIM3
+      case 3:
+        priv = &g_lptim3_lowerhalf;
+        break;
+#endif
+
+#ifdef CONFIG_STM32_LPTIM4
+      case 4:
+        priv = &g_lptim4_lowerhalf;
+        break;
+#endif
+
+#ifdef CONFIG_STM32_LPTIM5
+      case 5:
+        priv = &g_lptim5_lowerhalf;
         break;
 #endif
 
