@@ -4,3 +4,4 @@ nuttx
 scripts/hw-verify.sh
 scripts/hw-verify-drivertest.sh
 scripts/hw-verify-watchdog.sh
+scripts/hw-verify-adc.sh

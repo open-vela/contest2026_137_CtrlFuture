@@ -23,17 +23,28 @@
 /* ADR-029: ADC driver for the STM32N647 on-chip internal channels.
  *
  * This delivers the ADC function of ADR-029 through the NuttX ADC
- * character framework (/dev/adc0).  It targets the chip's internal analog
- * sources that need no external wiring -- specifically the internal voltage
- * reference (VREFINT, channel 17) -- so the cmocka drivertest_adc suite can
- * exercise a real conversion on hardware.
+ * character framework.  It targets the chip's internal analog sources that
+ * need no external wiring, so the cmocka drivertest_adc suite and the real
+ * hardware gate can exercise conversions without a probe.
  *
- * Conversions are software-triggered and read back by polling: ANIOC_TRIGGER
- * starts one regular conversion, the handler busy-polls EOC, reads the data
- * register and hands the sample to the upper half.  Because the whole
- * conversion completes synchronously inside the ioctl (no blocking wait, so
- * the core never enters WFI mid-conversion), the ADC needs neither an EOC
- * interrupt nor the sleep-clock (LPEN) handling that the timers require.
+ * Two devices are registered from one driver:
+ *
+ *   /dev/adc0 (ADC1) -- single regular channel sampling the internal voltage
+ *     reference (VREFINT, channel 17), software-triggered and read back by
+ *     polling EOC.  This is the path drivertest_adc exercises and its
+ *     behaviour is deliberately left unchanged.
+ *
+ *   /dev/adc1 (ADC2) -- a multi-channel regular *scan* over two internal
+ *     voltages (VBAT channel 16 + VDDCORE channel 17) whose results are
+ *     moved by GPDMA into a memory buffer, with the analog watchdog (AWD1)
+ *     armed to flag an out-of-window sample.  This fills the ADR-029 gaps
+ *     (scan, DMA, AWD) without touching /dev/adc0.  Because D-cache is
+ *     enabled (ADR-007) the DMA landing buffer is cache-line aligned and
+ *     invalidated before the samples are read back.
+ *
+ * All conversions complete synchronously inside ANIOC_TRIGGER (the scan path
+ * bounded-polls DMA completion, the single path bounded-polls EOC), so the
+ * core never sleeps mid-conversion and no EOC interrupt is needed.
  *
  * The ADC kernel clock (RCC ADC12SEL) is left at its reset default of HCLK,
  * which is already running on this board, so no RCC clock-mux setup is
@@ -55,10 +66,12 @@
 #include <nuttx/analog/adc.h>
 #include <nuttx/analog/ioctl.h>
 #include <nuttx/spinlock.h>
+#include <nuttx/cache.h>
 
 #include "arm_internal.h"
 #include "chip.h"
 #include "stm32n6_adc.h"
+#include "stm32n6_dma.h"
 #include "hardware/stm32_adc.h"
 #include "hardware/stm32_rcc.h"
 #include "hardware/stm32_pwr.h"
@@ -77,17 +90,44 @@
 #define ADC_REGUL_STAB_US    10     /* Voltage-regulator stabilization */
 #define ADC_VREFINT_STAB_US  12     /* VREFINT internal-path stabilization */
 
+/* /dev/adc1 scan configuration.  ADC2 scans two internal voltages and moves
+ * the results by GPDMA; AWD1 monitors VBAT for an out-of-window sample.
+ */
+
+#define ADC_SCAN_MAX         2      /* Longest scan we build (VBAT+VDDCORE) */
+#define ADC_DMABUF_WORDS     8      /* Full 32-byte D-cache line */
+#define ADC_DMA_CHANNEL      0      /* GPDMA channel used for the ADC2 scan */
+#define ADC_DMA_REQ_ADC2     8      /* GPDMA hardware request line for ADC2 */
+#define ADC_DMA_TIMEOUT_MS   10     /* Bounded wait for the scan DMA */
+#define ADC_AWD_LTR_DEFAULT  0x000  /* Full-open low threshold (no trip) */
+#define ADC_AWD_HTR_DEFAULT  0xfff  /* Full-open high threshold (12-bit) */
+
+/* Cortex-M55 D-cache line size.  The DMA landing buffer is aligned to (and
+ * padded to a multiple of) this so an invalidate touches only our samples.
+ */
+
+#define ADC_DCACHE_LINE      32
+
 /****************************************************************************
  * Private Types
  ****************************************************************************/
 
 struct stm32n6_adc_s
 {
-  const struct adc_callback_s *cb;      /* Upper-half receive callback */
-  uint32_t                     base;    /* ADC instance register base */
-  uint32_t                     cmnbase; /* ADC common-block register base */
-  uint8_t                      channel; /* Single regular channel to sample */
-  bool                         ready;   /* True once the ADC is enabled */
+  struct adc_dev_s            *dev;       /* Owning upper-half device */
+  const struct adc_callback_s *cb;        /* Upper-half receive callback */
+  uint32_t                     base;      /* ADC instance register base */
+  uint32_t                     cmnbase;   /* ADC common-block register base */
+  uint8_t                      nchannels; /* Regular-sequence length */
+
+  /* Channels sampled, in sequence order */
+
+  uint8_t                      channels[ADC_SCAN_MAX];
+  bool                         scan;      /* True: DMA scan; false: poll */
+  bool                         ready;     /* True once the ADC is enabled */
+  uint32_t                    *dmabuf;    /* DMA landing buffer (scan mode) */
+  uint32_t                     awdlow;    /* AWD1 low threshold (scan mode) */
+  uint32_t                     awdhigh;   /* AWD1 high threshold (scan) */
 };
 
 /****************************************************************************
@@ -117,11 +157,18 @@ static const struct adc_ops_s g_stm32n6_adc_ops =
   .ao_ioctl    = stm32n6_adc_ioctl,
 };
 
+/* /dev/adc0 (ADC1): single-channel VREFINT, software-triggered poll. */
+
 static struct stm32n6_adc_s g_adc1priv =
 {
-  .base    = STM32_ADC1_BASE,
-  .cmnbase = STM32_ADC12_COMMON_BASE,
-  .channel = ADC_CHANNEL_VREFINT,
+  .base      = STM32_ADC1_BASE,
+  .cmnbase   = STM32_ADC12_COMMON_BASE,
+  .nchannels = 1,
+  .channels  =
+  {
+    ADC_CHANNEL_VREFINT
+  },
+  .scan      = false,
 };
 
 static struct adc_dev_s g_adc1dev =
@@ -129,6 +176,43 @@ static struct adc_dev_s g_adc1dev =
   .ad_ops  = &g_stm32n6_adc_ops,
   .ad_priv = &g_adc1priv,
 };
+
+#ifdef CONFIG_STM32_ADC2
+/* /dev/adc1 (ADC2): VBAT + VDDCORE scan via GPDMA, with AWD1 armed.  The DMA
+ * landing buffer is cache-line aligned so its invalidate touches only these
+ * samples (D-cache is enabled per ADR-007).
+ */
+
+/* Sized to a whole 32-byte D-cache line and aligned to it, so the buffer
+ * owns the line exclusively.  A partial-line invalidate would write the
+ * stale (dirty) portion back over the DMA data; owning the full line makes
+ * the post-transfer invalidate a pure discard.
+ */
+
+static uint32_t g_adc2dmabuf[ADC_DMABUF_WORDS]
+  aligned_data(ADC_DCACHE_LINE);
+
+static struct stm32n6_adc_s g_adc2priv =
+{
+  .base      = STM32_ADC2_BASE,
+  .cmnbase   = STM32_ADC12_COMMON_BASE,
+  .nchannels = 2,
+  .channels  =
+  {
+    ADC_CHANNEL_VBAT, ADC_CHANNEL_VDDCORE
+  },
+  .scan      = true,
+  .dmabuf    = g_adc2dmabuf,
+  .awdlow    = ADC_AWD_LTR_DEFAULT,
+  .awdhigh   = ADC_AWD_HTR_DEFAULT,
+};
+
+static struct adc_dev_s g_adc2dev =
+{
+  .ad_ops  = &g_stm32n6_adc_ops,
+  .ad_priv = &g_adc2priv,
+};
+#endif
 
 static spinlock_t g_adc_lock = SP_UNLOCKED;
 
@@ -330,36 +414,108 @@ static int stm32n6_adc_setup(struct adc_dev_s *dev)
 
   putreg32(ADC_ISR_ADRDY, priv->base + STM32_ADC_ISR_OFFSET);
 
-  /* Route the internal VREFINT path to the ADC input mux */
+  if (!priv->scan)
+    {
+      /* /dev/adc0: single VREFINT channel, polled.  Route the internal
+       * VREFINT path, use the longest sample time for the slow reference,
+       * preselect it, and build a one-conversion regular sequence.
+       */
 
-  regval  = getreg32(priv->cmnbase + STM32_ADC_CCR_OFFSET);
-  regval |= ADC_CCR_VREFEN;
-  putreg32(regval, priv->cmnbase + STM32_ADC_CCR_OFFSET);
+      regval  = getreg32(priv->cmnbase + STM32_ADC_CCR_OFFSET);
+      regval |= ADC_CCR_VREFEN;
+      putreg32(regval, priv->cmnbase + STM32_ADC_CCR_OFFSET);
 
-  /* Longest sample time for the slow internal reference (channel 17) */
+      regval  = getreg32(priv->base + STM32_ADC_SMPR2_OFFSET);
+      regval &= ~ADC_SMPR2_SMP17_MASK;
+      regval |= (ADC_SMP_MAX << ADC_SMPR2_SMP17_SHIFT);
+      putreg32(regval, priv->base + STM32_ADC_SMPR2_OFFSET);
 
-  regval  = getreg32(priv->base + STM32_ADC_SMPR2_OFFSET);
-  regval &= ~ADC_SMPR2_SMP17_MASK;
-  regval |= (ADC_SMP_MAX << ADC_SMPR2_SMP17_SHIFT);
-  putreg32(regval, priv->base + STM32_ADC_SMPR2_OFFSET);
+      /* Preselect the channel: without its PCSEL bit the input is not wired
+       * to the ADC mux and the data register reads back zero.
+       */
 
-  /* Preselect the channel: without its PCSEL bit the input is not wired to
-   * the ADC mux and the data register reads back zero.
-   */
+      putreg32(ADC_PCSEL_CH(priv->channels[0]),
+               priv->base + STM32_ADC_PCSEL_OFFSET);
 
-  putreg32(ADC_PCSEL_CH(priv->channel),
-           priv->base + STM32_ADC_PCSEL_OFFSET);
+      /* One-conversion regular sequence: L = 0, SQ1 = channel */
 
-  /* One-conversion regular sequence: L = 0 (1 conversion), SQ1 = channel */
+      putreg32(((uint32_t)priv->channels[0] << ADC_SQR1_SQ1_SHIFT),
+               priv->base + STM32_ADC_SQR1_OFFSET);
+    }
+  else
+    {
+      /* /dev/adc1: VBAT + VDDCORE regular scan, moved by GPDMA, AWD1 armed.
+       *
+       * VBAT is routed by CCR.VBATEN; VDDCORE has no CCR path bit -- it is
+       * routed to the ADC2 mux by the option register (OR.OP2).  Both share
+       * the ch16/ch17 sample-time fields, set to the longest sample time
+       * since both are high-impedance internal dividers.
+       */
 
-  putreg32(((uint32_t)priv->channel << ADC_SQR1_SQ1_SHIFT),
-           priv->base + STM32_ADC_SQR1_OFFSET);
+      regval  = getreg32(priv->cmnbase + STM32_ADC_CCR_OFFSET);
+      regval |= ADC_CCR_VBATEN;
+      putreg32(regval, priv->cmnbase + STM32_ADC_CCR_OFFSET);
+
+      regval  = getreg32(priv->base + STM32_ADC_OR_OFFSET);
+      regval |= ADC_OR_OP2;
+      putreg32(regval, priv->base + STM32_ADC_OR_OFFSET);
+
+      regval  = getreg32(priv->base + STM32_ADC_SMPR2_OFFSET);
+      regval &= ~(ADC_SMPR2_SMP16_MASK | ADC_SMPR2_SMP17_MASK);
+      regval |= (ADC_SMP_MAX << ADC_SMPR2_SMP16_SHIFT);
+      regval |= (ADC_SMP_MAX << ADC_SMPR2_SMP17_SHIFT);
+      putreg32(regval, priv->base + STM32_ADC_SMPR2_OFFSET);
+
+      /* Preselect both scanned channels */
+
+      putreg32(ADC_PCSEL_CH(priv->channels[0]) |
+               ADC_PCSEL_CH(priv->channels[1]),
+               priv->base + STM32_ADC_PCSEL_OFFSET);
+
+      /* Regular sequence: L = 1 (two conversions), SQ1/SQ2 = channels */
+
+      putreg32(((uint32_t)(priv->nchannels - 1) << ADC_SQR1_L_SHIFT) |
+               ((uint32_t)priv->channels[0] << ADC_SQR1_SQ1_SHIFT) |
+               ((uint32_t)priv->channels[1] << ADC_SQR1_SQ2_SHIFT),
+               priv->base + STM32_ADC_SQR1_OFFSET);
+
+      /* Data management = DMA one-shot: each converted sample is pushed to
+       * the DMA request, one scan per software trigger.
+       */
+
+      regval  = getreg32(priv->base + STM32_ADC_CFGR1_OFFSET);
+      regval &= ~ADC_CFGR1_DMNGT_MASK;
+      regval |= ADC_CFGR1_DMNGT_DMA1S;
+
+      /* Arm AWD1 over the whole regular group (not AWD1SGL) so any scanned
+       * sample outside [LTR1, HTR1] latches ISR.AWD1.  Thresholds default to
+       * full-open (never trip) and are narrowed via ANIOC_WDOG_*.
+       */
+
+      regval &= ~ADC_CFGR1_AWD1SGL;
+      regval |= ADC_CFGR1_AWD1EN;
+      putreg32(regval, priv->base + STM32_ADC_CFGR1_OFFSET);
+
+      putreg32(priv->awdlow, priv->base + STM32_ADC_AWD1LTR_OFFSET);
+      putreg32(priv->awdhigh, priv->base + STM32_ADC_AWD1HTR_OFFSET);
+    }
 
   priv->ready = true;
 
   spin_unlock_irqrestore(&g_adc_lock, flags);
 
-  /* Let the internal reference settle before the first conversion */
+  /* Bring up the GPDMA channel that carries the scan results.  Done outside
+   * the ADC critical section because the DMA helper takes its own lock.
+   */
+
+#ifdef CONFIG_STM32_ADC2
+  if (priv->scan)
+    {
+      stm32n6_dma_init(ADC_DMA_CHANNEL);
+    }
+#endif
+
+  /* Let the internal sources settle before the first conversion */
 
   up_udelay(ADC_VREFINT_STAB_US);
 
@@ -434,11 +590,108 @@ static int stm32n6_adc_convert(struct stm32n6_adc_s *priv)
 
   if (priv->cb != NULL && priv->cb->au_receive != NULL)
     {
-      priv->cb->au_receive(&g_adc1dev, priv->channel, (int32_t)data);
+      priv->cb->au_receive(priv->dev, priv->channels[0], (int32_t)data);
     }
 
   return OK;
 }
+
+/****************************************************************************
+ * Name: stm32n6_adc_scan
+ *
+ * Description:
+ *   Software-trigger one regular scan of the configured channels, let GPDMA
+ *   move each result into the DMA buffer, then forward every sample to the
+ *   upper half.  The analog-watchdog flag is checked and cleared per scan.
+ *
+ ****************************************************************************/
+
+#ifdef CONFIG_STM32_ADC2
+static int stm32n6_adc_scan(struct stm32n6_adc_s *priv)
+{
+  irqstate_t flags;
+  uint32_t isr;
+  int ret;
+  int i;
+
+  if (!priv->ready)
+    {
+      return -EAGAIN;
+    }
+
+  /* Program the DMA before arming the ADC: peripheral (ADC2 DR) -> memory,
+   * one word per scanned channel, on the ADC2 hardware request line.
+   */
+
+  /* Clean the landing buffer out of D-cache before starting the DMA.  The
+   * buffer sits in zero-initialized BSS, so its cache line is dirty with
+   * zeros; without this flush a later dirty write-back can clobber the data
+   * the DMA writes to SRAM (D-cache is enabled per ADR-007).  The matching
+   * invalidate after the transfer then forces the CPU to read DMA data.
+   */
+
+  up_clean_dcache((uintptr_t)priv->dmabuf,
+                  (uintptr_t)priv->dmabuf +
+                  ADC_DMABUF_WORDS * sizeof(uint32_t));
+
+  ret = stm32n6_dma_start_p2m(ADC_DMA_CHANNEL,
+                              priv->base + STM32_ADC_DR_OFFSET,
+                              (uint32_t)(uintptr_t)priv->dmabuf,
+                              priv->nchannels * sizeof(uint32_t),
+                              ADC_DMA_REQ_ADC2);
+  if (ret < 0)
+    {
+      aerr("ERROR: ADC scan DMA start: %d\n", ret);
+      return ret;
+    }
+
+  flags = spin_lock_irqsave(&g_adc_lock);
+
+  /* Clear a stale AWD1 flag, then start the regular scan */
+
+  putreg32(ADC_ISR_AWD1, priv->base + STM32_ADC_ISR_OFFSET);
+  modifyreg32(priv->base + STM32_ADC_CR_OFFSET, 0, ADC_CR_ADSTART);
+
+  spin_unlock_irqrestore(&g_adc_lock, flags);
+
+  /* Wait (bounded) for the DMA to land every sample */
+
+  ret = stm32n6_dma_wait(ADC_DMA_CHANNEL, ADC_DMA_TIMEOUT_MS);
+  if (ret < 0)
+    {
+      aerr("ERROR: ADC scan DMA wait: %d\n", ret);
+      return ret;
+    }
+
+  /* Invalidate the just-written buffer so the CPU reads DMA data, not a
+   * stale cached copy (D-cache is enabled per ADR-007).
+   */
+
+  up_invalidate_dcache((uintptr_t)priv->dmabuf,
+                       (uintptr_t)priv->dmabuf +
+                       ADC_DMABUF_WORDS * sizeof(uint32_t));
+
+  isr = getreg32(priv->base + STM32_ADC_ISR_OFFSET);
+  if ((isr & ADC_ISR_AWD1) != 0)
+    {
+      awarn("WARNING: ADC AWD1 tripped (sample out of window)\n");
+      putreg32(ADC_ISR_AWD1, priv->base + STM32_ADC_ISR_OFFSET);
+    }
+
+  if (priv->cb != NULL && priv->cb->au_receive != NULL)
+    {
+      for (i = 0; i < priv->nchannels; i++)
+        {
+          uint32_t sample = priv->dmabuf[i] & ADC_DR_RDATA_MASK;
+
+          priv->cb->au_receive(priv->dev, priv->channels[i],
+                               (int32_t)sample);
+        }
+    }
+
+  return OK;
+}
+#endif
 
 /****************************************************************************
  * Name: stm32n6_adc_ioctl
@@ -455,12 +708,43 @@ static int stm32n6_adc_ioctl(struct adc_dev_s *dev, int cmd,
   switch (cmd)
     {
       case ANIOC_TRIGGER:
+#ifdef CONFIG_STM32_ADC2
+        ret = priv->scan ? stm32n6_adc_scan(priv)
+                         : stm32n6_adc_convert(priv);
+#else
         ret = stm32n6_adc_convert(priv);
+#endif
         break;
 
       case ANIOC_GET_NCHANNELS:
-        ret = 1;
+        ret = priv->nchannels;
         break;
+
+#ifdef CONFIG_STM32_ADC2
+      case ANIOC_WDOG_UPPER:  /* Narrow the AWD1 high threshold (scan only) */
+        if (!priv->scan)
+          {
+            ret = -ENOTTY;
+            break;
+          }
+
+        priv->awdhigh = (uint32_t)arg & ADC_DR_RDATA_MASK;
+        putreg32(priv->awdhigh, priv->base + STM32_ADC_AWD1HTR_OFFSET);
+        ret = OK;
+        break;
+
+      case ANIOC_WDOG_LOWER:  /* Narrow the AWD1 low threshold (scan only) */
+        if (!priv->scan)
+          {
+            ret = -ENOTTY;
+            break;
+          }
+
+        priv->awdlow = (uint32_t)arg & ADC_DR_RDATA_MASK;
+        putreg32(priv->awdlow, priv->base + STM32_ADC_AWD1LTR_OFFSET);
+        ret = OK;
+        break;
+#endif
 
       default:
         ret = -ENOTTY;
@@ -482,8 +766,9 @@ static int stm32n6_adc_ioctl(struct adc_dev_s *dev, int cmd,
  *   channels.
  *
  * Input Parameters:
- *   devpath - Character device path (e.g. "/dev/adc0").
- *   intf    - ADC peripheral number (currently only 1 is supported).
+ *   devpath - Character device path (e.g. "/dev/adc0" or "/dev/adc1").
+ *   intf    - ADC peripheral number: 1 = ADC1 (VREFINT poll), 2 = ADC2
+ *             (VBAT+VDDCORE DMA scan with analog watchdog).
  *
  * Returned Value:
  *   Zero (OK) on success; a negated errno value on failure.
@@ -493,6 +778,7 @@ static int stm32n6_adc_ioctl(struct adc_dev_s *dev, int cmd,
 int stm32n6_adc_initialize(const char *devpath, int intf)
 {
   struct adc_dev_s *dev;
+  struct stm32n6_adc_s *priv;
   int ret;
 
   DEBUGASSERT(devpath != NULL);
@@ -503,9 +789,22 @@ int stm32n6_adc_initialize(const char *devpath, int intf)
         dev = &g_adc1dev;
         break;
 
+#ifdef CONFIG_STM32_ADC2
+      case 2:
+        dev = &g_adc2dev;
+        break;
+#endif
+
       default:
         return -ENODEV;
     }
+
+  /* Back-link the private state to its owning device so au_receive() reports
+   * against the right /dev/adcN.
+   */
+
+  priv = (struct stm32n6_adc_s *)dev->ad_priv;
+  priv->dev = dev;
 
   ret = adc_register(devpath, dev);
   if (ret < 0)

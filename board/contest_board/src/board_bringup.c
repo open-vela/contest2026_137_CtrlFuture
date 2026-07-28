@@ -205,6 +205,18 @@ static int board_bringup(void)
     }
 #  endif
 
+#  ifdef CONFIG_STM32_ADC2
+  /* Register ADC2 as /dev/adc1: a VBAT + VDDCORE regular scan moved by GPDMA
+   * with the analog watchdog armed (ADR-029 scan/DMA/AWD gaps).
+   */
+
+  ret = stm32n6_adc_initialize("/dev/adc1", 2);
+  if (ret < 0)
+    {
+      syslog(LOG_ERR, "ERROR: ADC2 init failed: %d\n", ret);
+    }
+#  endif
+
 #  ifdef CONFIG_STM32_IWDG
   /* Register the IWDG as /dev/watchdog0 for the cmocka drivertest_watchdog
    * suite.  LSI-clocked, left stopped until WDIOC_START.

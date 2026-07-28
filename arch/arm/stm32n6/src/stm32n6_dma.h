@@ -57,6 +57,19 @@ int stm32n6_dma_start(int channel, uint32_t src, uint32_t dst,
                        uint32_t size);
 
 /**
+ * @brief Start a peripheral-to-memory DMA transfer
+ * @param channel Channel number (0-15)
+ * @param paddr Peripheral source address (fixed, e.g. ADC data register)
+ * @param maddr Memory destination address (incrementing)
+ * @param size Transfer size in bytes
+ * @param request GPDMA hardware request line (e.g. ADC2 = 8)
+ * @return 0 on success
+ */
+
+int stm32n6_dma_start_p2m(int channel, uint32_t paddr, uint32_t maddr,
+                          uint32_t size, uint8_t request);
+
+/**
  * @brief Wait for DMA transfer complete
  * @param channel Channel number
  * @param timeout_ms Timeout in milliseconds
