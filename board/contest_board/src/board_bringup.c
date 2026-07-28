@@ -51,7 +51,9 @@
 #  ifdef CONFIG_STM32_TIM5
 #    include "stm32n6_oneshot.h"
 #  endif
-#  ifdef CONFIG_STM32_LPTIM1
+#  if defined(CONFIG_STM32_LPTIM1) || defined(CONFIG_STM32_LPTIM2) || \
+      defined(CONFIG_STM32_LPTIM3) || defined(CONFIG_STM32_LPTIM4) || \
+      defined(CONFIG_STM32_LPTIM5)
 #    include "stm32n6_lptim.h"
 #  endif
 #  ifdef CONFIG_STM32_ADC1
@@ -190,6 +192,46 @@ static int board_bringup(void)
   if (ret < 0)
     {
       syslog(LOG_ERR, "ERROR: LPTIM1 init failed: %d\n", ret);
+    }
+#  endif
+
+#  ifdef CONFIG_STM32_LPTIM2
+  /* Register LPTIM2 (APB4, LSI-clocked) as /dev/timer2. */
+
+  ret = stm32n6_lptim_initialize("/dev/timer2", 2);
+  if (ret < 0)
+    {
+      syslog(LOG_ERR, "ERROR: LPTIM2 init failed: %d\n", ret);
+    }
+#  endif
+
+#  ifdef CONFIG_STM32_LPTIM3
+  /* Register LPTIM3 (APB4, LSI-clocked) as /dev/timer3. */
+
+  ret = stm32n6_lptim_initialize("/dev/timer3", 3);
+  if (ret < 0)
+    {
+      syslog(LOG_ERR, "ERROR: LPTIM3 init failed: %d\n", ret);
+    }
+#  endif
+
+#  ifdef CONFIG_STM32_LPTIM4
+  /* Register LPTIM4 (APB4, LSI-clocked) as /dev/timer4. */
+
+  ret = stm32n6_lptim_initialize("/dev/timer4", 4);
+  if (ret < 0)
+    {
+      syslog(LOG_ERR, "ERROR: LPTIM4 init failed: %d\n", ret);
+    }
+#  endif
+
+#  ifdef CONFIG_STM32_LPTIM5
+  /* Register LPTIM5 (APB4, LSI-clocked) as /dev/timer5. */
+
+  ret = stm32n6_lptim_initialize("/dev/timer5", 5);
+  if (ret < 0)
+    {
+      syslog(LOG_ERR, "ERROR: LPTIM5 init failed: %d\n", ret);
     }
 #  endif
 
