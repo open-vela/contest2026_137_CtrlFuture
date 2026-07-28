@@ -162,6 +162,19 @@ config STM32_ADC1
 		need no external wiring; conversions are software-triggered
 		and read back by polling end-of-conversion.
 
+config STM32_ADC2
+	bool "ADC2 multi-channel DMA scan (/dev/adc1)"
+	default n
+	depends on STM32_ADC1
+	select STM32_GPDMA
+	---help---
+		Enable ADC2 as a second NuttX ADC character device
+		(/dev/adc1) that scans two chip-internal voltages
+		(VBAT + VDDCORE, no external wiring), moves the results by
+		GPDMA, and arms the analog watchdog (AWD1).  Shares the ADC
+		driver with /dev/adc0 and pulls in the GPDMA controller for
+		its peripheral-to-memory transfers.
+
 config STM32_RTC
 	bool "RTC (Real-Time Clock)"
 	default n
