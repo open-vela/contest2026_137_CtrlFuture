@@ -1,5 +1,5 @@
 /****************************************************************************
- * arch/arm/src/stm32n6/stm32n6_iwdg.h
+ * arch/arm/src/stm32n6/stm32n6_wwdg.h
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -20,8 +20,8 @@
  *
  ****************************************************************************/
 
-#ifndef __ARCH_ARM_SRC_STM32N6_STM32N6_IWDG_H
-#define __ARCH_ARM_SRC_STM32N6_STM32N6_IWDG_H
+#ifndef __ARCH_ARM_SRC_STM32N6_STM32N6_WWDG_H
+#define __ARCH_ARM_SRC_STM32N6_STM32N6_WWDG_H
 
 /****************************************************************************
  * Included Files
@@ -34,20 +34,21 @@
  ****************************************************************************/
 
 /****************************************************************************
- * Name: stm32n6_iwdg_initialize
+ * Name: stm32n6_wwdg_initialize
  *
  * Description:
- *   Register the IWDG as a NuttX watchdog character device.  The device is
- *   created stopped; user code starts it via the WDIOC_START ioctl.
+ *   Register the WWDG as a NuttX watchdog character device.  The device is
+ *   created stopped; user code starts it via the WDIOC_START ioctl.  The
+ *   WWDG early-wakeup interrupt backs the optional capture() op.
  *
  * Input Parameters:
- *   devpath - Character device path (e.g. "/dev/watchdog0").
+ *   devpath - Character device path (e.g. "/dev/watchdog1").
  *
  * Returned Value:
  *   Zero (OK) on success; a negated errno value on failure.
  *
  ****************************************************************************/
 
-int stm32n6_iwdg_initialize(const char *devpath);
+int stm32n6_wwdg_initialize(const char *devpath);
 
-#endif /* __ARCH_ARM_SRC_STM32N6_STM32N6_IWDG_H */
+#endif /* __ARCH_ARM_SRC_STM32N6_STM32N6_WWDG_H */

@@ -83,9 +83,21 @@ config STM32_USART3
 config STM32_IWDG
 	bool "IWDG (Independent Watchdog)"
 	default n
+	select WATCHDOG
 	---help---
 		Enable the Independent Watchdog (IWDG) peripheral for
-		system hang detection. Uses LSI 32kHz clock.
+		system hang detection. Registers as /dev/watchdog0 through
+		the NuttX watchdog framework. Uses LSI 32kHz clock.
+
+config STM32_WWDG
+	bool "WWDG (Window Watchdog)"
+	default n
+	select WATCHDOG
+	---help---
+		Enable the Window Watchdog (WWDG) peripheral. Registers as
+		/dev/watchdog1 through the NuttX watchdog framework. APB1
+		clocked, with an early-wakeup interrupt backing the optional
+		watchdog capture() operation.
 
 config STM32_I2C1
 	bool "I2C1"

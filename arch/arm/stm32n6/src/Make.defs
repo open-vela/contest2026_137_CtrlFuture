@@ -39,6 +39,10 @@ ifeq ($(CONFIG_STM32_IWDG),y)
   CHIP_CSRCS += stm32n6_iwdg.c
 endif
 
+ifeq ($(CONFIG_STM32_WWDG),y)
+  CHIP_CSRCS += stm32n6_wwdg.c
+endif
+
 ifeq ($(CONFIG_STM32_RTC),y)
   CHIP_CSRCS += stm32n6_rtc.c
 ifeq ($(CONFIG_RTC_DRIVER),y)

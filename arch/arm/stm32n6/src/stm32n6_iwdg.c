@@ -18,207 +18,405 @@
  * implied.  See the License for the specific language governing
  * permissions and limitations under the License.
  *
- * STM32N6 IWDG (Independent Watchdog) driver for NuttX.
- * Provides hardware watchdog timer for system hang detection.
- *
- * Adapted from STM32H7 NuttX reference (stm32_iwdg.c).
- *
  ****************************************************************************/
+
+/* ADR-015: Independent Watchdog (IWDG) lower-half driver.
+ *
+ * Delivers the IWDG function of ADR-015 through the NuttX watchdog
+ * character framework (/dev/watchdog0).  The IWDG is an LSI-clocked
+ * (~32 kHz) down-counter that resets the MCU if it is not reloaded
+ * ("fed") before it reaches zero.  Because it runs from the LSI it keeps
+ * running even if the main clock tree fails, which is exactly the
+ * hardware-hang safety net the watchdog is meant to provide.
+ *
+ * The prescaler (PR) and reload (RLR) registers are write-protected; a
+ * 0x5555 key must be written to KR first.  After a PR/RLR write the SR
+ * PVU/RVU busy bits stay set until the value propagates across the LSI
+ * clock domain, so every setup polls them with a bounded timeout (never
+ * a dead wait -- Embedded Programming Rule 2).
+ *
+ * The counter cannot be stopped once started (there is no disable key),
+ * so stop() returns -ENOSYS exactly like the STM32H7 reference.
+ */
 
 /****************************************************************************
  * Included Files
  ****************************************************************************/
 
 #include <nuttx/config.h>
-#include <syslog.h>
-#include <string.h>
 
+#include <stdint.h>
+#include <stdbool.h>
+#include <inttypes.h>
+#include <errno.h>
+#include <debug.h>
+
+#include <nuttx/arch.h>
+#include <nuttx/clock.h>
+#include <nuttx/irq.h>
+#include <nuttx/spinlock.h>
+#include <nuttx/timers/watchdog.h>
+
+#include "arm_internal.h"
+#include "chip.h"
 #include "stm32n6_iwdg.h"
+#include "hardware/stm32_iwdg.h"
+#include "hardware/stm32_rcc.h"
+
+#ifdef CONFIG_STM32_IWDG
 
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
 
-/* IWDG register base */
+/* LSI drives the IWDG at a nominal 32 kHz.  The smallest prescaler (/4)
+ * gives the finest resolution; the largest (/256) gives the longest
+ * timeout.  The maximum timeout (ms) is 1000 * RLR_MAX / (LSI / 256).
+ */
 
-#define STM32N6_IWDG_BASE   0x46004800  /* CMSIS IWDG_BASE_NS */
+#define IWDG_LSI_FREQ        32000
+#define IWDG_FMIN            (IWDG_LSI_FREQ / 256)
+#define IWDG_MAXTIMEOUT      (1000 * IWDG_RLR_MAX / IWDG_FMIN)
 
-/* IWDG register offsets */
+/* Bounded busy-poll budget for the PVU/RVU propagation handshake */
 
-#define IWDG_KR_OFFSET     0x00
-#define IWDG_PR_OFFSET     0x04
-#define IWDG_RLR_OFFSET    0x08
-#define IWDG_SR_OFFSET     0x0C
-#define IWDG_WINR_OFFSET   0x10
+#define IWDG_SR_TIMEOUT_US   10000
 
-/* IWDG key values */
+/****************************************************************************
+ * Private Types
+ ****************************************************************************/
 
-#define IWDG_KEY_RELOAD    0xAAAA
-#define IWDG_KEY_ENABLE    0xCCCC
-#define IWDG_KEY_ACCESS    0x5555
+struct stm32n6_iwdg_lowerhalf_s
+{
+  const struct watchdog_ops_s *ops;       /* Lower-half ops (must be 1st) */
+  uint32_t                     timeout;   /* Actual timeout (ms) */
+  uint32_t                     lastreset; /* Tick count at last feed */
+  bool                         started;   /* True once the WDT is running */
+  uint8_t                      prescaler; /* PR field value (0..6) */
+  uint16_t                     reload;    /* RLR field value */
+};
 
-/* IWDG prescaler values */
+/****************************************************************************
+ * Private Function Prototypes
+ ****************************************************************************/
 
-#define IWDG_PR_DIV4       0
-#define IWDG_PR_DIV8       1
-#define IWDG_PR_DIV16      2
-#define IWDG_PR_DIV32      3
-#define IWDG_PR_DIV64      4
-#define IWDG_PR_DIV128     5
-#define IWDG_PR_DIV256     6
-
-/* IWDG status bits */
-
-#define IWDG_SR_PVU        (1 << 0)  /* Prescaler value update */
-#define IWDG_SR_RVU        (1 << 1)  /* Reload value update */
-
-/* IWDG clock: LSI = 32 kHz */
-
-#define IWDG_LSI_FREQ      32000
+static int stm32n6_iwdg_start(struct watchdog_lowerhalf_s *lower);
+static int stm32n6_iwdg_stop(struct watchdog_lowerhalf_s *lower);
+static int stm32n6_iwdg_keepalive(struct watchdog_lowerhalf_s *lower);
+static int stm32n6_iwdg_getstatus(struct watchdog_lowerhalf_s *lower,
+                                  struct watchdog_status_s *status);
+static int stm32n6_iwdg_settimeout(struct watchdog_lowerhalf_s *lower,
+                                   uint32_t timeout);
 
 /****************************************************************************
  * Private Data
  ****************************************************************************/
 
-static bool g_iwdg_initialized = false;
-static uint32_t g_iwdg_timeout_ms;
+static const struct watchdog_ops_s g_stm32n6_iwdg_ops =
+{
+  .start      = stm32n6_iwdg_start,
+  .stop       = stm32n6_iwdg_stop,
+  .keepalive  = stm32n6_iwdg_keepalive,
+  .getstatus  = stm32n6_iwdg_getstatus,
+  .settimeout = stm32n6_iwdg_settimeout,
+  .capture    = NULL,
+  .ioctl      = NULL,
+};
+
+static struct stm32n6_iwdg_lowerhalf_s g_iwdg_lowerhalf =
+{
+  .ops = &g_stm32n6_iwdg_ops,
+};
+
+static spinlock_t g_iwdg_lock = SP_UNLOCKED;
 
 /****************************************************************************
  * Private Functions
  ****************************************************************************/
 
-static inline void iwdg_putreg(uint32_t offset, uint32_t value)
-{
-  *(volatile uint32_t *)(STM32N6_IWDG_BASE + offset) = value;
-}
+/****************************************************************************
+ * Name: stm32n6_iwdg_wait_sr
+ *
+ * Description:
+ *   Poll the IWDG status register until the given busy bits clear, bounded
+ *   by IWDG_SR_TIMEOUT_US.  The PVU/RVU bits stay set while a PR/RLR write
+ *   propagates across the LSI clock domain.
+ *
+ ****************************************************************************/
 
-static inline uint32_t iwdg_getreg(uint32_t offset)
+static int stm32n6_iwdg_wait_sr(uint32_t bits)
 {
-  return *(volatile uint32_t *)(STM32N6_IWDG_BASE + offset);
-}
+  int i;
 
-static int iwdg_wait_prescaler(void)
-{
-  uint32_t timeout = 100000;
-
-  while (timeout-- > 0)
+  for (i = 0; i < IWDG_SR_TIMEOUT_US; i++)
     {
-      if (!(iwdg_getreg(IWDG_SR_OFFSET) & IWDG_SR_PVU))
+      if ((getreg32(STM32_IWDG_SR) & bits) == 0)
         {
-          return 0;
+          return OK;
         }
+
+      up_udelay(1);
     }
 
   return -ETIMEDOUT;
 }
 
-static int iwdg_wait_reload(void)
-{
-  uint32_t timeout = 100000;
+/****************************************************************************
+ * Name: stm32n6_iwdg_setprescaler
+ *
+ * Description:
+ *   Unlock and program the prescaler and reload registers, then reload the
+ *   counter.  Must be called before starting the watchdog.
+ *
+ ****************************************************************************/
 
-  while (timeout-- > 0)
+static int stm32n6_iwdg_setprescaler(struct stm32n6_iwdg_lowerhalf_s *priv)
+{
+  int ret;
+
+  /* Enable write access to PR/RLR */
+
+  putreg32(IWDG_KR_KEY_ACCESS, STM32_IWDG_KR);
+
+  /* The PR/RLR writes only take once the previous value has propagated */
+
+  ret = stm32n6_iwdg_wait_sr(IWDG_SR_PVU | IWDG_SR_RVU);
+  if (ret < 0)
     {
-      if (!(iwdg_getreg(IWDG_SR_OFFSET) & IWDG_SR_RVU))
+      return ret;
+    }
+
+  putreg32(priv->prescaler, STM32_IWDG_PR);
+  putreg32(priv->reload, STM32_IWDG_RLR);
+
+  /* Wait for both writes to propagate before locking again */
+
+  ret = stm32n6_iwdg_wait_sr(IWDG_SR_PVU | IWDG_SR_RVU);
+  if (ret < 0)
+    {
+      return ret;
+    }
+
+  /* Reload the counter (this also re-locks PR/RLR write access) */
+
+  putreg32(IWDG_KR_KEY_RELOAD, STM32_IWDG_KR);
+  return OK;
+}
+
+/****************************************************************************
+ * Name: stm32n6_iwdg_start
+ ****************************************************************************/
+
+static int stm32n6_iwdg_start(struct watchdog_lowerhalf_s *lower)
+{
+  struct stm32n6_iwdg_lowerhalf_s *priv =
+    (struct stm32n6_iwdg_lowerhalf_s *)lower;
+  irqstate_t flags;
+  int ret = OK;
+
+  DEBUGASSERT(priv != NULL);
+
+  if (priv->started)
+    {
+      return OK;
+    }
+
+  flags = spin_lock_irqsave(&g_iwdg_lock);
+
+  /* Program prescaler/reload for the selected timeout, then start.  The
+   * IWDG enable key also turns on the LSI automatically in hardware.
+   */
+
+  ret = stm32n6_iwdg_setprescaler(priv);
+  if (ret < 0)
+    {
+      spin_unlock_irqrestore(&g_iwdg_lock, flags);
+      wderr("ERROR: IWDG prescaler setup timed out\n");
+      return ret;
+    }
+
+  putreg32(IWDG_KR_KEY_START, STM32_IWDG_KR);
+  priv->lastreset = clock_systime_ticks();
+  priv->started   = true;
+
+  spin_unlock_irqrestore(&g_iwdg_lock, flags);
+  return OK;
+}
+
+/****************************************************************************
+ * Name: stm32n6_iwdg_stop
+ ****************************************************************************/
+
+static int stm32n6_iwdg_stop(struct watchdog_lowerhalf_s *lower)
+{
+  /* The IWDG cannot be disabled once started -- there is no stop key */
+
+  UNUSED(lower);
+  return -ENOSYS;
+}
+
+/****************************************************************************
+ * Name: stm32n6_iwdg_keepalive
+ ****************************************************************************/
+
+static int stm32n6_iwdg_keepalive(struct watchdog_lowerhalf_s *lower)
+{
+  struct stm32n6_iwdg_lowerhalf_s *priv =
+    (struct stm32n6_iwdg_lowerhalf_s *)lower;
+  irqstate_t flags;
+
+  DEBUGASSERT(priv != NULL);
+
+  flags = spin_lock_irqsave(&g_iwdg_lock);
+  putreg32(IWDG_KR_KEY_RELOAD, STM32_IWDG_KR);
+  priv->lastreset = clock_systime_ticks();
+  spin_unlock_irqrestore(&g_iwdg_lock, flags);
+
+  return OK;
+}
+
+/****************************************************************************
+ * Name: stm32n6_iwdg_getstatus
+ ****************************************************************************/
+
+static int stm32n6_iwdg_getstatus(struct watchdog_lowerhalf_s *lower,
+                                  struct watchdog_status_s *status)
+{
+  struct stm32n6_iwdg_lowerhalf_s *priv =
+    (struct stm32n6_iwdg_lowerhalf_s *)lower;
+  uint32_t elapsed;
+  uint32_t ticks;
+
+  DEBUGASSERT(priv != NULL && status != NULL);
+
+  status->flags = WDFLAGS_RESET;
+  if (priv->started)
+    {
+      status->flags |= WDFLAGS_ACTIVE;
+    }
+
+  status->timeout = priv->timeout;
+
+  /* Approximate the time left from the tick delta since the last feed */
+
+  ticks   = clock_systime_ticks() - priv->lastreset;
+  elapsed = TICK2MSEC(ticks);
+  if (elapsed > priv->timeout)
+    {
+      elapsed = priv->timeout;
+    }
+
+  status->timeleft = priv->timeout - elapsed;
+  return OK;
+}
+
+/****************************************************************************
+ * Name: stm32n6_iwdg_settimeout
+ ****************************************************************************/
+
+static int stm32n6_iwdg_settimeout(struct watchdog_lowerhalf_s *lower,
+                                   uint32_t timeout)
+{
+  struct stm32n6_iwdg_lowerhalf_s *priv =
+    (struct stm32n6_iwdg_lowerhalf_s *)lower;
+  uint32_t fiwdg;
+  uint64_t reload;
+  int prescaler;
+  int shift;
+
+  DEBUGASSERT(priv != NULL);
+
+  if (timeout < 1 || timeout > IWDG_MAXTIMEOUT)
+    {
+      wderr("ERROR: timeout=%" PRIu32 " out of range [1,%d]\n",
+            timeout, IWDG_MAXTIMEOUT);
+      return -ERANGE;
+    }
+
+  /* The PR/RLR pair can only be programmed reliably before the counter is
+   * started, so refuse a change once running (matches the H7 reference).
+   */
+
+  if (priv->started)
+    {
+      wdwarn("WARNING: IWDG already started; timeout is fixed\n");
+      return -EBUSY;
+    }
+
+  /* Pick the smallest prescaler whose reload fits in 12 bits.  Divider is
+   * 4 << prescaler, i.e. the counter clock is LSI >> (prescaler + 2).
+   */
+
+  for (prescaler = 0; ; prescaler++)
+    {
+      shift  = prescaler + 2;
+      fiwdg  = IWDG_LSI_FREQ >> shift;
+      reload = (uint64_t)fiwdg * (uint64_t)timeout / 1000;
+
+      if (reload <= IWDG_RLR_MAX || prescaler == IWDG_PR_MAX)
         {
-          return 0;
+          break;
         }
     }
 
-  return -ETIMEDOUT;
+  if (reload > IWDG_RLR_MAX)
+    {
+      reload = IWDG_RLR_MAX;
+    }
+
+  /* Report back the achievable timeout for this prescaler/reload pair */
+
+  priv->timeout   = (1000 * (uint32_t)reload) / fiwdg;
+  priv->prescaler = (uint8_t)prescaler;
+  priv->reload    = (uint16_t)reload;
+
+  return OK;
 }
 
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
 
-int stm32n6_iwdg_initialize(uint32_t timeout_ms)
+/****************************************************************************
+ * Name: stm32n6_iwdg_initialize
+ *
+ * Description:
+ *   Register the IWDG as a watchdog character device.  The watchdog is
+ *   left stopped; the caller starts it via the WDIOC_START ioctl.
+ *
+ * Input Parameters:
+ *   devpath - Character device path (e.g. "/dev/watchdog0").
+ *
+ * Returned Value:
+ *   Zero (OK) on success; a negated errno value on failure.
+ *
+ ****************************************************************************/
+
+int stm32n6_iwdg_initialize(const char *devpath)
 {
-  uint32_t pr;
-  uint32_t rlr;
-  uint32_t prescaler;
-  uint32_t reload;
-  int ret;
+  struct stm32n6_iwdg_lowerhalf_s *priv = &g_iwdg_lowerhalf;
+  void *handle;
 
-  if (g_iwdg_initialized)
-    {
-      return 0;
-    }
+  DEBUGASSERT(devpath != NULL);
 
-  /* Calculate prescaler and reload for desired timeout.
-   * timeout = (reload + 1) * prescaler / LSI_FREQ
-   * Try to find best fit with minimal prescaler.
-   *
-   * DIV4:   tick = 0.125ms, max = 8.192s
-   * DIV8:   tick = 0.25ms,  max = 16.384s
-   * DIV16:  tick = 0.5ms,   max = 32.768s
-   * DIV32:  tick = 1ms,     max = 65.536s
-   * DIV64:  tick = 2ms,     max = 131.072s
-   * DIV128: tick = 4ms,     max = 262.144s
-   * DIV256: tick = 8ms,     max = 524.288s
+  priv->started = false;
+
+  /* Preload an arbitrary maximum timeout so a bare WDIOC_START (without a
+   * prior WDIOC_SETTIMEOUT) still has a valid prescaler/reload to apply.
    */
 
-  prescaler = 32;  /* DIV32: 1ms tick */
-  pr = IWDG_PR_DIV32;
-  reload = (timeout_ms * IWDG_LSI_FREQ) / (prescaler * 1000);
+  stm32n6_iwdg_settimeout((struct watchdog_lowerhalf_s *)priv,
+                          IWDG_MAXTIMEOUT);
 
-  if (reload > 0xfff)
+  handle = watchdog_register(devpath,
+                             (struct watchdog_lowerhalf_s *)priv);
+  if (handle == NULL)
     {
-      reload = 0xfff;
+      wderr("ERROR: watchdog_register(%s) failed\n", devpath);
+      return -EEXIST;
     }
 
-  /* Unlock IWDG registers */
-
-  iwdg_putreg(IWDG_KR_OFFSET, IWDG_KEY_ACCESS);
-
-  /* Wait for prescaler update */
-
-  ret = iwdg_wait_prescaler();
-  if (ret < 0)
-    {
-      return ret;
-    }
-
-  /* Set prescaler */
-
-  iwdg_putreg(IWDG_PR_OFFSET, pr);
-
-  /* Wait for reload update */
-
-  ret = iwdg_wait_reload();
-  if (ret < 0)
-    {
-      return ret;
-    }
-
-  /* Set reload value */
-
-  iwdg_putreg(IWDG_RLR_OFFSET, reload);
-
-  /* Start watchdog */
-
-  iwdg_putreg(IWDG_KR_OFFSET, IWDG_KEY_ENABLE);
-
-  /* Initial kick */
-
-  iwdg_putreg(IWDG_KR_OFFSET, IWDG_KEY_RELOAD);
-
-  g_iwdg_initialized = true;
-  g_iwdg_timeout_ms = timeout_ms;
-
-  syslog(LOG_INFO, "iwdg: initialized, timeout=%lums\n",
-         (unsigned long)timeout_ms);
-  return 0;
+  return OK;
 }
 
-void stm32n6_iwdg_feed(void)
-{
-  if (g_iwdg_initialized)
-    {
-      iwdg_putreg(IWDG_KR_OFFSET, IWDG_KEY_RELOAD);
-    }
-}
-
-uint32_t stm32n6_iwdg_get_timeout(void)
-{
-  return g_iwdg_timeout_ms;
-}
+#endif /* CONFIG_STM32_IWDG */

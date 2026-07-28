@@ -118,6 +118,8 @@
 #define STM32_RCC_CCR_OFFSET        0x1000  /* Clock control clear */
 #define STM32_RCC_APB2ENCR_OFFSET   0x126c  /* APB2 clock enable clear */
 #define STM32_RCC_CSR_OFFSET        0x0800  /* Clock control set/status */
+#define STM32_RCC_HWRSR_OFFSET      0x0030  /* HW reset status register */
+#define STM32_RCC_RSR_OFFSET        0x0034  /* Reset (flag-clear) register */
 
 /* Register Addresses *******************************************************/
 
@@ -168,6 +170,8 @@
 #define STM32_RCC_CCR        (STM32_RCC_BASE + STM32_RCC_CCR_OFFSET)
 #define STM32_RCC_APB2ENCR   (STM32_RCC_BASE + STM32_RCC_APB2ENCR_OFFSET)
 #define STM32_RCC_CSR        (STM32_RCC_BASE + STM32_RCC_CSR_OFFSET)
+#define STM32_RCC_HWRSR      (STM32_RCC_BASE + STM32_RCC_HWRSR_OFFSET)
+#define STM32_RCC_RSR        (STM32_RCC_BASE + STM32_RCC_RSR_OFFSET)
 
 /* Register Bitfield Definitions ********************************************/
 
@@ -187,6 +191,31 @@
 /* Clock status register */
 
 #define RCC_SR_LSIRDY            (1 << 0)   /* LSI ready flag */
+
+/* HW reset status register (HWRSR): sticky reset-cause flags */
+
+#define RCC_HWRSR_BORRSTF        (1 << 21)  /* BOR reset flag */
+#define RCC_HWRSR_PINRSTF        (1 << 22)  /* Pin (NRST) reset flag */
+#define RCC_HWRSR_PORRSTF        (1 << 23)  /* POR/PDR reset flag */
+#define RCC_HWRSR_SFTRSTF        (1 << 24)  /* Software reset flag */
+#define RCC_HWRSR_IWDGRSTF       (1 << 26)  /* IWDG reset flag */
+#define RCC_HWRSR_WWDGRSTF       (1 << 28)  /* WWDG reset flag */
+#define RCC_HWRSR_LPWRRSTF       (1 << 30)  /* Illegal Stop/Standby flag */
+
+/* Reset status register (RSR): the CPU/application-visible sticky reset-
+ * cause flags.  On STM32N6 the debug/CPU side reads its reset cause here
+ * (HWRSR mirrors the hardware domain and reads 0 from the CPU AP).  Write
+ * RMVF to clear the whole set so the next reset reports a fresh cause.
+ */
+
+#define RCC_RSR_RMVF             (1 << 16)  /* Remove reset flags */
+#define RCC_RSR_BORRSTF          (1 << 21)  /* BOR reset flag */
+#define RCC_RSR_PINRSTF          (1 << 22)  /* Pin (NRST) reset flag */
+#define RCC_RSR_PORRSTF          (1 << 23)  /* POR/PDR reset flag */
+#define RCC_RSR_SFTRSTF          (1 << 24)  /* Software reset flag */
+#define RCC_RSR_IWDGRSTF         (1 << 26)  /* IWDG reset flag */
+#define RCC_RSR_WWDGRSTF         (1 << 28)  /* WWDG reset flag */
+#define RCC_RSR_LPWRRSTF         (1 << 30)  /* Illegal Stop/Standby flag */
 #define RCC_SR_HSIRDY            (1 << 3)   /* HSI ready flag */
 #define RCC_SR_HSERDY            (1 << 4)   /* HSE ready flag */
 #define RCC_SR_PLL1RDY           (1 << 8)   /* PLL1 ready flag */
@@ -374,6 +403,7 @@
 #define RCC_APB1ENR1_TIM2EN      (1 << 0)
 #define RCC_APB1ENR1_TIM5EN      (1 << 3)
 #define RCC_APB1ENR1_LPTIM1EN    (1 << 9)
+#define RCC_APB1ENR1_WWDGEN      (1 << 11)
 #define RCC_APB1ENR1_USART2EN    (1 << 17)
 #define RCC_APB1ENR1_USART3EN    (1 << 18)
 #define RCC_APB1ENR1_UART4EN     (1 << 19)
