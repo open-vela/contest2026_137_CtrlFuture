@@ -3,3 +3,4 @@ CLAUDE.md
 nuttx
 scripts/hw-verify.sh
 scripts/hw-verify-drivertest.sh
+scripts/hw-verify-watchdog.sh
