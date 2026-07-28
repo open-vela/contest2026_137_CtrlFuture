@@ -31,4 +31,8 @@ ifeq ($(CONFIG_EDGESIGHT_CLOCK_800MHZ),y)
   CSRCS += stm32n6_clockconfig.c
 endif
 
+ifeq ($(CONFIG_BOARDCTL_RESET_CAUSE),y)
+  CSRCS += stm32n6_reset.c
+endif
+
 include $(TOPDIR)/boards/Board.mk

@@ -57,6 +57,12 @@
 #  ifdef CONFIG_STM32_ADC1
 #    include "stm32n6_adc.h"
 #  endif
+#  ifdef CONFIG_STM32_IWDG
+#    include "stm32n6_iwdg.h"
+#  endif
+#  ifdef CONFIG_STM32_WWDG
+#    include "stm32n6_wwdg.h"
+#  endif
 #endif
 
 #include <arch/board/board.h>
@@ -196,6 +202,30 @@ static int board_bringup(void)
   if (ret < 0)
     {
       syslog(LOG_ERR, "ERROR: ADC1 init failed: %d\n", ret);
+    }
+#  endif
+
+#  ifdef CONFIG_STM32_IWDG
+  /* Register the IWDG as /dev/watchdog0 for the cmocka drivertest_watchdog
+   * suite.  LSI-clocked, left stopped until WDIOC_START.
+   */
+
+  ret = stm32n6_iwdg_initialize("/dev/watchdog0");
+  if (ret < 0)
+    {
+      syslog(LOG_ERR, "ERROR: IWDG init failed: %d\n", ret);
+    }
+#  endif
+
+#  ifdef CONFIG_STM32_WWDG
+  /* Register the WWDG as /dev/watchdog1.  Its early-wakeup interrupt backs
+   * the watchdog capture() op, which the drivertest_watchdog API case uses.
+   */
+
+  ret = stm32n6_wwdg_initialize("/dev/watchdog1");
+  if (ret < 0)
+    {
+      syslog(LOG_ERR, "ERROR: WWDG init failed: %d\n", ret);
     }
 #  endif
 

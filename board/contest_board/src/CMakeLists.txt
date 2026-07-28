@@ -22,6 +22,14 @@
 
 set(SRCS board_bringup.c)
 
+if(CONFIG_EDGESIGHT_CLOCK_800MHZ)
+  list(APPEND SRCS stm32n6_clockconfig.c)
+endif()
+
+if(CONFIG_BOARDCTL_RESET_CAUSE)
+  list(APPEND SRCS stm32n6_reset.c)
+endif()
+
 target_sources(board PRIVATE ${SRCS})
 
 if(CONFIG_ARCH_CHIP_STM32N6)
