@@ -1,0 +1,17 @@
+#
+# For a description of the syntax of this configuration file,
+# see the file kconfig-language.txt in the NuttX tools repository.
+#
+
+config LVX_USE_DEMO_CONTEST2026_137_DTS_TEMP_APP
+	bool "Contest 2026 team 137 DTS temperature self-test"
+	default n
+	depends on STM32_DTS
+	---help---
+		Enable the contest 2026 team 137 DTS temperature self-test
+		(dts_temp).  Opens /dev/temp0, reads one b16_t Celsius sample
+		from the on-chip digital temperature sensor, prints it, and
+		PASSes iff the reading is within a plausible band for a
+		running chip.  The sensor is fully internal, so the readback
+		needs no external wiring or instrument.  Requires STM32_DTS
+		in the arch layer.

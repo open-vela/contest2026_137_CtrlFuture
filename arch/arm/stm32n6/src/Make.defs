@@ -74,6 +74,10 @@ ifeq ($(CONFIG_STM32_ADC1),y)
   CHIP_CSRCS += stm32n6_adc.c
 endif
 
+ifeq ($(CONFIG_STM32_DTS),y)
+  CHIP_CSRCS += stm32n6_dts.c
+endif
+
 ifeq ($(CONFIG_DEV_GPIO),y)
   CHIP_CSRCS += stm32n6_gpio_lower.c
 endif
