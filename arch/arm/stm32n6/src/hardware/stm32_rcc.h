@@ -475,6 +475,7 @@
 
 #define RCC_APB4ENR2_SYSCFGEN    (1 << 0)
 #define RCC_APB4ENR2_BSECEN      (1 << 1)
+#define RCC_APB4ENR2_DTSEN       (1 << 2)
 
 /* BUSLPENR bits: keep the AXI-node bus clocks running through CSLEEP
  * (WFI).  Without these the AXISRAM banks lose their bus clock during

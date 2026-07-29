@@ -258,6 +258,18 @@ config STM32_ADC2
 		driver with /dev/adc0 and pulls in the GPDMA controller for
 		its peripheral-to-memory transfers.
 
+config STM32_DTS
+	bool "DTS (digital temperature sensor, /dev/temp0)"
+	default n
+	---help---
+		Enable the on-chip digital temperature sensor (DTS) as a
+		character device (/dev/temp0) that reports the die junction
+		temperature.  The sensor is fully internal (no external
+		wiring); it runs in continuous mode and read() returns a
+		b16_t (Q16.16) Celsius value.  Conversion uses the fixed
+		DS14791 characterization constants in integer fixed point,
+		so no FPU is required.
+
 config STM32_RTC
 	bool "RTC (Real-Time Clock)"
 	default n
