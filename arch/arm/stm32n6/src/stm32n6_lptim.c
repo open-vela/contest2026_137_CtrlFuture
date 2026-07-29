@@ -20,19 +20,22 @@
  *
  ****************************************************************************/
 
-/* ADR-028: Low-power timer (LPTIM1) lower-half driver.
+/* ADR-028: Low-power timer (LPTIM1-5) lower-half driver.
  *
- * This delivers the timing / periodic-interrupt function of ADR-028 via
- * the NuttX timer character framework (/dev/timerN).  LPTIM1 is a 16-bit
- * counter clocked here from the LSI (~32 kHz) so it keeps running from a
- * low-power oscillator independent of the APB bus clock.
+ * This delivers the timing function of ADR-028 via two NuttX frameworks:
+ * LPTIM1-5 as plain periodic timers on the timer character framework
+ * (/dev/timerN), and -- when CONFIG_STM32_LPTIM2_PWM is set -- LPTIM2 as a
+ * low-power PWM output on the PWM framework (/dev/pwm0) driving LPTIM2_CH1.
+ * Each LPTIM is a 16-bit counter clocked here from the LSI (~32 kHz) so it
+ * keeps running from a low-power oscillator independent of the APB clock.
  *
- * Only the plain periodic-timer function is exposed.  LPTIM's low-power
- * differentiators -- keeping the counter running through CPU Stop mode to
- * wake the core, and the PWM/one-pulse outputs -- are deliberately left as
- * separate ADR-028 sub-items; this driver treats LPTIM1 as an ordinary
- * periodic timer so the cmocka drivertest_timer suite can exercise it on
- * a second /dev/timerN node with a real, LSI-clocked interrupt.
+ * PWM mode shares the LPTIM CR/CFGR with periodic mode, so a given instance
+ * is exposed as either /dev/timerN or /dev/pwm0, never both; the Kconfig
+ * choice enforces the mutual exclusion (LPTIM2_PWM depends on !LPTIM2).
+ *
+ * The remaining low-power differentiator -- keeping the counter running
+ * through CPU Stop mode to wake the core -- is left as a separate ADR-028
+ * sub-item.
  *
  * LPTIM differs from the general-purpose timers in its programming model:
  * CFGR and the interrupt-enable register must be written while the timer
@@ -58,6 +61,11 @@
 #include <nuttx/irq.h>
 #include <nuttx/timers/timer.h>
 #include <nuttx/spinlock.h>
+
+#ifdef CONFIG_STM32_LPTIM2_PWM
+#  include <nuttx/timers/pwm.h>
+#  include "stm32n6_gpio.h"
+#endif
 
 #include "arm_internal.h"
 #include "chip.h"
@@ -117,6 +125,28 @@ struct stm32n6_lptim_lowerhalf_s
   bool                      started;  /* True when the timer is running */
 };
 
+#ifdef CONFIG_STM32_LPTIM2_PWM
+
+/* LPTIM2 PWM-output lower-half.  PWM mode is mutually exclusive with the
+ * plain periodic-timer mode (they share CR/CFGR), so a given LPTIM instance
+ * is exposed either as /dev/timerN or as /dev/pwm0, never both.
+ */
+
+struct stm32n6_lptim_pwm_s
+{
+  const struct pwm_ops_s *ops;      /* Lower-half ops (must be 1st) */
+  uint32_t                base;     /* LPTIM register base address */
+  uint32_t                pin;      /* LPTIM_CH1 output pin config */
+
+  uint32_t                clken;    /* RCC bus clock-enable register */
+  uint32_t                clkbit;   /* Enable bit within clken */
+  uint32_t                lpen;     /* RCC sleep clock-enable register */
+  uint32_t                lpbit;    /* Keep-alive bit within lpen */
+  uint32_t                selmask;  /* CCIPR12 kernel-clock select mask */
+  uint32_t                sellsi;   /* CCIPR12 LSI select value */
+};
+#endif
+
 /****************************************************************************
  * Private Function Prototypes
  ****************************************************************************/
@@ -131,6 +161,14 @@ static void stm32n6_lptim_setcallback(struct timer_lowerhalf_s *lower,
                                        tccb_t callback, void *arg);
 static int  stm32n6_lptim_maxtimeout(struct timer_lowerhalf_s *lower,
                                       uint32_t *maxtimeout);
+
+#ifdef CONFIG_STM32_LPTIM2_PWM
+static int  stm32n6_lppwm_setup(struct pwm_lowerhalf_s *dev);
+static int  stm32n6_lppwm_shutdown(struct pwm_lowerhalf_s *dev);
+static int  stm32n6_lppwm_start(struct pwm_lowerhalf_s *dev,
+                                const struct pwm_info_s *info);
+static int  stm32n6_lppwm_stop(struct pwm_lowerhalf_s *dev);
+#endif
 
 /****************************************************************************
  * Private Data
@@ -221,6 +259,29 @@ static struct stm32n6_lptim_lowerhalf_s g_lptim5_lowerhalf =
 };
 #endif
 
+#ifdef CONFIG_STM32_LPTIM2_PWM
+static const struct pwm_ops_s g_stm32n6_lppwm_ops =
+{
+  .setup    = stm32n6_lppwm_setup,
+  .shutdown = stm32n6_lppwm_shutdown,
+  .start    = stm32n6_lppwm_start,
+  .stop     = stm32n6_lppwm_stop,
+};
+
+static struct stm32n6_lptim_pwm_s g_lptim2_pwm =
+{
+  .ops     = &g_stm32n6_lppwm_ops,
+  .base    = STM32_LPTIM2_BASE,
+  .pin     = GPIO_LPTIM2_CH1,
+  .clken   = STM32_RCC_APB4ENR1,
+  .clkbit  = RCC_APB4ENR1_LPTIM2EN,
+  .lpen    = STM32_RCC_APB4LPENR1,
+  .lpbit   = RCC_APB4LPENR1_LPTIM2LPEN,
+  .selmask = RCC_CCIPR12_LPTIM2SEL_MASK,
+  .sellsi  = RCC_CCIPR12_LPTIM2SEL_LSI,
+};
+#endif
+
 static spinlock_t g_lptim_lock = SP_UNLOCKED;
 
 /****************************************************************************
@@ -288,7 +349,9 @@ static uint32_t stm32n6_lptim_readcnt(struct stm32n6_lptim_lowerhalf_s *priv)
  *
  ****************************************************************************/
 
-static int stm32n6_lptim_enableclk(struct stm32n6_lptim_lowerhalf_s *priv)
+static int stm32n6_lptim_clk_bringup(uint32_t clken, uint32_t clkbit,
+                                     uint32_t lpen, uint32_t lpbit,
+                                     uint32_t selmask, uint32_t sellsi)
 {
   irqstate_t flags;
   uint32_t regval;
@@ -321,25 +384,32 @@ static int stm32n6_lptim_enableclk(struct stm32n6_lptim_lowerhalf_s *priv)
   /* Select LSI as this LPTIM's kernel clock (CCIPR12 carries all five) */
 
   regval  = getreg32(STM32_RCC_CCIPR12);
-  regval &= ~priv->selmask;
-  regval |= priv->sellsi;
+  regval &= ~selmask;
+  regval |= sellsi;
   putreg32(regval, STM32_RCC_CCIPR12);
 
   /* Open the peripheral bus gate and its Sleep-mode keep-alive.  LPTIM1
    * lives on APB1, LPTIM2-5 on APB4; the register/bit pair is per instance.
    */
 
-  regval  = getreg32(priv->clken);
-  regval |= priv->clkbit;
-  putreg32(regval, priv->clken);
+  regval  = getreg32(clken);
+  regval |= clkbit;
+  putreg32(regval, clken);
 
-  regval  = getreg32(priv->lpen);
-  regval |= priv->lpbit;
-  putreg32(regval, priv->lpen);
+  regval  = getreg32(lpen);
+  regval |= lpbit;
+  putreg32(regval, lpen);
 
   spin_unlock_irqrestore(&g_lptim_lock, flags);
 
   return OK;
+}
+
+static int stm32n6_lptim_enableclk(struct stm32n6_lptim_lowerhalf_s *priv)
+{
+  return stm32n6_lptim_clk_bringup(priv->clken, priv->clkbit,
+                                   priv->lpen, priv->lpbit,
+                                   priv->selmask, priv->sellsi);
 }
 
 /****************************************************************************
@@ -654,6 +724,209 @@ static int stm32n6_lptim_maxtimeout(struct timer_lowerhalf_s *lower,
   return OK;
 }
 
+#ifdef CONFIG_STM32_LPTIM2_PWM
+
+/****************************************************************************
+ * Name: stm32n6_lppwm_write_reg16
+ *
+ * Description:
+ *   Write a 16-bit ARR or CCR1 value while the timer is enabled and wait
+ *   for its update-OK handshake flag (ARROK for ARR, CMP1OK for CCR1),
+ *   bounded by a timeout so it can never spin forever.  These flags only
+ *   assert when the peripheral clock is running and the write has
+ *   propagated across the LSI domain, so a PASS is real-hardware evidence
+ *   the register took effect.
+ *
+ ****************************************************************************/
+
+static int stm32n6_lppwm_write_reg16(struct stm32n6_lptim_pwm_s *priv,
+                                     uint32_t offset, uint32_t value,
+                                     uint32_t okflag, uint32_t okclr)
+{
+  int i;
+
+  putreg32(okclr, priv->base + STM32_LPTIM_ICR_OFFSET);
+  putreg32(value, priv->base + offset);
+
+  for (i = 0; i < STM32N6_LPTIM_TIMEOUT_US; i++)
+    {
+      if ((getreg32(priv->base + STM32_LPTIM_ISR_OFFSET) & okflag) != 0)
+        {
+          putreg32(okclr, priv->base + STM32_LPTIM_ICR_OFFSET);
+          return OK;
+        }
+
+      up_udelay(1);
+    }
+
+  return -ETIMEDOUT;
+}
+
+/****************************************************************************
+ * Name: stm32n6_lppwm_setup
+ *
+ * Description:
+ *   Bring up LPTIM2's LSI kernel clock + APB4 gate and route the CH1 output
+ *   pin.  Called when /dev/pwm0 is opened; no pulses are emitted yet.
+ *
+ ****************************************************************************/
+
+static int stm32n6_lppwm_setup(struct pwm_lowerhalf_s *dev)
+{
+  struct stm32n6_lptim_pwm_s *priv = (struct stm32n6_lptim_pwm_s *)dev;
+  int ret;
+
+  DEBUGASSERT(priv != NULL);
+
+  ret = stm32n6_lptim_clk_bringup(priv->clken, priv->clkbit,
+                                  priv->lpen, priv->lpbit,
+                                  priv->selmask, priv->sellsi);
+  if (ret < 0)
+    {
+      pwmerr("ERROR: LPTIM2 LSI clock enable timeout\n");
+      return ret;
+    }
+
+  stm32n6_configgpio(priv->pin);
+  return OK;
+}
+
+/****************************************************************************
+ * Name: stm32n6_lppwm_shutdown
+ ****************************************************************************/
+
+static int stm32n6_lppwm_shutdown(struct pwm_lowerhalf_s *dev)
+{
+  struct stm32n6_lptim_pwm_s *priv = (struct stm32n6_lptim_pwm_s *)dev;
+
+  DEBUGASSERT(priv != NULL);
+
+  stm32n6_lppwm_stop(dev);
+  stm32n6_unconfiggpio(priv->pin);
+  return OK;
+}
+
+/****************************************************************************
+ * Name: stm32n6_lppwm_start
+ *
+ * Description:
+ *   Program the requested frequency + duty and start the continuous PWM.
+ *   Register order follows ST's HAL: configure while disabled, enable, write
+ *   ARR (poll ARROK) then CCR1 (poll CMP1OK), enable the CH1 output, then
+ *   start continuous counting.  For LPTIM2 the output polarity lives in
+ *   CCMR1.CC1P (LPTIM4/5 would use CFGR.WAVPOL instead).
+ *
+ ****************************************************************************/
+
+static int stm32n6_lppwm_start(struct pwm_lowerhalf_s *dev,
+                               const struct pwm_info_s *info)
+{
+  struct stm32n6_lptim_pwm_s *priv = (struct stm32n6_lptim_pwm_s *)dev;
+  irqstate_t flags;
+  uint32_t arr;
+  uint32_t ccr;
+  int ret;
+
+  DEBUGASSERT(priv != NULL && info != NULL);
+
+  /* 16-bit counter at the divide-by-1 LSI tick: ARR = LSI/freq - 1 must land
+   * in [1, 0xffff], so the frequency must be within (LSI/65536, LSI/2].
+   */
+
+  if (info->frequency == 0 ||
+      info->frequency > (STM32N6_LPTIM_LSI_FREQ / 2))
+    {
+      return -EINVAL;
+    }
+
+  arr = (STM32N6_LPTIM_LSI_FREQ / info->frequency);
+  if (arr < 2 || arr > (STM32N6_LPTIM_MAXTICKS))
+    {
+      return -EINVAL;
+    }
+
+  arr -= 1;
+
+  /* Duty is a b16 fraction of the full period (65536 == 100%).  CCR1 sets
+   * the compare point within [0, ARR]; clamp so 100% stays in range.
+   */
+
+  ccr = (uint32_t)(((uint64_t)(arr + 1) * info->duty) >> 16);
+  if (ccr > arr)
+    {
+      ccr = arr;
+    }
+
+  flags = spin_lock_irqsave(&g_lptim_lock);
+
+  /* CFGR / CCMR1 polarity are writable only while disabled.  Internal
+   * clock, prescaler divide-by-1, ARR preload, PWM waveform (WAVE = 0).
+   * No interrupt is needed: the hardware drives the CH1 waveform on its own.
+   */
+
+  putreg32(0, priv->base + STM32_LPTIM_CR_OFFSET);
+  putreg32(LPTIM_CFGR_PRELOAD, priv->base + STM32_LPTIM_CFGR_OFFSET);
+  putreg32(0, priv->base + STM32_LPTIM_CCMR1_OFFSET);
+
+  /* Enable; ARR and CCR1 can only be programmed once the timer is enabled */
+
+  putreg32(LPTIM_CR_ENABLE, priv->base + STM32_LPTIM_CR_OFFSET);
+
+  ret = stm32n6_lppwm_write_reg16(priv, STM32_LPTIM_ARR_OFFSET, arr,
+                                  LPTIM_ISR_ARROK, LPTIM_ICR_ARROKCF);
+  if (ret < 0)
+    {
+      goto err;
+    }
+
+  ret = stm32n6_lppwm_write_reg16(priv, STM32_LPTIM_CCR1_OFFSET, ccr,
+                                  LPTIM_ISR_CMP1OK, LPTIM_ICR_CMP1OKCF);
+  if (ret < 0)
+    {
+      goto err;
+    }
+
+  /* Enable the CH1 compare output (CC1SEL = 0 keeps it an output) and start
+   * counting continuously.  Clear any stale match before arming the counter.
+   */
+
+  modifyreg32(priv->base + STM32_LPTIM_CCMR1_OFFSET, 0, LPTIM_CCMR1_CC1E);
+  modifyreg32(priv->base + STM32_LPTIM_CR_OFFSET, 0, LPTIM_CR_CNTSTRT);
+
+  spin_unlock_irqrestore(&g_lptim_lock, flags);
+  return OK;
+
+err:
+  putreg32(0, priv->base + STM32_LPTIM_CR_OFFSET);
+  spin_unlock_irqrestore(&g_lptim_lock, flags);
+  pwmerr("ERROR: LPTIM2 PWM update handshake timeout\n");
+  return ret;
+}
+
+/****************************************************************************
+ * Name: stm32n6_lppwm_stop
+ ****************************************************************************/
+
+static int stm32n6_lppwm_stop(struct pwm_lowerhalf_s *dev)
+{
+  struct stm32n6_lptim_pwm_s *priv = (struct stm32n6_lptim_pwm_s *)dev;
+  irqstate_t flags;
+
+  DEBUGASSERT(priv != NULL);
+
+  flags = spin_lock_irqsave(&g_lptim_lock);
+
+  /* Clearing ENABLE stops and resets the counter and drops the CH1 output */
+
+  putreg32(0, priv->base + STM32_LPTIM_CR_OFFSET);
+  putreg32(0, priv->base + STM32_LPTIM_CCMR1_OFFSET);
+
+  spin_unlock_irqrestore(&g_lptim_lock, flags);
+  return OK;
+}
+
+#endif /* CONFIG_STM32_LPTIM2_PWM */
+
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
@@ -666,7 +939,7 @@ static int stm32n6_lptim_maxtimeout(struct timer_lowerhalf_s *lower,
  *
  * Input Parameters:
  *   devpath - Character device path (e.g. "/dev/timer1").
- *   timer   - LPTIM peripheral number (currently only 1 is supported).
+ *   timer   - LPTIM peripheral number (1 on APB1; 2-5 on APB4).
  *
  * Returned Value:
  *   Zero (OK) on success; a negated errno value on failure.
@@ -729,3 +1002,25 @@ int stm32n6_lptim_initialize(const char *devpath, int timer)
 
   return OK;
 }
+
+#ifdef CONFIG_STM32_LPTIM2_PWM
+
+/****************************************************************************
+ * Name: stm32n6_lppwm_initialize
+ *
+ * Description:
+ *   Register LPTIM2 as a PWM character device driving LPTIM2_CH1 from LSI.
+ *
+ ****************************************************************************/
+
+int stm32n6_lppwm_initialize(const char *devpath)
+{
+  struct stm32n6_lptim_pwm_s *priv = &g_lptim2_pwm;
+
+  DEBUGASSERT(devpath != NULL);
+
+  /* The hardware drives the CH1 waveform autonomously; no IRQ is attached */
+
+  return pwm_register(devpath, (struct pwm_lowerhalf_s *)priv);
+}
+#endif /* CONFIG_STM32_LPTIM2_PWM */

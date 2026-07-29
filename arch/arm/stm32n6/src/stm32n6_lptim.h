@@ -61,6 +61,28 @@ extern "C"
 
 int stm32n6_lptim_initialize(const char *devpath, int timer);
 
+#ifdef CONFIG_STM32_LPTIM2_PWM
+
+/****************************************************************************
+ * Name: stm32n6_lppwm_initialize
+ *
+ * Description:
+ *   Register LPTIM2 as a PWM character device (e.g. "/dev/pwm0"), driving
+ *   the LPTIM2_CH1 output from the LSI clock.  PWM mode is mutually
+ *   exclusive with the plain periodic-timer mode of the same instance.
+ *
+ * Input Parameters:
+ *   devpath - Character device path (e.g. "/dev/pwm0").
+ *
+ * Returned Value:
+ *   Zero (OK) on success; a negated errno value on failure.
+ *
+ ****************************************************************************/
+
+int stm32n6_lppwm_initialize(const char *devpath);
+
+#endif /* CONFIG_STM32_LPTIM2_PWM */
+
 #ifdef __cplusplus
 }
 #endif

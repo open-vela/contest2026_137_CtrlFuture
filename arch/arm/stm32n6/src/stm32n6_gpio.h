@@ -144,6 +144,12 @@
   (GPIO_MODE_AF | GPIO_OTYPE_PP | GPIO_SPEED_HIGH | \
    GPIO_PUPD_PU | GPIO_AF(7) | GPIO_PORTE | GPIO_PIN(6))
 
+/* LPTIM2 PWM output: PF1=LPTIM2_CH1 AF3 (push-pull, no pull) */
+
+#define GPIO_LPTIM2_CH1 \
+  (GPIO_MODE_AF | GPIO_OTYPE_PP | GPIO_SPEED_HIGH | \
+   GPIO_PUPD_NONE | GPIO_AF(3) | GPIO_PORTF | GPIO_PIN(1))
+
 /****************************************************************************
  * Public Function Prototypes
  ****************************************************************************/
