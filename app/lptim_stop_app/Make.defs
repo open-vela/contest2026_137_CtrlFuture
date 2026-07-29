@@ -1,0 +1,7 @@
+############################################################################
+# Contest 2026 team 137 LPTIM Stop-mode wakeup demo - Make.defs
+############################################################################
+
+ifneq ($(CONFIG_LVX_USE_DEMO_CONTEST2026_137_LPTIM_STOP_APP),)
+CONFIGURED_APPS += $(APPDIR)/packages/demos/contest2026_137_lptim_stop_app
+endif
