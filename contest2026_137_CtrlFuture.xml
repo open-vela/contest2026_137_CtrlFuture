@@ -13,6 +13,7 @@
     <linkfile src="app/edgesight" dest="packages/demos/contest2026_137_edgesight"/>
     <linkfile src="app/lptim_stop_app" dest="packages/demos/contest2026_137_lptim_stop_app"/>
     <linkfile src="app/tim_cap_app" dest="packages/demos/contest2026_137_tim_cap_app"/>
+    <linkfile src="app/dts_temp_app" dest="packages/demos/contest2026_137_dts_temp_app"/>
     <linkfile src="quickapp/hello_quickapp" dest="packages/apps/contest2026_137_hello_quickapp"/>
     <linkfile src="board/contest_board" dest="vendor/openvela/boards/contest2026_137_board"/>
   </project>

@@ -60,6 +60,9 @@
 #  ifdef CONFIG_STM32_ADC1
 #    include "stm32n6_adc.h"
 #  endif
+#  ifdef CONFIG_STM32_DTS
+#    include "stm32n6_dts.h"
+#  endif
 #  ifdef CONFIG_STM32_IWDG
 #    include "stm32n6_iwdg.h"
 #  endif
@@ -295,6 +298,19 @@ static int board_bringup(void)
   if (ret < 0)
     {
       syslog(LOG_ERR, "ERROR: ADC2 init failed: %d\n", ret);
+    }
+#  endif
+
+#  ifdef CONFIG_STM32_DTS
+  /* Register the digital temperature sensor as /dev/temp0.  Fully internal
+   * die junction sensor (no external wiring); read() returns a b16_t
+   * Celsius value (ADR-030).
+   */
+
+  ret = stm32n6_dts_initialize("/dev/temp0");
+  if (ret < 0)
+    {
+      syslog(LOG_ERR, "ERROR: DTS init failed: %d\n", ret);
     }
 #  endif
 
