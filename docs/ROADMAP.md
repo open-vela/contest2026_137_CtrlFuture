@@ -80,10 +80,10 @@
 | # | 模块 | ADR | 依赖 | 验证 | 状态 |
 |---|------|-----|------|------|------|
 | 25 | HPDMA1 高性能 DMA | [025](adr/ADR-025.md) | 011 | — | **N/A**（决策不实现） |
-| 26 | 高级定时器（TIM1/TIM8） | [026](adr/ADR-026.md) | 005 | MEASURED | |
-| 27 | 通用定时器 | [027](adr/ADR-027.md) | 005 | MEASURED | |
-| 28 | 低功耗定时器（LPTIM1-5） | [028](adr/ADR-028.md) | 005, 009 | MEASURED | |
-| 29 | ADC 驱动 | [029](adr/ADR-029.md) | 005, 006, 011 | MEASURED | |
+| 26 | 高级定时器（TIM1/TIM8） | [026](adr/ADR-026.md) | 005 | — | **N/A**（决策不实现） |
+| 27 | 通用定时器 | [027](adr/ADR-027.md) | 005 | MEASURED | **MEASURED** |
+| 28 | 低功耗定时器（LPTIM1-5） | [028](adr/ADR-028.md) | 005, 009 | MEASURED | **MEASURED** |
+| 29 | ADC 驱动 | [029](adr/ADR-029.md) | 005, 006, 011 | MEASURED | **PARTIAL**（轮询 MEASURED，DMA RISAF 阻塞延后） |
 | 30 | DTS 温度传感器 | [030](adr/ADR-030.md) | 005 | MEASURED | |
 | 31 | LTDC LCD 控制器 | [031](adr/ADR-031.md) | 005, 006, 007, 025 | MEASURED | **PARTIAL** |
 | 32 | GPU2D / DMA2D | [032](adr/ADR-032.md) | 031 | MEASURED | |
@@ -96,6 +96,12 @@
 
 > - **025 N/A**：ADR-025 决策不实现独立 HPDMA 驱动，传输由
 >   DCMIPP/VENC/NPU 硬件管道及 ST 中间件自管理。
+> - **026 N/A**：ADR-026 决策不实现 TIM1/TIM8 高级定时器驱动
+>   （EdgeSight 无电机控制/互补 PWM/死区需求）；通用定时/PWM/输入
+>   捕获需求由 ADR-027 覆盖并真机 MEASURED。
+> - **029 PARTIAL**：ADR-029 ADC VREFINT 轮询真机 MEASURED、ADC2
+>   scan/AWD 已实现；ADC DMA 路径在 DEV boot 下被 RISAF 防火墙拦截
+>   （需 RISAF CID 授权而非驱动改动），已文档化并延后。
 > - **031/033 PARTIAL**：`/dev/fb0`、`/dev/video0` 设备框架已注册，
 >   但 LTDC 寄存器编程与 DCMIPP CMW_CAMERA 调用均未实现；
 >   两者未在任何 defconfig 启用（`CONFIG_VIDEO_FB`/`CONFIG_VIDEO`
