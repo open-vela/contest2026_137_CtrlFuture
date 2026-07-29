@@ -197,6 +197,19 @@ config STM32_LPTIM2_PWM
 		with the plain periodic-timer mode, so this depends on
 		STM32_LPTIM2 being off.
 
+config STM32_LPTIM_STOPWAKE
+	bool "LPTIM Stop-mode wakeup self-test"
+	default n
+	depends on STM32_LPTIM3
+	---help---
+		Build the LPTIM Stop-mode wakeup self-test entry point.  It
+		arms LPTIM3 as a one-shot on the LSI, unmasks its EXTI wakeup
+		line (IMR2 line 55), puts the CPU into Stop mode, and verifies
+		via PWR_CPUCR.STOPF that Stop was genuinely entered and that
+		the LPTIM interrupt woke the core.  Destructive to /dev/timer3
+		(reprograms LPTIM3), so do not run it concurrently with the
+		timer3 drivertest.
+
 config STM32_ADC1
 	bool "ADC1 (12-bit analog-to-digital converter)"
 	default n

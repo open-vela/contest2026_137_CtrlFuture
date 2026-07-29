@@ -73,6 +73,12 @@
 #include "hardware/stm32_lptim.h"
 #include "hardware/stm32_rcc.h"
 
+#ifdef CONFIG_STM32_LPTIM_STOPWAKE
+#  include <time.h>
+#  include "stm32n6_pwr.h"
+#  include "hardware/stm32_exti.h"
+#endif
+
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
@@ -927,9 +933,209 @@ static int stm32n6_lppwm_stop(struct pwm_lowerhalf_s *dev)
 
 #endif /* CONFIG_STM32_LPTIM2_PWM */
 
+#ifdef CONFIG_STM32_LPTIM_STOPWAKE
+
+/****************************************************************************
+ * Name: stm32n6_lptim_stopwake_isr
+ *
+ * Description:
+ *   Wakeup interrupt for the Stop-mode self-test.  Runs on LPTIM3's global
+ *   IRQ after the auto-reload match brings the CPU back from Stop mode.
+ *   Acknowledges the LPTIM match and the EXTI line-55 pending bits, and
+ *   records that LPTIM3 was the waker.
+ *
+ ****************************************************************************/
+
+static volatile bool g_lptim_stopwake_woke;
+
+static int stm32n6_lptim_stopwake_isr(int irq, void *context, void *arg)
+{
+  UNUSED(irq);
+  UNUSED(context);
+  UNUSED(arg);
+
+  /* Acknowledge the auto-reload match and the EXTI wakeup pending bits so
+   * the line does not immediately re-fire after we return.
+   */
+
+  putreg32(LPTIM_ICR_ARRMCF, STM32_LPTIM3_BASE + STM32_LPTIM_ICR_OFFSET);
+  putreg32(EXTI_IMR2_LPTIM3, STM32_EXTI_RPR2);
+  putreg32(EXTI_IMR2_LPTIM3, STM32_EXTI_FPR2);
+
+  g_lptim_stopwake_woke = true;
+  return OK;
+}
+
+#endif /* CONFIG_STM32_LPTIM_STOPWAKE */
+
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
+
+#ifdef CONFIG_STM32_LPTIM_STOPWAKE
+
+/****************************************************************************
+ * Name: stm32n6_lptim_stopwake
+ *
+ * Description:
+ *   Stop-mode wakeup self-test (ADR-028).  Arms LPTIM3 as a one-shot on the
+ *   LSI, unmasks its EXTI line so it can wake the core, puts the CPU into
+ *   Stop mode, and returns once the LPTIM match interrupt wakes it back up.
+ *
+ *   This proves the last differentiating LPTIM capability: the counter keeps
+ *   running from the LSI while the CPU clock is gated in Stop mode, and its
+ *   interrupt wakes the core.  On this chip an LPTIM wakes the CPU from Stop
+ *   only if its EXTI IMR2 line is unmasked -- enabling the NVIC IRQ alone is
+ *   not enough.
+ *
+ *   The test is destructive to LPTIM3 (it reprograms the peripheral from
+ *   scratch and leaves it disabled), so it must not run concurrently with
+ *   the /dev/timer3 timer driver.
+ *
+ * Input Parameters:
+ *   ms       - Requested Stop duration in milliseconds (<= ~2048 ms, the
+ *              16-bit LSI reload limit).
+ *   stopf    - If non-NULL, receives true if PWR_CPUCR.STOPF confirmed Stop
+ *              mode was genuinely entered.
+ *   elapsed  - If non-NULL, receives the RTC seconds elapsed across the Stop
+ *              (0 when CONFIG_RTC is absent).
+ *
+ * Returned Value:
+ *   OK if Stop mode was entered (STOPF set) and LPTIM3 woke the core;
+ *   a negated errno value otherwise.
+ *
+ ****************************************************************************/
+
+int stm32n6_lptim_stopwake(unsigned int ms, bool *stopf,
+                           unsigned int *elapsed)
+{
+  uint32_t ticks;
+  uint32_t before = 0;
+  uint32_t after = 0;
+  bool entered;
+  int i;
+  int ret;
+
+  /* One LPTIM tick is one LSI period; the 16-bit reload caps the interval */
+
+  ticks = ((uint64_t)ms * STM32N6_LPTIM_LSI_FREQ) / 1000ull;
+  if (ticks == 0 || ticks > STM32N6_LPTIM_MAXTICKS)
+    {
+      return -EINVAL;
+    }
+
+  /* Bring up LSI + LPTIM3 kernel clock + APB4 gate (with Sleep keep-alive) */
+
+  ret = stm32n6_lptim_clk_bringup(STM32_RCC_APB4ENR1,
+                                  RCC_APB4ENR1_LPTIM3EN,
+                                  STM32_RCC_APB4LPENR1,
+                                  RCC_APB4LPENR1_LPTIM3LPEN,
+                                  RCC_CCIPR12_LPTIM3SEL_MASK,
+                                  RCC_CCIPR12_LPTIM3SEL_LSI);
+  if (ret < 0)
+    {
+      tmrerr("ERROR: LPTIM3 LSI clock enable timeout\n");
+      return ret;
+    }
+
+  g_lptim_stopwake_woke = false;
+
+  /* Configure while disabled: internal clock, prescaler /1, ARR preload,
+   * and arm the auto-reload-match interrupt.
+   */
+
+  putreg32(0, STM32_LPTIM3_BASE + STM32_LPTIM_CR_OFFSET);
+  putreg32(LPTIM_CFGR_PRELOAD, STM32_LPTIM3_BASE + STM32_LPTIM_CFGR_OFFSET);
+  putreg32(LPTIM_DIER_ARRMIE, STM32_LPTIM3_BASE + STM32_LPTIM_DIER_OFFSET);
+
+  /* Enable; ARR is writable only once enabled, then wait for ARROK */
+
+  putreg32(LPTIM_CR_ENABLE, STM32_LPTIM3_BASE + STM32_LPTIM_CR_OFFSET);
+
+  putreg32(LPTIM_ICR_ARROKCF, STM32_LPTIM3_BASE + STM32_LPTIM_ICR_OFFSET);
+  putreg32(ticks - 1, STM32_LPTIM3_BASE + STM32_LPTIM_ARR_OFFSET);
+
+  ret = -ETIMEDOUT;
+  for (i = 0; i < STM32N6_LPTIM_TIMEOUT_US; i++)
+    {
+      if ((getreg32(STM32_LPTIM3_BASE + STM32_LPTIM_ISR_OFFSET) &
+           LPTIM_ISR_ARROK) != 0)
+        {
+          ret = OK;
+          break;
+        }
+
+      up_udelay(1);
+    }
+
+  if (ret < 0)
+    {
+      putreg32(0, STM32_LPTIM3_BASE + STM32_LPTIM_CR_OFFSET);
+      tmrerr("ERROR: LPTIM3 ARR update (ARROK) timeout\n");
+      return ret;
+    }
+
+  putreg32(LPTIM_ICR_ARROKCF, STM32_LPTIM3_BASE + STM32_LPTIM_ICR_OFFSET);
+  putreg32(LPTIM_ICR_ARRMCF, STM32_LPTIM3_BASE + STM32_LPTIM_ICR_OFFSET);
+
+  /* Route the wakeup: attach + enable the NVIC IRQ and unmask the EXTI
+   * line.  Both are required to wake the CPU from Stop mode.
+   */
+
+  irq_attach(STM32_IRQ_LPTIM3, stm32n6_lptim_stopwake_isr, NULL);
+  up_enable_irq(STM32_IRQ_LPTIM3);
+  modifyreg32(STM32_EXTI_IMR2, 0, EXTI_IMR2_LPTIM3);
+
+#ifdef CONFIG_RTC
+  before = (uint32_t)time(NULL);
+#endif
+
+  /* Fire the one-shot and drop into Stop mode.  The LPTIM keeps counting on
+   * the LSI while the CPU clock is gated; the match interrupt wakes us.
+   */
+
+  modifyreg32(STM32_LPTIM3_BASE + STM32_LPTIM_CR_OFFSET, 0,
+              LPTIM_CR_SNGSTRT);
+
+  entered = stm32n6_pwr_enter_stop();
+
+#ifdef CONFIG_RTC
+  after = (uint32_t)time(NULL);
+#endif
+
+  /* Tear down: mask the EXTI line, disable + detach the IRQ, stop LPTIM3 */
+
+  modifyreg32(STM32_EXTI_IMR2, EXTI_IMR2_LPTIM3, 0);
+  up_disable_irq(STM32_IRQ_LPTIM3);
+  irq_detach(STM32_IRQ_LPTIM3);
+
+  putreg32(0, STM32_LPTIM3_BASE + STM32_LPTIM_CR_OFFSET);
+  putreg32(0, STM32_LPTIM3_BASE + STM32_LPTIM_DIER_OFFSET);
+  putreg32(LPTIM_ICR_ARRMCF, STM32_LPTIM3_BASE + STM32_LPTIM_ICR_OFFSET);
+
+  if (stopf != NULL)
+    {
+      *stopf = entered;
+    }
+
+  if (elapsed != NULL)
+    {
+      *elapsed = (after >= before) ? (after - before) : 0;
+    }
+
+  /* PASS requires both hardware witnesses: Stop was truly entered (STOPF)
+   * and LPTIM3 is what woke the core (ISR ran).
+   */
+
+  if (!entered || !g_lptim_stopwake_woke)
+    {
+      return -EIO;
+    }
+
+  return OK;
+}
+
+#endif /* CONFIG_STM32_LPTIM_STOPWAKE */
 
 /****************************************************************************
  * Name: stm32n6_lptim_initialize

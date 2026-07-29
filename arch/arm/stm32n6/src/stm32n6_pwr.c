@@ -29,7 +29,10 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+#include <arch/barriers.h>
+
 #include "arm_internal.h"
+#include "nvic.h"
 #include "stm32n6_pwr.h"
 #include "hardware/stm32_pwr.h"
 
@@ -161,4 +164,57 @@ void stm32n6_pwr_enablevddio(uint32_t mask)
   regval  = getreg32(STM32_PWR_SVMCR3);
   regval |= mask;
   putreg32(regval, STM32_PWR_SVMCR3);
+}
+
+/****************************************************************************
+ * Name: stm32n6_pwr_enter_stop
+ *
+ * Description:
+ *   Put the CPU into Stop mode via WFI.  In Stop mode the CPU clock is
+ *   gated but SRAM content is retained and any peripheral running on an
+ *   always-on clock (e.g. an LPTIM on LSI) keeps running and can wake the
+ *   CPU through its EXTI line.  The caller is responsible for arming a
+ *   wakeup source and unmasking its EXTI interrupt line beforehand.
+ *
+ *   The sequence follows ST HAL_PWR_EnterSTOPMode(): select Stop (not
+ *   Standby) by clearing PWR_CPUCR.PDDS, set the Cortex SLEEPDEEP bit,
+ *   barrier, then WFI.  On wake SLEEPDEEP is cleared again.
+ *
+ * Returned Value:
+ *   true  - PWR_CPUCR.STOPF was set on wake, i.e. Stop mode was genuinely
+ *           entered (hardware evidence).
+ *   false - STOPF was not set (the WFI returned without entering Stop).
+ *
+ ****************************************************************************/
+
+bool stm32n6_pwr_enter_stop(void)
+{
+  bool stopf;
+
+  /* Select Stop mode (PDDS = 0) rather than Standby. */
+
+  modifyreg32(STM32_PWR_CPUCR, PWR_CPUCR_PDDS, 0);
+
+  /* Use deep sleep on the next WFI. */
+
+  modifyreg32(NVIC_SYSCON, 0, NVIC_SYSCON_SLEEPDEEP);
+
+  UP_DSB();
+  UP_ISB();
+
+  __asm__ __volatile__ ("wfi");
+
+  /* Back in Run mode: restore ordinary sleep behaviour. */
+
+  modifyreg32(NVIC_SYSCON, NVIC_SYSCON_SLEEPDEEP, 0);
+
+  /* STOPF reads 1 only if Stop mode was actually entered. */
+
+  stopf = (getreg32(STM32_PWR_CPUCR) & PWR_CPUCR_STOPF) != 0;
+
+  /* Clear the Stop/Standby flags for the next entry (CSSF, write 1). */
+
+  modifyreg32(STM32_PWR_CPUCR, 0, PWR_CPUCR_CSSF);
+
+  return stopf;
 }
