@@ -1,0 +1,18 @@
+#
+# For a description of the syntax of this configuration file,
+# see the file kconfig-language.txt in the NuttX tools repository.
+#
+
+config LVX_USE_DEMO_CONTEST2026_137_TIM_CAP_APP
+	bool "Contest 2026 team 137 TIM PWM+capture loopback demo"
+	default n
+	depends on STM32_TIM15_CAP
+	---help---
+		Enable the contest 2026 team 137 TIM PWM + input-capture
+		loopback demo (tim_cap).  Drives a 1 kHz 50% PWM on TIM3 CH1
+		(/dev/pwm1) and reads its frequency and duty back through
+		TIM15 input capture (/dev/cap0), whose TI1 is sourced from
+		TIM3 CH1 internally via TISEL.  Proves both PWM output and
+		input capture with a wire-free on-chip loopback.  Requires
+		STM32_TIM15_CAP (which selects STM32_TIM3_PWM) in the arch
+		layer.
