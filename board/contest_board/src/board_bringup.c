@@ -53,7 +53,7 @@
 #  endif
 #  if defined(CONFIG_STM32_LPTIM1) || defined(CONFIG_STM32_LPTIM2) || \
       defined(CONFIG_STM32_LPTIM3) || defined(CONFIG_STM32_LPTIM4) || \
-      defined(CONFIG_STM32_LPTIM5)
+      defined(CONFIG_STM32_LPTIM5) || defined(CONFIG_STM32_LPTIM2_PWM)
 #    include "stm32n6_lptim.h"
 #  endif
 #  ifdef CONFIG_STM32_ADC1
@@ -232,6 +232,18 @@ static int board_bringup(void)
   if (ret < 0)
     {
       syslog(LOG_ERR, "ERROR: LPTIM5 init failed: %d\n", ret);
+    }
+#  endif
+
+#  ifdef CONFIG_STM32_LPTIM2_PWM
+  /* Register LPTIM2 as the low-power PWM output /dev/pwm0 (LPTIM2_CH1 on
+   * PF1, LSI-clocked) for the cmocka drivertest_pwm suite.
+   */
+
+  ret = stm32n6_lppwm_initialize("/dev/pwm0");
+  if (ret < 0)
+    {
+      syslog(LOG_ERR, "ERROR: LPTIM2 PWM init failed: %d\n", ret);
     }
 #  endif
 
