@@ -185,6 +185,18 @@ config STM32_LPTIM5
 		LPTIM5 is a 16-bit low-power timer on APB4, clocked from the
 		LSI (~32kHz), run here as a plain periodic timer.
 
+config STM32_LPTIM2_PWM
+	bool "LPTIM2 low-power PWM output (/dev/pwm0)"
+	default n
+	depends on !STM32_LPTIM2
+	select PWM
+	---help---
+		Expose LPTIM2 as a NuttX PWM character device (/dev/pwm0)
+		driving the LPTIM2_CH1 output (PF1, AF3) from the LSI clock.
+		PWM mode shares the LPTIM CR/CFGR and is mutually exclusive
+		with the plain periodic-timer mode, so this depends on
+		STM32_LPTIM2 being off.
+
 config STM32_ADC1
 	bool "ADC1 (12-bit analog-to-digital converter)"
 	default n
