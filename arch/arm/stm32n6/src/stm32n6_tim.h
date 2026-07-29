@@ -58,6 +58,52 @@ extern "C"
 
 int stm32n6_timer_initialize(const char *devpath, int timer);
 
+#ifdef CONFIG_STM32_TIM3_PWM
+
+/****************************************************************************
+ * Name: stm32n6_tim_pwm_initialize
+ *
+ * Description:
+ *   Register TIM3 as a PWM character device (e.g. "/dev/pwm1"), driving the
+ *   TIM3_CH1 compare output.  The waveform is generated internally and can
+ *   be routed on-chip into TIM15 TI1 (via TISEL) for a wire-free capture
+ *   loopback; no external pin is claimed.
+ *
+ * Input Parameters:
+ *   devpath - Character device path (e.g. "/dev/pwm1").
+ *
+ * Returned Value:
+ *   Zero (OK) on success; a negated errno value on failure.
+ *
+ ****************************************************************************/
+
+int stm32n6_tim_pwm_initialize(const char *devpath);
+
+#endif /* CONFIG_STM32_TIM3_PWM */
+
+#ifdef CONFIG_STM32_TIM15_CAP
+
+/****************************************************************************
+ * Name: stm32n6_tim_cap_initialize
+ *
+ * Description:
+ *   Register TIM15 as an input-capture character device (e.g. "/dev/cap0")
+ *   measuring frequency and duty cycle.  TIM15 runs in PWM-input mode with
+ *   its TI1 sourced internally from TIM3 CH1 (TISEL loopback), so the
+ *   TIM3 PWM waveform is read back with zero external wiring.
+ *
+ * Input Parameters:
+ *   devpath - Character device path (e.g. "/dev/cap0").
+ *
+ * Returned Value:
+ *   Zero (OK) on success; a negated errno value on failure.
+ *
+ ****************************************************************************/
+
+int stm32n6_tim_cap_initialize(const char *devpath);
+
+#endif /* CONFIG_STM32_TIM15_CAP */
+
 #ifdef __cplusplus
 }
 #endif

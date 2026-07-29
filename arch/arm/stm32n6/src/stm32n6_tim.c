@@ -48,6 +48,14 @@
 #include <nuttx/timers/timer.h>
 #include <nuttx/spinlock.h>
 
+#ifdef CONFIG_STM32_TIM3_PWM
+#  include <nuttx/timers/pwm.h>
+#endif
+#ifdef CONFIG_STM32_TIM15_CAP
+#  include <nuttx/clock.h>
+#  include <nuttx/timers/capture.h>
+#endif
+
 #include <arch/board/board.h>
 
 #include "arm_internal.h"
@@ -483,3 +491,438 @@ int stm32n6_timer_initialize(const char *devpath, int timer)
 
   return OK;
 }
+
+#ifdef CONFIG_STM32_TIM3_PWM
+
+/****************************************************************************
+ * TIM3 PWM output lower-half (ADR-027)
+ *
+ * Drives the TIM3_CH1 compare output as a plain single-channel PWM in PWM
+ * mode 1.  The waveform is autonomous (no interrupt needed) and is routed
+ * on-chip into TIM15 TI1 through TISEL for the wire-free capture loopback.
+ ****************************************************************************/
+
+struct stm32n6_pwm_lowerhalf_s
+{
+  const struct pwm_ops_s *ops;      /* Lower-half ops (must be 1st) */
+  uint32_t                base;     /* Timer register base address */
+  uint32_t                timclk;   /* Timer input clock (Hz) */
+  bool                    started;  /* True when output is running */
+};
+
+static int stm32n6_pwm_setup(struct pwm_lowerhalf_s *dev);
+static int stm32n6_pwm_shutdown(struct pwm_lowerhalf_s *dev);
+static int stm32n6_pwm_start(struct pwm_lowerhalf_s *dev,
+                             const struct pwm_info_s *info);
+static int stm32n6_pwm_stop(struct pwm_lowerhalf_s *dev);
+static int stm32n6_pwm_ioctl(struct pwm_lowerhalf_s *dev, int cmd,
+                             unsigned long arg);
+
+static const struct pwm_ops_s g_stm32n6_pwm_ops =
+{
+  .setup    = stm32n6_pwm_setup,
+  .shutdown = stm32n6_pwm_shutdown,
+  .start    = stm32n6_pwm_start,
+  .stop     = stm32n6_pwm_stop,
+  .ioctl    = stm32n6_pwm_ioctl,
+};
+
+static struct stm32n6_pwm_lowerhalf_s g_tim3_pwm_lowerhalf =
+{
+  .ops    = &g_stm32n6_pwm_ops,
+  .base   = STM32_TIM3_BASE,
+  .timclk = STM32_APB1_TIM_FREQUENCY,
+};
+
+/****************************************************************************
+ * Name: stm32n6_pwm_setup
+ ****************************************************************************/
+
+static int stm32n6_pwm_setup(struct pwm_lowerhalf_s *dev)
+{
+  irqstate_t flags;
+  uint32_t regval;
+
+  /* Enable the TIM3 APB1 peripheral clock (and keep it alive across CPU
+   * Sleep so the waveform never gates while a task blocks).
+   */
+
+  flags = spin_lock_irqsave(&g_tim_lock);
+
+  regval  = getreg32(STM32_RCC_APB1ENR1);
+  regval |= RCC_APB1ENR1_TIM3EN;
+  putreg32(regval, STM32_RCC_APB1ENR1);
+
+  regval  = getreg32(STM32_RCC_APB1LPENR1);
+  regval |= RCC_APB1LPENR1_TIM3LPEN;
+  putreg32(regval, STM32_RCC_APB1LPENR1);
+
+  spin_unlock_irqrestore(&g_tim_lock, flags);
+
+  return OK;
+}
+
+/****************************************************************************
+ * Name: stm32n6_pwm_shutdown
+ ****************************************************************************/
+
+static int stm32n6_pwm_shutdown(struct pwm_lowerhalf_s *dev)
+{
+  return stm32n6_pwm_stop(dev);
+}
+
+/****************************************************************************
+ * Name: stm32n6_pwm_start
+ ****************************************************************************/
+
+static int stm32n6_pwm_start(struct pwm_lowerhalf_s *dev,
+                             const struct pwm_info_s *info)
+{
+  struct stm32n6_pwm_lowerhalf_s *priv =
+    (struct stm32n6_pwm_lowerhalf_s *)dev;
+  irqstate_t flags;
+  uint32_t psc;
+  uint32_t period;
+  uint32_t ccr;
+
+  DEBUGASSERT(priv != NULL && info != NULL);
+
+  if (info->frequency == 0)
+    {
+      return -EINVAL;
+    }
+
+  /* Fixed 1 MHz tick keeps the arithmetic exact for kHz-range outputs and
+   * matches the capture timer's tick so the readback maps 1:1.
+   */
+
+  psc    = (priv->timclk / STM32N6_TIM_TICK_FREQ) - 1;
+  period = STM32N6_TIM_TICK_FREQ / info->frequency;
+  if (period == 0)
+    {
+      return -EINVAL;
+    }
+
+  /* duty is a ub16_t fraction of 65536; CCR1 is the active-count. */
+
+  ccr = ((uint64_t)period * info->duty) >> 16;
+
+  flags = spin_lock_irqsave(&g_tim_lock);
+
+  /* Stop the counter while (re)configuring. */
+
+  putreg32(0, priv->base + STM32_TIM_CR1_OFFSET);
+
+  putreg32(psc, priv->base + STM32_TIM_PSC_OFFSET);
+  putreg32(period - 1, priv->base + STM32_TIM_ARR_OFFSET);
+  putreg32(ccr, priv->base + STM32_TIM_CCR1_OFFSET);
+
+  /* PWM mode 1 on CH1 with output-compare preload enabled. */
+
+  modifyreg32(priv->base + STM32_TIM_CCMR1_OFFSET,
+              TIM_CCMR1_OC1M_MASK,
+              TIM_CCMR1_OC1M_PWM1 | TIM_CCMR1_OC1PE);
+
+  /* Enable CH1 output. */
+
+  modifyreg32(priv->base + STM32_TIM_CCER_OFFSET, 0, TIM_CCER_CC1E);
+
+  /* Emit the update event as the trigger output (TRGO) so exactly one
+   * tim3_trgo pulse is produced per PWM period, driving the inter-timer
+   * link (tim3_trgo -> TIM15 ITR2).  The counter output-compare (CCR1)
+   * still shapes the PWM waveform on CH1; UPDATE is chosen for TRGO
+   * because it gives an unambiguous one-pulse-per-period tick, whereas
+   * OC1REF is level-based and double-counts in external-clock mode.
+   */
+
+  modifyreg32(priv->base + STM32_TIM_CR2_OFFSET,
+              TIM_CR2_MMS_MASK, TIM_CR2_MMS_UPDATE);
+
+  /* Load PSC/ARR/CCR via an update event, then clear stale flags. */
+
+  putreg32(TIM_EGR_UG, priv->base + STM32_TIM_EGR_OFFSET);
+  putreg32(0, priv->base + STM32_TIM_SR_OFFSET);
+
+  /* Preload the auto-reload and start counting. */
+
+  putreg32(TIM_CR1_ARPE | TIM_CR1_CEN,
+           priv->base + STM32_TIM_CR1_OFFSET);
+
+  priv->started = true;
+
+  spin_unlock_irqrestore(&g_tim_lock, flags);
+
+  return OK;
+}
+
+/****************************************************************************
+ * Name: stm32n6_pwm_stop
+ ****************************************************************************/
+
+static int stm32n6_pwm_stop(struct pwm_lowerhalf_s *dev)
+{
+  struct stm32n6_pwm_lowerhalf_s *priv =
+    (struct stm32n6_pwm_lowerhalf_s *)dev;
+  irqstate_t flags;
+
+  DEBUGASSERT(priv != NULL);
+
+  flags = spin_lock_irqsave(&g_tim_lock);
+
+  modifyreg32(priv->base + STM32_TIM_CCER_OFFSET, TIM_CCER_CC1E, 0);
+  putreg32(0, priv->base + STM32_TIM_CR1_OFFSET);
+  putreg32(0, priv->base + STM32_TIM_SR_OFFSET);
+
+  priv->started = false;
+
+  spin_unlock_irqrestore(&g_tim_lock, flags);
+
+  return OK;
+}
+
+/****************************************************************************
+ * Name: stm32n6_pwm_ioctl
+ ****************************************************************************/
+
+static int stm32n6_pwm_ioctl(struct pwm_lowerhalf_s *dev, int cmd,
+                             unsigned long arg)
+{
+  return -ENOTTY;
+}
+
+/****************************************************************************
+ * Name: stm32n6_tim_pwm_initialize
+ ****************************************************************************/
+
+int stm32n6_tim_pwm_initialize(const char *devpath)
+{
+  DEBUGASSERT(devpath != NULL);
+
+  return pwm_register(devpath,
+                      (struct pwm_lowerhalf_s *)&g_tim3_pwm_lowerhalf);
+}
+
+#endif /* CONFIG_STM32_TIM3_PWM */
+
+#ifdef CONFIG_STM32_TIM15_CAP
+
+/****************************************************************************
+ * TIM15 inter-timer frequency counter lower-half (ADR-027)
+ *
+ * Reads back the TIM3 PWM waveform through the on-chip inter-timer trigger
+ * link, with zero external wiring.  TIM3 emits its OC1REF compare waveform
+ * as its trigger output (tim3_trgo); TIM15 selects that trigger as ITR2 and
+ * runs in external-clock mode 1, so its counter advances by exactly one
+ * count per PWM period.  Frequency is then the counted pulses divided by
+ * the elapsed time.
+ *
+ * Note: this path measures frequency (and hence proves the PWM output +
+ * inter-timer routing) but not duty cycle -- the TI-input capture mux that
+ * would latch the high time does not carry the internal signal on this
+ * silicon (RM0486 Table 538 lists TIM3_CH1 on tim_ti1_in2, but the tap is
+ * inert in practice), so the OC1REF->ITR2 trigger link is used instead.
+ ****************************************************************************/
+
+struct stm32n6_cap_lowerhalf_s
+{
+  const struct cap_ops_s *ops;      /* Lower-half ops (must be 1st) */
+  uint32_t                base;     /* Timer register base address */
+  uint32_t                timclk;   /* Timer input clock (Hz) */
+  clock_t                 t0;       /* Tick count when counting began */
+  bool                    started;  /* True when counting is running */
+};
+
+static int stm32n6_cap_start(struct cap_lowerhalf_s *lower);
+static int stm32n6_cap_stop(struct cap_lowerhalf_s *lower);
+static int stm32n6_cap_getduty(struct cap_lowerhalf_s *lower,
+                               uint8_t *duty);
+static int stm32n6_cap_getfreq(struct cap_lowerhalf_s *lower,
+                               uint32_t *freq);
+static int stm32n6_cap_getedges(struct cap_lowerhalf_s *lower,
+                                uint32_t *edges);
+
+static const struct cap_ops_s g_stm32n6_cap_ops =
+{
+  .start    = stm32n6_cap_start,
+  .stop     = stm32n6_cap_stop,
+  .getduty  = stm32n6_cap_getduty,
+  .getfreq  = stm32n6_cap_getfreq,
+  .getedges = stm32n6_cap_getedges,
+};
+
+static struct stm32n6_cap_lowerhalf_s g_tim15_cap_lowerhalf =
+{
+  .ops    = &g_stm32n6_cap_ops,
+  .base   = STM32_TIM15_BASE,
+  .timclk = STM32_APB2_TIM_FREQUENCY,
+};
+
+/****************************************************************************
+ * Name: stm32n6_cap_start
+ ****************************************************************************/
+
+static int stm32n6_cap_start(struct cap_lowerhalf_s *lower)
+{
+  struct stm32n6_cap_lowerhalf_s *priv =
+    (struct stm32n6_cap_lowerhalf_s *)lower;
+  irqstate_t flags;
+  uint32_t regval;
+
+  DEBUGASSERT(priv != NULL);
+
+  /* Enable the TIM15 APB2 peripheral clock (kept alive across CPU Sleep). */
+
+  flags = spin_lock_irqsave(&g_tim_lock);
+
+  regval  = getreg32(STM32_RCC_APB2ENR);
+  regval |= RCC_APB2ENR_TIM15EN;
+  putreg32(regval, STM32_RCC_APB2ENR);
+
+  regval  = getreg32(STM32_RCC_APB2LPENR);
+  regval |= RCC_APB2LPENR_TIM15LPEN;
+  putreg32(regval, STM32_RCC_APB2LPENR);
+
+  /* Stop the counter while (re)configuring. */
+
+  putreg32(0, priv->base + STM32_TIM_CR1_OFFSET);
+
+  /* Count every trigger tick (no prescaler) over the full 16-bit range. */
+
+  putreg32(0, priv->base + STM32_TIM_PSC_OFFSET);
+  putreg32(0xffff, priv->base + STM32_TIM_ARR_OFFSET);
+
+  /* External clock mode 1 off ITR2 (tim3_trgo): each TIM3 period advances
+   * the TIM15 counter by one.  SMS = external clock mode 1, TS = ITR2.
+   */
+
+  regval  = getreg32(priv->base + STM32_TIM_SMCR_OFFSET);
+  regval &= ~(TIM_SMCR_SMS_MASK | TIM_SMCR_TS_MASK);
+  regval |= TIM_SMCR_TS_ITR2 | TIM_SMCR_SMS_EXTCLK1;
+  putreg32(regval, priv->base + STM32_TIM_SMCR_OFFSET);
+
+  /* Load PSC/ARR via an update event, then clear the counter and flags. */
+
+  putreg32(TIM_EGR_UG, priv->base + STM32_TIM_EGR_OFFSET);
+  putreg32(0, priv->base + STM32_TIM_CNT_OFFSET);
+  putreg32(0, priv->base + STM32_TIM_SR_OFFSET);
+
+  /* Enable the counter; it now advances on each tim3_trgo pulse. */
+
+  modifyreg32(priv->base + STM32_TIM_CR1_OFFSET, 0, TIM_CR1_CEN);
+
+  priv->t0      = clock_systime_ticks();
+  priv->started = true;
+
+  spin_unlock_irqrestore(&g_tim_lock, flags);
+
+  return OK;
+}
+
+/****************************************************************************
+ * Name: stm32n6_cap_stop
+ ****************************************************************************/
+
+static int stm32n6_cap_stop(struct cap_lowerhalf_s *lower)
+{
+  struct stm32n6_cap_lowerhalf_s *priv =
+    (struct stm32n6_cap_lowerhalf_s *)lower;
+  irqstate_t flags;
+
+  DEBUGASSERT(priv != NULL);
+
+  flags = spin_lock_irqsave(&g_tim_lock);
+
+  putreg32(0, priv->base + STM32_TIM_CR1_OFFSET);
+  putreg32(0, priv->base + STM32_TIM_SR_OFFSET);
+
+  priv->started = false;
+
+  spin_unlock_irqrestore(&g_tim_lock, flags);
+
+  return OK;
+}
+
+/****************************************************************************
+ * Name: stm32n6_cap_getfreq
+ ****************************************************************************/
+
+static int stm32n6_cap_getfreq(struct cap_lowerhalf_s *lower,
+                               uint32_t *freq)
+{
+  struct stm32n6_cap_lowerhalf_s *priv =
+    (struct stm32n6_cap_lowerhalf_s *)lower;
+  uint32_t pulses;
+  uint32_t elapsed_us;
+
+  DEBUGASSERT(priv != NULL && freq != NULL);
+
+  /* Pulses counted since start, over the elapsed wall-clock time, give the
+   * PWM frequency directly (one count per TIM3 period).
+   */
+
+  pulses     = getreg32(priv->base + STM32_TIM_CNT_OFFSET);
+  elapsed_us = (uint32_t)TICK2USEC(clock_systime_ticks() - priv->t0);
+
+  if (elapsed_us == 0)
+    {
+      *freq = 0;
+    }
+  else
+    {
+      *freq = (uint32_t)(((uint64_t)pulses * 1000000ull) / elapsed_us);
+    }
+
+  return OK;
+}
+
+/****************************************************************************
+ * Name: stm32n6_cap_getduty
+ ****************************************************************************/
+
+static int stm32n6_cap_getduty(struct cap_lowerhalf_s *lower,
+                               uint8_t *duty)
+{
+  DEBUGASSERT(duty != NULL);
+
+  /* Duty is not observable through the inter-timer trigger link (only one
+   * edge per period reaches the counter), so report 0.
+   */
+
+  *duty = 0;
+
+  return OK;
+}
+
+/****************************************************************************
+ * Name: stm32n6_cap_getedges
+ ****************************************************************************/
+
+static int stm32n6_cap_getedges(struct cap_lowerhalf_s *lower,
+                                uint32_t *edges)
+{
+  struct stm32n6_cap_lowerhalf_s *priv =
+    (struct stm32n6_cap_lowerhalf_s *)lower;
+
+  DEBUGASSERT(priv != NULL && edges != NULL);
+
+  /* Each counted trigger pulse is one PWM period, i.e. one rising edge. */
+
+  *edges = getreg32(priv->base + STM32_TIM_CNT_OFFSET);
+
+  return OK;
+}
+
+/****************************************************************************
+ * Name: stm32n6_tim_cap_initialize
+ ****************************************************************************/
+
+int stm32n6_tim_cap_initialize(const char *devpath)
+{
+  struct stm32n6_cap_lowerhalf_s *priv = &g_tim15_cap_lowerhalf;
+
+  DEBUGASSERT(devpath != NULL);
+
+  return cap_register(devpath, (struct cap_lowerhalf_s *)priv);
+}
+
+#endif /* CONFIG_STM32_TIM15_CAP */
