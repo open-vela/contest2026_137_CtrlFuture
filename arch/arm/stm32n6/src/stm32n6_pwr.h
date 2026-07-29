@@ -38,5 +38,6 @@ int stm32n6_pwr_set_voltage_scale(unsigned int scale);
 unsigned int stm32n6_pwr_get_voltage_scale(void);
 bool stm32n6_pwr_enablebkp(bool writable);
 void stm32n6_pwr_enablevddio(uint32_t mask);
+bool stm32n6_pwr_enter_stop(void);
 
 #endif /* __ARCH_ARM_SRC_STM32N6_STM32N6_PWR_H */

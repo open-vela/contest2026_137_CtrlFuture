@@ -84,10 +84,17 @@
 #define PWR_VOSCR_ACTVOS        (1 << 16) /* Currently applied VOS */
 #define PWR_VOSCR_ACTVOSRDY     (1 << 17) /* ACTVOS ready */
 
-/* PWR_CPUCR bits */
+/* PWR_CPUCR bits (from CMSIS PWR_CPUCR) */
 
-#define PWR_CPUCR_SVOS_Pos      0
-#define PWR_CPUCR_SVOS_Msk      (0x3 << PWR_CPUCR_SVOS_Pos)
+#define PWR_CPUCR_PDDS          (1 << 0)  /* Power-down deepsleep select
+                                            * (0 = Stop, 1 = Standby) */
+#define PWR_CPUCR_CSSF          (1 << 1)  /* Clear Standby/Stop flags
+                                            * (write 1; reads as 0) */
+#define PWR_CPUCR_STOPF         (1 << 8)  /* Stop flag (set by HW when Stop
+                                            * mode was entered) */
+#define PWR_CPUCR_SBF           (1 << 9)  /* System Standby flag */
+#define PWR_CPUCR_SVOS_Pos      16        /* Stop-mode voltage-scaling sel */
+#define PWR_CPUCR_SVOS_Msk      (0x1 << PWR_CPUCR_SVOS_Pos)
 #define PWR_CPUCR_SVOS          PWR_CPUCR_SVOS_Msk
 
 /* Voltage scaling levels */
