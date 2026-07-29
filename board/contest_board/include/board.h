@@ -152,14 +152,18 @@
 #  define STM32_PCLK2_FREQUENCY   STM32_HCLK_FREQUENCY
 #endif
 
-/* APB timer kernel clock.  On STM32N6 the timer domain derives from the
- * bus clock (PCLKx) through HPRE/PPREx, NOT directly from SYSCLK.  With
- * PPREx=/1 and TIMPRE=0 there is no timer-clock doubling, so the timer
- * input clock equals PCLKx.
+/* APB timer kernel clock.  On STM32N6 the timer-group clock timg_ck does
+ * NOT derive from PCLKx: per RM0486 RCC_CFGR2.TIMPRE, at the reset default
+ * TIMPRE=00 timg_ck = sys_bus_ck, i.e. the AXI system bus clock taken
+ * ahead of the HPRE prescaler.  Since the FSBL leaves HPRE=/2, PCLKx is
+ * sys_bus_ck/2 but the timers still run at the full sys_bus_ck (= SYSCLK).
+ * Using PCLKx here made every timer tick at 2x the intended rate (verified
+ * live: a nominal 1 kHz PWM read back as ~2 kHz through the TIM3->TIM15
+ * inter-timer link).  So the timer input clock equals SYSCLK, not PCLKx.
  */
 
-#define STM32_APB1_TIM_FREQUENCY STM32_PCLK1_FREQUENCY
-#define STM32_APB2_TIM_FREQUENCY STM32_PCLK2_FREQUENCY
+#define STM32_APB1_TIM_FREQUENCY STM32_SYSCLK_FREQUENCY
+#define STM32_APB2_TIM_FREQUENCY STM32_SYSCLK_FREQUENCY
 
 /* I/O voltage domains ******************************************************/
 

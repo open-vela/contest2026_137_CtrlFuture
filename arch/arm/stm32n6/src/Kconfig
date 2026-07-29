@@ -210,6 +210,30 @@ config STM32_LPTIM_STOPWAKE
 		(reprograms LPTIM3), so do not run it concurrently with the
 		timer3 drivertest.
 
+config STM32_TIM3_PWM
+	bool "TIM3 PWM output (/dev/pwm1)"
+	default n
+	select PWM
+	---help---
+		Expose TIM3 as a NuttX PWM character device (/dev/pwm1)
+		driving the TIM3_CH1 compare output in PWM mode 1.  The
+		waveform is generated internally and is intended to be routed
+		on-chip into TIM15 TI1 (via TISEL) for the wire-free capture
+		loopback, so no external GPIO pin is claimed.
+
+config STM32_TIM15_CAP
+	bool "TIM15 input capture (/dev/cap0)"
+	default n
+	depends on STM32_TIM3_PWM
+	select CAPTURE
+	---help---
+		Expose TIM15 as a NuttX input-capture character device
+		(/dev/cap0) measuring frequency and duty cycle in PWM-input
+		mode.  TIM15 TI1 is sourced internally from TIM3 CH1 through
+		the TISEL register, so the TIM3 PWM waveform is captured back
+		with zero external wiring.  Depends on STM32_TIM3_PWM as the
+		loopback signal source.
+
 config STM32_ADC1
 	bool "ADC1 (12-bit analog-to-digital converter)"
 	default n

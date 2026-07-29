@@ -45,7 +45,8 @@
 #  ifdef CONFIG_DEV_GPIO
 #    include "stm32n6_gpio.h"
 #  endif
-#  ifdef CONFIG_STM32_TIM2
+#  if defined(CONFIG_STM32_TIM2) || defined(CONFIG_STM32_TIM3_PWM) || \
+      defined(CONFIG_STM32_TIM15_CAP)
 #    include "stm32n6_tim.h"
 #  endif
 #  ifdef CONFIG_STM32_TIM5
@@ -244,6 +245,32 @@ static int board_bringup(void)
   if (ret < 0)
     {
       syslog(LOG_ERR, "ERROR: LPTIM2 PWM init failed: %d\n", ret);
+    }
+#  endif
+
+#  ifdef CONFIG_STM32_TIM3_PWM
+  /* Register TIM3 as the PWM output /dev/pwm1 (TIM3_CH1, PWM mode 1).  Its
+   * waveform is routed on-chip into TIM15 TI1 (TISEL) for the wire-free
+   * capture loopback used by the tim_cap self-test.
+   */
+
+  ret = stm32n6_tim_pwm_initialize("/dev/pwm1");
+  if (ret < 0)
+    {
+      syslog(LOG_ERR, "ERROR: TIM3 PWM init failed: %d\n", ret);
+    }
+#  endif
+
+#  ifdef CONFIG_STM32_TIM15_CAP
+  /* Register TIM15 as the input-capture device /dev/cap0 (PWM-input mode,
+   * TI1 sourced internally from TIM3 CH1 via TISEL) for the tim_cap
+   * loopback self-test.
+   */
+
+  ret = stm32n6_tim_cap_initialize("/dev/cap0");
+  if (ret < 0)
+    {
+      syslog(LOG_ERR, "ERROR: TIM15 capture init failed: %d\n", ret);
     }
 #  endif
 

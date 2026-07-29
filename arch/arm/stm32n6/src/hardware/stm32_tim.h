@@ -48,6 +48,8 @@
 #define STM32_TIM_PSC_OFFSET     0x0028  /* Prescaler register */
 #define STM32_TIM_ARR_OFFSET     0x002c  /* Auto-reload register */
 #define STM32_TIM_CCR1_OFFSET    0x0034  /* Capture/compare register 1 */
+#define STM32_TIM_CCR2_OFFSET    0x0038  /* Capture/compare register 2 */
+#define STM32_TIM_TISEL_OFFSET   0x005c  /* Timer input selection register */
 
 /* Register Addresses *******************************************************/
 
@@ -89,6 +91,67 @@
 
 /* Capture/compare enable register (CCER) */
 
-#define TIM_CCER_CC1E            (1 << 0)  /* Capture/compare 1 out enable */
+#define TIM_CCER_CC1E            (1 << 0)  /* Capture/compare 1 enable */
+#define TIM_CCER_CC1P            (1 << 1)  /* Capture/compare 1 polarity */
+#define TIM_CCER_CC1NP           (1 << 3)  /* Capture/compare 1 compl. pol. */
+#define TIM_CCER_CC2E            (1 << 4)  /* Capture/compare 2 enable */
+#define TIM_CCER_CC2P            (1 << 5)  /* Capture/compare 2 polarity */
+
+/* DMA/interrupt enable register (DIER) — capture/compare 2 */
+
+#define TIM_DIER_CC2IE           (1 << 2)  /* Capture/compare 2 int enable */
+
+/* Status register (SR) — capture/compare 2 */
+
+#define TIM_SR_CC2IF             (1 << 2)  /* Capture/compare 2 int flag */
+
+/* Capture/compare mode register 1 (CCMR1) — output-compare view.
+ * OC1M = 0b110 selects PWM mode 1 (active while CNT < CCR1).
+ */
+
+#define TIM_CCMR1_OC1PE          (1 << 3)  /* Output-compare 1 preload en */
+#define TIM_CCMR1_OC1M_PWM1      (6 << 4)  /* OC1M[2:0] = PWM mode 1 */
+#define TIM_CCMR1_OC1M_MASK      (7 << 4)  /* OC1M[2:0] field mask */
+
+/* Capture/compare mode register 1 (CCMR1) — input-capture view.
+ * CC1S/CC2S = 0b01/0b10 map the capture channels onto input TI1.
+ */
+
+#define TIM_CCMR1_CC1S_TI1       (1 << 0)  /* CC1S[1:0]: CC1 mapped on TI1 */
+#define TIM_CCMR1_CC1S_MASK      (3 << 0)
+#define TIM_CCMR1_CC2S_TI1       (2 << 8)  /* CC2S[1:0]: CC2 mapped on TI1 */
+#define TIM_CCMR1_CC2S_MASK      (3 << 8)
+
+/* Control register 2 (CR2).  MMS selects the trigger output (TRGO):
+ * 0b010 = update event (one pulse per counter period, time-base only);
+ * 0b100 = OC1REF (the PWM compare waveform itself, one rising edge per
+ * period).  OC1REF is used for the loopback so the readback exercises the
+ * output-compare engine, not merely the counter overflow.
+ */
+
+#define TIM_CR2_MMS_UPDATE       (2 << 4)  /* MMS[2:0] = update -> TRGO */
+#define TIM_CR2_MMS_OC1REF       (4 << 4)  /* MMS[2:0] = OC1REF -> TRGO */
+#define TIM_CR2_MMS_MASK         (7 << 4)
+
+/* Slave mode control register (SMCR).  Reset mode (SMS = 0b100) reloads
+ * the counter on the selected trigger; external clock mode 1 (SMS = 0b111)
+ * clocks the counter from the selected trigger.  TS selects the trigger:
+ * TI1FP1 (0b00101) for TI capture, ITR2 (0b00010) for the tim3_trgo
+ * inter-timer link.
+ */
+
+#define TIM_SMCR_SMS_RESET       (4 << 0)  /* SMS[2:0] = reset mode */
+#define TIM_SMCR_SMS_EXTCLK1     (7 << 0)  /* SMS[2:0] = ext clock mode 1 */
+#define TIM_SMCR_SMS_MASK        (7 << 0)
+#define TIM_SMCR_TS_TI1FP1       (5 << 4)  /* TS[2:0] = TI1FP1 (0b101) */
+#define TIM_SMCR_TS_ITR2         (2 << 4)  /* TS[2:0] = ITR2 (0b010) */
+#define TIM_SMCR_TS_MASK         (7 << 4)
+
+/* Timer input selection register (TISEL).  On TIM15, TI1SEL = 0b0010
+ * routes TIM3 CH1 internally into TI1 (no external pin).
+ */
+
+#define TIM_TISEL_TI1SEL_MASK    (0xf << 0)
+#define TIM_TISEL_TI1_TIM3_CH1   (0x2 << 0)
 
 #endif /* __ARCH_ARM_SRC_STM32N6_HARDWARE_STM32_TIM_H */

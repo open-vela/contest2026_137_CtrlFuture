@@ -1,0 +1,7 @@
+############################################################################
+# Contest 2026 team 137 TIM PWM+capture loopback demo - Make.defs
+############################################################################
+
+ifneq ($(CONFIG_LVX_USE_DEMO_CONTEST2026_137_TIM_CAP_APP),)
+CONFIGURED_APPS += $(APPDIR)/packages/demos/contest2026_137_tim_cap_app
+endif

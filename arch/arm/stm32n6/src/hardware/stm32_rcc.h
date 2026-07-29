@@ -94,6 +94,7 @@
 #define STM32_RCC_APB1ENR2_OFFSET   0x0268  /* APB1 periph clock enable 2 */
 #define STM32_RCC_APB1LPENR1_OFFSET 0x02a4  /* APB1 sleep clock enable 1 */
 #define STM32_RCC_APB2ENR_OFFSET    0x026c  /* APB2 periph clock enable */
+#define STM32_RCC_APB2LPENR_OFFSET  0x02ac  /* APB2 sleep clock enable */
 #define STM32_RCC_APB4ENR1_OFFSET   0x0274  /* APB4 periph clock enable 1 */
 #define STM32_RCC_APB4LPENR1_OFFSET 0x02b4  /* APB4 sleep clock enable 1 */
 #define STM32_RCC_APB4ENR2_OFFSET   0x0278  /* APB4 periph clock enable 2 */
@@ -154,6 +155,7 @@
 #define STM32_RCC_APB1ENR2   (STM32_RCC_BASE + STM32_RCC_APB1ENR2_OFFSET)
 #define STM32_RCC_APB1LPENR1 (STM32_RCC_BASE + STM32_RCC_APB1LPENR1_OFFSET)
 #define STM32_RCC_APB2ENR    (STM32_RCC_BASE + STM32_RCC_APB2ENR_OFFSET)
+#define STM32_RCC_APB2LPENR  (STM32_RCC_BASE + STM32_RCC_APB2LPENR_OFFSET)
 #define STM32_RCC_APB4ENR1   (STM32_RCC_BASE + STM32_RCC_APB4ENR1_OFFSET)
 #define STM32_RCC_APB4ENR2   (STM32_RCC_BASE + STM32_RCC_APB4ENR2_OFFSET)
 #define STM32_RCC_APB4LPENR1 (STM32_RCC_BASE + STM32_RCC_APB4LPENR1_OFFSET)
@@ -402,6 +404,7 @@
 #define RCC_APB2ENR_USART6EN     (1 << 5)
 #define RCC_APB2ENR_UART9EN      (1 << 7)
 #define RCC_APB2ENR_USART10EN    (1 << 8)
+#define RCC_APB2ENR_TIM15EN      (1 << 16)
 
 /* AHB3ENR bits: RNG enable */
 
@@ -419,12 +422,14 @@
  */
 
 #define RCC_APB1LPENR1_TIM2LPEN  (1 << 0)
+#define RCC_APB1LPENR1_TIM3LPEN  (1 << 1)
 #define RCC_APB1LPENR1_TIM5LPEN  (1 << 3)
 #define RCC_APB1LPENR1_LPTIM1LPEN (1 << 9)
 
 /* APB1ENR1 bits: peripheral enables */
 
 #define RCC_APB1ENR1_TIM2EN      (1 << 0)
+#define RCC_APB1ENR1_TIM3EN      (1 << 1)
 #define RCC_APB1ENR1_TIM5EN      (1 << 3)
 #define RCC_APB1ENR1_LPTIM1EN    (1 << 9)
 #define RCC_APB1ENR1_WWDGEN      (1 << 11)
@@ -503,6 +508,7 @@
  */
 
 #define RCC_APB2LPENR_USART1LPEN (1 << 4)
+#define RCC_APB2LPENR_TIM15LPEN  (1 << 16)
 
 /* CCIPR13: USART1 kernel clock source select (bits 0-2).  Value 6
  * selects HSI, matching CMSIS RCC_CCIPR13_USART1SEL and the value the
