@@ -280,6 +280,18 @@ config STM32_HASH
 		correctness is verifiable against a known SHA-256 test vector
 		without any external wiring or instrument.
 
+config STM32_DMA2D
+	bool "DMA2D (Chrom-Art graphics accelerator, probe)"
+	default n
+	---help---
+		Enable the STM32N6 DMA2D (Chrom-Art) accelerator.  Currently
+		provides the arch helper stm32n6_dma2d_probe(), a one-shot
+		register-to-memory fill that grants DMA2D the SRAM region's
+		trusted compartment ID via RIFSC and verifies the write landed.
+		It determines whether DMA2D can write SRAM in DEV boot (unlike
+		GPDMA1, whose CID is fixed by ROM and cannot be granted).  Fully
+		on-chip: no external wiring or instrument required.
+
 config STM32_RTC
 	bool "RTC (Real-Time Clock)"
 	default n

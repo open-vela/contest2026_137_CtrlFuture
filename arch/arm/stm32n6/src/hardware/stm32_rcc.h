@@ -406,10 +406,11 @@
 #define RCC_APB2ENR_USART10EN    (1 << 8)
 #define RCC_APB2ENR_TIM15EN      (1 << 16)
 
-/* AHB3ENR bits: RNG, HASH enable */
+/* AHB3ENR bits: RNG, HASH, RIFSC enable */
 
 #define RCC_AHB3ENR_RNGEN        (1 << 0)
 #define RCC_AHB3ENR_HASHEN       (1 << 1)
+#define RCC_AHB3ENR_RIFSCEN      (1 << 9)
 
 /* AHB1ENR bits: GPDMA1, ADC12 enable */
 
@@ -441,11 +442,19 @@
 #define RCC_APB1ENR1_I2C1EN      (1 << 21)
 #define RCC_APB1ENR1_I2C2EN      (1 << 22)
 
-/* AHB5ENR bits: XSPI/SDMMC enables */
+/* AHB5ENR bits: DMA2D/XSPI/SDMMC/GPU2D enables (positions per CMSIS
+ * stm32n647xx.h).  The XSPI/SDMMC symbols are currently unreferenced —
+ * their clocks are left enabled by the ROM/FSBL in DEV boot — but the
+ * positions are corrected here so a future clock-gating path uses the
+ * right bits.
+ */
 
-#define RCC_AHB5ENR_XSPI1EN      (1 << 0)
-#define RCC_AHB5ENR_XSPI2EN      (1 << 1)
-#define RCC_AHB5ENR_SDMMC1EN     (1 << 4)
+#define RCC_AHB5ENR_DMA2DEN      (1 << 1)
+#define RCC_AHB5ENR_XSPI1EN      (1 << 5)
+#define RCC_AHB5ENR_SDMMC2EN     (1 << 7)
+#define RCC_AHB5ENR_SDMMC1EN     (1 << 8)
+#define RCC_AHB5ENR_XSPI2EN      (1 << 12)
+#define RCC_AHB5ENR_GPU2DEN      (1 << 20)
 
 /* APB4ENR1 bits: RTC enable (CMSIS RCC_APB4ENR1_RTCEN, bit 16).
  * IWDG has no software clock-gating enable bit on STM32N6 (neither
