@@ -1,0 +1,18 @@
+#
+# For a description of the syntax of this configuration file,
+# see the file kconfig-language.txt in the NuttX tools repository.
+#
+
+config LVX_USE_DEMO_CONTEST2026_137_DMA2D_TEST_APP
+	bool "Contest 2026 team 137 DMA2D de-risk probe"
+	default n
+	depends on STM32_DMA2D
+	---help---
+		Enable the contest 2026 team 137 DMA2D de-risk probe
+		(dma2d_test).  Runs a register-to-memory fill through the
+		STM32N6 DMA2D accelerator after granting it the firmware SRAM
+		region's trusted compartment ID via RIFSC, then verifies the
+		known fill word landed in SRAM.  PASSes iff DMA2D can write SRAM
+		in DEV boot -- i.e. the RISAF grant works (unlike GPDMA1, whose
+		CID is fixed by ROM and cannot be granted).  Fully on-chip; no
+		external wiring or instrument needed.  Requires STM32_DMA2D.

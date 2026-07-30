@@ -86,7 +86,7 @@
 | 29 | ADC 驱动 | [029](adr/ADR-029.md) | 005, 006, 011 | MEASURED | **PARTIAL**（轮询 MEASURED，DMA RISAF 阻塞延后） |
 | 30 | DTS 温度传感器 | [030](adr/ADR-030.md) | 005 | MEASURED | |
 | 31 | LTDC LCD 控制器 | [031](adr/ADR-031.md) | 005, 006, 007, 025 | MEASURED | **PARTIAL** |
-| 32 | GPU2D / DMA2D | [032](adr/ADR-032.md) | 031 | MEASURED | |
+| 32 | GPU2D / DMA2D | [032](adr/ADR-032.md) | 031 | MEASURED | **PARTIAL**（探针真机 MEASURED，DMA2D→SRAM 被 RISAF 阻塞延后） |
 | 33 | DCMIPP 摄像头管线 | [033](adr/ADR-033.md) | 005, 006, 025 | MEASURED | **PARTIAL** |
 | 34 | CSI-2 MIPI 接口 | [034](adr/ADR-034.md) | 033 | MEASURED | |
 | 35 | H.264 编码器 | [035](adr/ADR-035.md) | 033 | MEASURED | |
@@ -102,6 +102,11 @@
 > - **029 PARTIAL**：ADR-029 ADC VREFINT 轮询真机 MEASURED、ADC2
 >   scan/AWD 已实现；ADC DMA 路径在 DEV boot 下被 RISAF 防火墙拦截
 >   （需 RISAF CID 授权而非驱动改动），已文档化并延后。
+> - **032 PARTIAL**：ADR-032 DMA2D 去风险探针真机 MEASURED——逐 CID 0..7
+>   的 register-to-memory 写入均被 RISAF 防火墙拦截（含 CPU 的 CID 1），
+>   与 029 同因（DEV boot 下管辖 SRAM 的 RISAF 只放行 CPU 核，不接纳可编程
+>   总线主设备的任何 CID）。非驱动缺陷、无法从固件层修复；SRAM 目标的
+>   DMA2D 加速待 flash-boot / FSBL RISAF 授权方案。详见 ADR 内「实现现状」。
 > - **031/033 PARTIAL**：`/dev/fb0`、`/dev/video0` 设备框架已注册，
 >   但 LTDC 寄存器编程与 DCMIPP CMW_CAMERA 调用均未实现；
 >   两者未在任何 defconfig 启用（`CONFIG_VIDEO_FB`/`CONFIG_VIDEO`
