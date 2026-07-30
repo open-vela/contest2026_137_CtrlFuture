@@ -14,10 +14,13 @@
 
 > P0/P1 为核心目标，P2/P3 为延伸目标，P4 为远期规划。
 
-> **验证口径说明 (2026-07-20)**：ADR-004（真机验证）仍 PENDING，
-> 表中所有 **DONE** 均为 BUILD + QEMU/Renode 仿真级验证，「验证」列
-> 为目标级别而非已达级别。**PARTIAL** = 设备框架已注册但硬件寄存器
-> 路径未实现；**N/A** = ADR 决策不实现。
+> **验证口径说明 (2026-07-30)**：真机（远程 STM32N647 两跳 SSH + GDB
+> 加载 SRAM + 串口采集）现已可用，ADR-004 启动链真机 MEASURED，
+> 其后每个影响真机行为的 ADR（027/028/029/030/032/037…）均经
+> `hw-verify-drivertest.sh` 真机回归。「验证」列为目标级别；「状态」列
+> 反映已达级别。**PARTIAL** = 设备框架已注册但硬件路径受阻（RISAF/
+> boot-mode 授权，非固件可修复）或寄存器路径未实现；**N/A** = ADR
+> 决策不实现。
 
 ---
 
@@ -30,7 +33,7 @@
 | 1 | CI 集成（symlink + Kconfig patch） | [001](adr/ADR-001.md) | — | BUILD | **DONE** |
 | 2 | 最小启动（RCC/GPIO/USART1/IRQ/heap） | [002](adr/ADR-002.md) | — | BUILD | **DONE** |
 | 3 | SysTick 系统节拍 | [003](adr/ADR-003.md) | 002 | BUILD | **DONE** |
-| 4 | 真机串口验证 | [004](adr/ADR-004.md) | 002, 003 | MEASURED | PENDING |
+| 4 | 真机串口验证 | [004](adr/ADR-004.md) | 002, 003 | MEASURED | **DONE** |
 
 ## P1: 基础外设
 
