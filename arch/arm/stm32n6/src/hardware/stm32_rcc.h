@@ -406,9 +406,10 @@
 #define RCC_APB2ENR_USART10EN    (1 << 8)
 #define RCC_APB2ENR_TIM15EN      (1 << 16)
 
-/* AHB3ENR bits: RNG enable */
+/* AHB3ENR bits: RNG, HASH enable */
 
 #define RCC_AHB3ENR_RNGEN        (1 << 0)
+#define RCC_AHB3ENR_HASHEN       (1 << 1)
 
 /* AHB1ENR bits: GPDMA1, ADC12 enable */
 

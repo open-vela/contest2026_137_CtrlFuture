@@ -74,6 +74,10 @@ if(CONFIG_STM32_DTS)
   list(APPEND SRCS stm32n6_dts.c)
 endif()
 
+if(CONFIG_STM32_HASH)
+  list(APPEND SRCS stm32n6_hash.c)
+endif()
+
 if(CONFIG_STM32_IWDG)
   list(APPEND SRCS stm32n6_iwdg.c)
 endif()
