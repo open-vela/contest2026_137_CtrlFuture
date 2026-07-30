@@ -270,6 +270,16 @@ config STM32_DTS
 		DS14791 characterization constants in integer fixed point,
 		so no FPU is required.
 
+config STM32_HASH
+	bool "HASH (SHA-256 hardware accelerator)"
+	default n
+	---help---
+		Enable the STM32N6 HASH accelerator.  Provides the arch helper
+		stm32n6_sha256() which computes a SHA-256 digest of an in-memory
+		buffer in polling mode.  The engine is fully on-chip, so its
+		correctness is verifiable against a known SHA-256 test vector
+		without any external wiring or instrument.
+
 config STM32_RTC
 	bool "RTC (Real-Time Clock)"
 	default n

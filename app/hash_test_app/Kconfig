@@ -1,0 +1,17 @@
+#
+# For a description of the syntax of this configuration file,
+# see the file kconfig-language.txt in the NuttX tools repository.
+#
+
+config LVX_USE_DEMO_CONTEST2026_137_HASH_TEST_APP
+	bool "Contest 2026 team 137 HASH SHA-256 self-test"
+	default n
+	depends on STM32_HASH
+	---help---
+		Enable the contest 2026 team 137 HASH SHA-256 self-test
+		(hash_test).  Computes SHA-256("abc") on the STM32N6 HASH
+		accelerator and compares the digest byte-for-byte against the
+		NIST FIPS 180-4 known-answer vector.  The engine is fully
+		on-chip, so a match proves a real hardware computation with no
+		external wiring or instrument.  Requires STM32_HASH in the
+		arch layer.

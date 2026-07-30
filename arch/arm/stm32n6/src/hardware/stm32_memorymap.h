@@ -142,5 +142,6 @@
 /* AHB3 peripherals */
 
 #define STM32_RNG_BASE         (STM32_AHB3_BASE + 0x0000)
+#define STM32_HASH_BASE        (STM32_AHB3_BASE + 0x0400)
 
 #endif /* __ARCH_ARM_SRC_STM32N6_HARDWARE_STM32_MEMORYMAP_H */

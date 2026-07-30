@@ -91,7 +91,7 @@
 | 34 | CSI-2 MIPI 接口 | [034](adr/ADR-034.md) | 033 | MEASURED | |
 | 35 | H.264 编码器 | [035](adr/ADR-035.md) | 033 | MEASURED | |
 | 36 | Neural-ART NPU | [036](adr/ADR-036.md) | 005, 007, 008, 025 | MEASURED | |
-| 37 | 加密加速器（SAES, HASH, RNG） | [037](adr/ADR-037.md) | 005 | BUILD | |
+| 37 | 加密加速器（RNG, HASH; SAES N/A） | [037](adr/ADR-037.md) | 005 | MEASURED | RNG+HASH 真机；SAES 硅片缺失 |
 | 38 | Secure Boot | [038](adr/ADR-038.md) | 037, 019 | MEASURED | |
 
 > - **025 N/A**：ADR-025 决策不实现独立 HPDMA 驱动，传输由
@@ -106,6 +106,10 @@
 >   但 LTDC 寄存器编程与 DCMIPP CMW_CAMERA 调用均未实现；
 >   两者未在任何 defconfig 启用（`CONFIG_VIDEO_FB`/`CONFIG_VIDEO`
 >   门控，CI 不编译）。详见 ADR 内「实现现状」。
+> - **037 MEASURED（SAES N/A）**：RNG（`/dev/random` 熵健全性）与 HASH
+>   （SHA-256("abc") 对 NIST 向量）均真机 MEASURED。SAES/CRYP 判定 N/A —
+>   STM32N647X0 硅片不含密码学加速器（`SAES_TypeDef`/`CRYP_TypeDef` 仅存在于
+>   N655/N657 SKU 的 CMSIS 头），非文档缺失。
 
 ---
 
