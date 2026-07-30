@@ -1,0 +1,17 @@
+#
+# For a description of the syntax of this configuration file,
+# see the file kconfig-language.txt in the NuttX tools repository.
+#
+
+config LVX_USE_DEMO_CONTEST2026_137_RNG_TEST_APP
+	bool "Contest 2026 team 137 RNG entropy self-test"
+	default n
+	depends on DEV_RANDOM
+	---help---
+		Enable the contest 2026 team 137 RNG entropy self-test
+		(rng_test).  Reads two 32-byte blocks from /dev/random (backed
+		by the STM32N6 hardware TRNG) and PASSes iff each block is
+		non-degenerate (not all-zero, not a single repeated byte) and
+		the two blocks differ, proving a live on-chip entropy source.
+		No external wiring or instrument is needed.  Requires
+		DEV_RANDOM (which the STM32_RNG driver backs).

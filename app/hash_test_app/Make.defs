@@ -1,0 +1,7 @@
+############################################################################
+# Contest 2026 team 137 HASH SHA-256 self-test - Make.defs
+############################################################################
+
+ifneq ($(CONFIG_LVX_USE_DEMO_CONTEST2026_137_HASH_TEST_APP),)
+CONFIGURED_APPS += $(APPDIR)/packages/demos/contest2026_137_hash_test_app
+endif
