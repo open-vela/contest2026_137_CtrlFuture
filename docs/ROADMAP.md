@@ -48,12 +48,24 @@
 | 9 | PWR 电源管理 | [009](adr/ADR-009.md) | 005 | MEASURED | **DONE** |
 | 10 | EXTI 扩展中断 | [010](adr/ADR-010.md) | 006 | QEMU | **DONE** |
 | 11 | GPDMA1 通用 DMA | [011](adr/ADR-011.md) | 005, 007 | MEASURED | **DONE** |
-| 12 | 额外 USART/UART | [012](adr/ADR-012.md) | 005, 006 | MEASURED | **DONE** |
-| 13 | SPI 驱动（SPI1-6） | [013](adr/ADR-013.md) | 006, 011 | MEASURED | **DONE** |
-| 14 | I2C 驱动（I2C1-4） | [014](adr/ADR-014.md) | 006, 011 | MEASURED | **DONE** |
+| 12 | 额外 USART/UART | [012](adr/ADR-012.md) | 005, 006 | MEASURED | **PARTIAL**（USART1 控制台真机；额外端口仅 Renode） |
+| 13 | SPI 驱动（SPI1-6） | [013](adr/ADR-013.md) | 006, 011 | MEASURED | **PARTIAL**（驱动完整；未接线、无真机总线验证） |
+| 14 | I2C 驱动（I2C1-4） | [014](adr/ADR-014.md) | 006, 011 | MEASURED | **PARTIAL**（驱动完整；板级 IRQ/引脚未接线、仅 Renode） |
 | 15 | 看门狗（IWDG/WWDG） | [015](adr/ADR-015.md) | 005 | MEASURED | **DONE** |
 | 16 | RTC 实时时钟 | [016](adr/ADR-016.md) | 005 | MEASURED | **DONE** |
 | 17 | MPU 内存保护 | [017](adr/ADR-017.md) | 007, 008 | QEMU | **DONE** |
+
+> - **012 PARTIAL**：USART1 控制台真机 MEASURED（见 ADR-004）；驱动保留
+>   USART2/3 多端口框架（`#ifdef` 守护），但仅 USART1 编译使能，
+>   额外端口只有 Renode 寄存器访问测试，无真机多串口数据往返。
+> - **013 PARTIAL**：`stm32n6_spi.c` 是完整的寄存器编程驱动（SPI1-6
+>   base/CFG1/CPOL/CPHA + exchange），但未接入任何 defconfig、无板级引脚
+>   接线、无真机总线验证（SPI 无片内自环，需外部 MOSI-MISO 跳线）。
+>   原 ADR 文档「暂不实现」已 stale——驱动实际存在。
+> - **014 PARTIAL**：`stm32n6_i2c.c` 是完整的 transfer 驱动，但板级配置
+>   仍为占位（`.irq = 0 /* TODO */`、`.sda_pin = 0`），未接入 defconfig，
+>   仅 Renode 仿真（寄存器复位值 + Enable + Boot 回归），无真机 I2C
+>   数据往返。板载 SHT30(@I2C4 0x44) 为后续免跳线真机验证的候选。
 
 ## P2: 存储
 
@@ -73,8 +85,12 @@
 | # | 模块 | ADR | 依赖 | 验证 | 状态 |
 |---|------|-----|------|------|------|
 | 22 | Ethernet GMAC (1G) | [022](adr/ADR-022.md) | 005, 006, 011, 007 | MEASURED | **DONE** |
-| 23 | USB OTG HS | [023](adr/ADR-023.md) | 005, 006, 009 | MEASURED | **DONE** |
+| 23 | USB OTG HS | [023](adr/ADR-023.md) | 005, 006, 009 | MEASURED | **PARTIAL**（骨架；host 模式未实现，无真机验证） |
 | 24 | FDCAN | [024](adr/ADR-024.md) | 005, 006 | MEASURED | **DONE** |
+
+> - **023 PARTIAL**：`stm32n6_otg.c` 仅寄存器骨架（host 模式
+>   `return -ENOSYS`，多处 TODO），未接入 defconfig。USB 需物理主机
+>   枚举，远程真机无法自环验证；EdgeSight 数据路径不走 USB，延后至 P5。
 
 ## P4: 高级功能
 
