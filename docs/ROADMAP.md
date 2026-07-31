@@ -50,7 +50,7 @@
 | 11 | GPDMA1 通用 DMA | [011](adr/ADR-011.md) | 005, 007 | MEASURED | **DONE** |
 | 12 | 额外 USART/UART | [012](adr/ADR-012.md) | 005, 006 | MEASURED | **PARTIAL**（USART1 控制台真机；额外端口仅 Renode） |
 | 13 | SPI 驱动（SPI1-6） | [013](adr/ADR-013.md) | 006, 011 | MEASURED | **PARTIAL**（驱动完整；未接线、无真机总线验证） |
-| 14 | I2C 驱动（I2C1-4） | [014](adr/ADR-014.md) | 006, 011 | MEASURED | **PARTIAL**（驱动完整；板级 IRQ/引脚未接线、仅 Renode） |
+| 14 | I2C 驱动（I2C1-4） | [014](adr/ADR-014.md) | 006, 011 | MEASURED | **DONE**（I2C4 真机；板载 AP3216C@0x1E 写/回读握手） |
 | 15 | 看门狗（IWDG/WWDG） | [015](adr/ADR-015.md) | 005 | MEASURED | **DONE** |
 | 16 | RTC 实时时钟 | [016](adr/ADR-016.md) | 005 | MEASURED | **DONE** |
 | 17 | MPU 内存保护 | [017](adr/ADR-017.md) | 007, 008 | QEMU | **DONE** |
@@ -62,10 +62,11 @@
 >   base/CFG1/CPOL/CPHA + exchange），但未接入任何 defconfig、无板级引脚
 >   接线、无真机总线验证（SPI 无片内自环，需外部 MOSI-MISO 跳线）。
 >   原 ADR 文档「暂不实现」已 stale——驱动实际存在。
-> - **014 PARTIAL**：`stm32n6_i2c.c` 是完整的 transfer 驱动，但板级配置
->   仍为占位（`.irq = 0 /* TODO */`、`.sda_pin = 0`），未接入 defconfig，
->   仅 Renode 仿真（寄存器复位值 + Enable + Boot 回归），无真机 I2C
->   数据往返。板载 SHT30(@I2C4 0x44) 为后续免跳线真机验证的候选。
+> - **014 DONE**（2026-07-31 真机 MEASURED）：I2C4 修正为 PE13/PE14 AF4、
+>   补齐 APB4 时钟使能 + HSI 内核时钟、修复 repeated-start TC 竞态，接入
+>   nsh-test defconfig。板载真实从机是 AP3216C(@0x1E)（**非** SHT30——后者
+>   为 EdgeSight 规划注释，非本板硬件）。`ap3216c_test` 免跳线自测软复位后
+>   写 0x03 到系统配置寄存器再回读，断言 == 0x03，真机 `AP3216C PASS`。
 
 ## P2: 存储
 

@@ -37,7 +37,10 @@
 #include <syslog.h>
 #include <string.h>
 
+#include "arm_internal.h"
+#include "stm32n6_gpio.h"
 #include "stm32n6_i2c.h"
+#include "hardware/stm32_rcc.h"
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -117,13 +120,12 @@
 
 struct stm32n6_i2c_config_s
 {
-  uint32_t base;
-  uint32_t clock;
-  int      irq;
-  int      sda_pin;
-  int      scl_pin;
-  int      sda_af;
-  int      scl_af;
+  uint32_t base;          /* Peripheral register base */
+  uint32_t clock;         /* Kernel clock frequency (Hz) */
+  uint32_t clken_reg;     /* RCC enable register holding the clock bit */
+  uint32_t clken_bit;     /* Peripheral clock-enable bit */
+  uint32_t scl_cfg;       /* SCL pin GPIO cfgset (AF, open-drain) */
+  uint32_t sda_cfg;       /* SDA pin GPIO cfgset (AF, open-drain) */
 };
 
 struct stm32n6_i2c_priv_s
@@ -141,48 +143,60 @@ struct stm32n6_i2c_priv_s
  * Private Data
  ****************************************************************************/
 
+/* GPIO cfgset for an I2C alternate-function pin: AF mode, open-drain (I2C is
+ * a wired-AND bus), high speed, with the internal pull-up as a belt-and-
+ * suspenders backup to the board's external pull-ups.
+ */
+
+#define I2C_PIN_CFG(port, pin, af) \
+  (GPIO_MODE_AF | GPIO_OTYPE_OD | GPIO_SPEED_HIGH | GPIO_PUPD_PU | \
+   GPIO_AF(af) | (port) | GPIO_PIN(pin))
+
+/* I2C4 is the only bus wired on this board: PE13=SCL, PE14=SDA, AF4, clocked
+ * from APB4ENR1.  These pins and AF match the ALIENTEK STM32N647 board (ST
+ * SoftwarePackage BSP), which brings the onboard AP3216C sensor out on I2C4.
+ * I2C1-3 keep correct clock bits but no pin config -- they are not brought
+ * out on this board.
+ */
+
 static const struct stm32n6_i2c_config_s g_i2c1_config =
 {
-  .base = STM32N6_I2C1_BASE,
-  .clock = 64000000,
-  .irq = 0,  /* TODO: fill IRQ number */
-  .sda_pin = 0,
-  .scl_pin = 0,
-  .sda_af = 4,
-  .scl_af = 4,
+  .base      = STM32N6_I2C1_BASE,
+  .clock     = 64000000,
+  .clken_reg = STM32_RCC_APB1ENR1,
+  .clken_bit = RCC_APB1ENR1_I2C1EN,
+  .scl_cfg   = 0,
+  .sda_cfg   = 0,
 };
 
 static const struct stm32n6_i2c_config_s g_i2c2_config =
 {
-  .base = STM32N6_I2C2_BASE,
-  .clock = 64000000,
-  .irq = 0,
-  .sda_pin = 0,
-  .scl_pin = 0,
-  .sda_af = 4,
-  .scl_af = 4,
+  .base      = STM32N6_I2C2_BASE,
+  .clock     = 64000000,
+  .clken_reg = STM32_RCC_APB1ENR1,
+  .clken_bit = RCC_APB1ENR1_I2C2EN,
+  .scl_cfg   = 0,
+  .sda_cfg   = 0,
 };
 
 static const struct stm32n6_i2c_config_s g_i2c3_config =
 {
-  .base = STM32N6_I2C3_BASE,
-  .clock = 64000000,
-  .irq = 0,
-  .sda_pin = 0,
-  .scl_pin = 0,
-  .sda_af = 4,
-  .scl_af = 4,
+  .base      = STM32N6_I2C3_BASE,
+  .clock     = 64000000,
+  .clken_reg = STM32_RCC_APB1ENR1,
+  .clken_bit = (1 << 23),          /* I2C3EN (APB1ENR1) */
+  .scl_cfg   = 0,
+  .sda_cfg   = 0,
 };
 
 static const struct stm32n6_i2c_config_s g_i2c4_config =
 {
-  .base = STM32N6_I2C4_BASE,
-  .clock = 64000000,
-  .irq = 0,
-  .sda_pin = 0,
-  .scl_pin = 0,
-  .sda_af = 4,
-  .scl_af = 4,
+  .base      = STM32N6_I2C4_BASE,
+  .clock     = 64000000,
+  .clken_reg = STM32_RCC_APB4ENR1,
+  .clken_bit = RCC_APB4ENR1_I2C4EN,
+  .scl_cfg   = I2C_PIN_CFG(GPIO_PORTE, 13, 4),
+  .sda_cfg   = I2C_PIN_CFG(GPIO_PORTE, 14, 4),
 };
 
 static struct stm32n6_i2c_priv_s g_i2c1_priv;
@@ -206,6 +220,9 @@ static inline void stm32n6_i2c_putreg(
 {
   *(volatile uint32_t *)(priv->config->base + offset) = value;
 }
+
+static int stm32n6_i2c_setfrequency(
+    struct stm32n6_i2c_priv_s *priv, uint32_t frequency);
 
 static int stm32n6_i2c_wait_isr(
     struct stm32n6_i2c_priv_s *priv, uint32_t mask,
@@ -319,13 +336,27 @@ static int stm32n6_i2c_transfer(
             }
         }
 
-      /* Wait for stop if last message */
-
       if (i == count - 1)
         {
+          /* Last message: AUTOEND generated a STOP -- wait for it. */
+
           ret = stm32n6_i2c_wait_isr(priv,
                                       I2C_ISR_STOPF,
                                       &status);
+          if (ret < 0)
+            {
+              goto errout;
+            }
+        }
+      else
+        {
+          /* More messages follow: with AUTOEND clear, the hardware sets TC
+           * once NBYTES have moved.  A repeated START (written on the next
+           * iteration) is only legal after TC, so wait for it here to avoid
+           * a restart-timing race on the v2 I2C.
+           */
+
+          ret = stm32n6_i2c_wait_isr(priv, I2C_ISR_TC, &status);
           if (ret < 0)
             {
               goto errout;
@@ -337,7 +368,13 @@ static int stm32n6_i2c_transfer(
   return count;
 
 errout:
+
+  /* Recover the bus: clearing PE resets the peripheral state (and TIMINGR),
+   * so reprogram the timing before re-enabling.
+   */
+
   stm32n6_i2c_putreg(priv, I2C_CR1_OFFSET, 0);
+  stm32n6_i2c_setfrequency(priv, priv->frequency);
   stm32n6_i2c_putreg(priv, I2C_CR1_OFFSET, I2C_CR1_PE);
   nxsem_post(&priv->lock);
   return priv->error;
@@ -361,19 +398,24 @@ static int stm32n6_i2c_setfrequency(
   return 0;
 }
 
+#ifdef CONFIG_I2C_RESET
 static int stm32n6_i2c_reset(struct i2c_master_s *dev)
 {
   struct stm32n6_i2c_priv_s *priv =
     (struct stm32n6_i2c_priv_s *)dev;
 
-  /* Software reset */
+  /* On the v2 I2C, clearing PE is the software reset; it also clears
+   * TIMINGR, so reprogram the timing (writable only while PE=0) before
+   * re-enabling.
+   */
 
-  stm32n6_i2c_putreg(priv, I2C_CR1_OFFSET, I2C_CR1_SWRST);
   stm32n6_i2c_putreg(priv, I2C_CR1_OFFSET, 0);
+  stm32n6_i2c_setfrequency(priv, priv->frequency);
   stm32n6_i2c_putreg(priv, I2C_CR1_OFFSET, I2C_CR1_PE);
 
   return OK;
 }
+#endif
 
 static void stm32n6_i2c_init_priv(
     struct stm32n6_i2c_priv_s *priv,
@@ -398,7 +440,9 @@ struct i2c_master_s *stm32n6_i2cbus_initialize(int bus_num)
   static const struct i2c_ops_s g_i2c_ops =
   {
     .transfer = stm32n6_i2c_transfer,
+#ifdef CONFIG_I2C_RESET
     .reset    = stm32n6_i2c_reset,
+#endif
   };
 
   switch (bus_num)
@@ -435,15 +479,33 @@ struct i2c_master_s *stm32n6_i2cbus_initialize(int bus_num)
   stm32n6_i2c_init_priv(priv, config);
   priv->dev.ops = &g_i2c_ops;
 
-  /* Enable I2C peripheral */
+  /* Bring-up order matters.  Pin I2C4 to the HSI kernel clock (64 MHz) so
+   * the TIMINGR preset is valid, enable the peripheral clock, mux the SCL/
+   * SDA pins, and only then program TIMINGR -- which is writable only while
+   * PE=0 -- before finally enabling the peripheral.
+   */
 
+  if (config->base == STM32N6_I2C4_BASE)
+    {
+      modifyreg32(STM32_RCC_CCIPR4, RCC_CCIPR4_I2C4SEL_MASK,
+                  RCC_CCIPR4_I2C4SEL_HSI);
+    }
+
+  modifyreg32(config->clken_reg, 0, config->clken_bit);
+
+  if (config->scl_cfg != 0)
+    {
+      stm32n6_configgpio(config->scl_cfg);
+      stm32n6_configgpio(config->sda_cfg);
+    }
+
+  /* PE=0 so TIMINGR is writable, program the timing, then enable. */
+
+  stm32n6_i2c_putreg(priv, I2C_CR1_OFFSET, 0);
+  stm32n6_i2c_setfrequency(priv, 400000);
   stm32n6_i2c_putreg(priv, I2C_CR1_OFFSET, I2C_CR1_PE);
 
-  /* Set default 100kHz timing */
-
-  stm32n6_i2c_setfrequency(priv, 100000);
-
-  syslog(LOG_INFO, "i2c%d: initialized @ 100kHz\n", bus_num);
+  syslog(LOG_INFO, "i2c%d: initialized @ 400kHz\n", bus_num);
   return &priv->dev;
 }
 

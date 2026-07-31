@@ -63,6 +63,10 @@
 #  ifdef CONFIG_STM32_DTS
 #    include "stm32n6_dts.h"
 #  endif
+#  ifdef CONFIG_STM32_I2C4
+#    include <nuttx/i2c/i2c_master.h>
+#    include "stm32n6_i2c.h"
+#  endif
 #  ifdef CONFIG_STM32_IWDG
 #    include "stm32n6_iwdg.h"
 #  endif
@@ -312,6 +316,32 @@ static int board_bringup(void)
     {
       syslog(LOG_ERR, "ERROR: DTS init failed: %d\n", ret);
     }
+#  endif
+
+#  ifdef CONFIG_STM32_I2C4
+  /* Bring up I2C4 (PE13=SCL, PE14=SDA, AF4) and expose it as /dev/i2c4 for
+   * the onboard AP3216C ambient-light/proximity/IR sensor at address 0x1e
+   * (ADR-014).  A real external slave, so it validates the bus end to end.
+   */
+
+  do
+    {
+      FAR struct i2c_master_s *i2c4 = stm32n6_i2cbus_initialize(4);
+
+      if (i2c4 == NULL)
+        {
+          syslog(LOG_ERR, "ERROR: I2C4 init failed\n");
+        }
+      else
+        {
+          ret = i2c_register(i2c4, 4);
+          if (ret < 0)
+            {
+              syslog(LOG_ERR, "ERROR: i2c_register(4) failed: %d\n", ret);
+            }
+        }
+    }
+  while (0);
 #  endif
 
 #  ifdef CONFIG_STM32_IWDG
