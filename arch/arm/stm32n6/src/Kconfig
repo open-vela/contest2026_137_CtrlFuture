@@ -113,6 +113,17 @@ config STM32_I2C2
 	---help---
 		Enable I2C2 master mode driver (interrupt-driven).
 
+config STM32_I2C4
+	bool "I2C4"
+	default n
+	select I2C
+	select I2C_DRIVER
+	---help---
+		Enable I2C4 master mode driver (polled).  I2C4 is wired to the
+		onboard SHT30 temperature/humidity sensor (PB6=SCL, PB7=SDA,
+		AF6).  Selects the I2C character driver so /dev/i2c4 is exposed
+		for I2CIOC_TRANSFER (ADR-014).
+
 config STM32_EXTI
 	bool "EXTI (Extended Interrupt)"
 	default n

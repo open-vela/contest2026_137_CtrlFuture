@@ -46,6 +46,7 @@
 #define STM32_RCC_SR_OFFSET         0x0004  /* Clock status */
 #define STM32_RCC_CFGR1_OFFSET      0x0020  /* Clock configuration 1 */
 #define STM32_RCC_CFGR2_OFFSET      0x0024  /* Clock configuration 2 */
+#define STM32_RCC_CCIPR4_OFFSET     0x0150  /* Kernel clk sel 4 (I2C4) */
 #define STM32_RCC_CCIPR7_OFFSET     0x015c  /* Kernel clock select 7 (RTC) */
 #define STM32_RCC_CCIPR12_OFFSET    0x0170  /* Kernel clk sel 12 (LPTIM1) */
 #define STM32_RCC_CCIPR13_OFFSET    0x0174  /* Kernel clock select 13 */
@@ -129,6 +130,7 @@
 #define STM32_RCC_SR         (STM32_RCC_BASE + STM32_RCC_SR_OFFSET)
 #define STM32_RCC_CFGR1      (STM32_RCC_BASE + STM32_RCC_CFGR1_OFFSET)
 #define STM32_RCC_CFGR2      (STM32_RCC_BASE + STM32_RCC_CFGR2_OFFSET)
+#define STM32_RCC_CCIPR4     (STM32_RCC_BASE + STM32_RCC_CCIPR4_OFFSET)
 #define STM32_RCC_CCIPR7     (STM32_RCC_BASE + STM32_RCC_CCIPR7_OFFSET)
 #define STM32_RCC_CCIPR12    (STM32_RCC_BASE + STM32_RCC_CCIPR12_OFFSET)
 #define STM32_RCC_CCIPR13    (STM32_RCC_BASE + STM32_RCC_CCIPR13_OFFSET)
@@ -226,6 +228,16 @@
 #define RCC_SR_PLL2RDY           (1 << 9)   /* PLL2 ready flag */
 #define RCC_SR_PLL3RDY           (1 << 10)  /* PLL3 ready flag */
 #define RCC_SR_PLL4RDY           (1 << 11)  /* PLL4 ready flag */
+
+/* Kernel clock select 4: I2C4 clock source (CMSIS RCC_CCIPR4_I2C4SEL,
+ * bits 14:12).  Encoding per ST LL: 0=PCLK1, 1=CLKP, 2=IC10, 3=IC15,
+ * 4=MSI, 5=HSI.  This port pins I2C4 to HSI (64 MHz) so the TIMINGR
+ * preset matches a known kernel clock rather than the reset default.
+ */
+
+#define RCC_CCIPR4_I2C4SEL_SHIFT (12)
+#define RCC_CCIPR4_I2C4SEL_MASK  (0x7 << RCC_CCIPR4_I2C4SEL_SHIFT)
+#define RCC_CCIPR4_I2C4SEL_HSI   (0x5 << RCC_CCIPR4_I2C4SEL_SHIFT)
 
 /* Kernel clock select 7: RTC clock source (CMSIS RCC_CCIPR7_RTCSEL,
  * bits 9:8).  Encoding per ST HAL: 0=no clock, 1=LSE, 2=LSI, 3=HSE/div.
@@ -462,6 +474,7 @@
  * clock is always on once the IWDG is started.
  */
 
+#define RCC_APB4ENR1_I2C4EN      (1 << 7)
 #define RCC_APB4ENR1_LPTIM2EN    (1 << 9)
 #define RCC_APB4ENR1_LPTIM3EN    (1 << 10)
 #define RCC_APB4ENR1_LPTIM4EN    (1 << 11)
