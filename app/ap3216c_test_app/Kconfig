@@ -1,0 +1,19 @@
+#
+# For a description of the syntax of this configuration file,
+# see the file kconfig-language.txt in the NuttX tools repository.
+#
+
+config LVX_USE_DEMO_CONTEST2026_137_AP3216C_TEST_APP
+	bool "Contest 2026 team 137 AP3216C I2C4 self-test"
+	default n
+	depends on STM32_I2C4 && I2C && I2C_DRIVER
+	---help---
+		Enable the contest 2026 team 137 AP3216C self-test
+		(ap3216c_test).  Opens /dev/i2c4, software-resets the onboard
+		AP3216C ambient-light/proximity/IR sensor at address 0x1e,
+		enables all channels by writing 0x03 to its system-config
+		register, and reads the register back.  PASSes iff every
+		transfer ACKs and the register reads back 0x03 -- proof that
+		the I2C4 bus transacts data in both directions against a real
+		external slave (no jumper or instrument needed).  Requires
+		STM32_I2C4 in the arch layer plus the I2C character driver.
