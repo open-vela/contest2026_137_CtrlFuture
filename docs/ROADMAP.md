@@ -74,8 +74,8 @@
 
 | # | 模块 | ADR | 依赖 | 验证 | 状态 |
 |---|------|-----|------|------|------|
-| 18 | XSPI 接口驱动 | [018](adr/ADR-018.md) | 005, 006, 011 | MEASURED | **DONE** |
-| 19 | XSPI Flash 启动 | [019](adr/ADR-019.md) | 018 | MEASURED | **DONE** |
+| 18 | XSPI 接口驱动 | [018](adr/ADR-018.md) | 005, 006, 011 | MEASURED | **PARTIAL**（仅 Renode 模型；无真机 XSPI 往返，需 flash-boot） |
+| 19 | XSPI Flash 启动 | [019](adr/ADR-019.md) | 018 | MEASURED | **PARTIAL**（仅 Renode 回归；真机全程 DEV boot，未 flash-boot 冷启动） |
 | 20 | SDMMC 驱动 | [020](adr/ADR-020.md) | 005, 006, 011 | MEASURED | **DONE** |
 | 21 | FMC 存储控制器 | [021](adr/ADR-021.md) | 005, 006 | MEASURED | |
 
@@ -104,7 +104,7 @@
 | 27 | 通用定时器 | [027](adr/ADR-027.md) | 005 | MEASURED | **MEASURED** |
 | 28 | 低功耗定时器（LPTIM1-5） | [028](adr/ADR-028.md) | 005, 009 | MEASURED | **MEASURED** |
 | 29 | ADC 驱动 | [029](adr/ADR-029.md) | 005, 006, 011 | MEASURED | **PARTIAL**（轮询 MEASURED，DMA RISAF 阻塞延后） |
-| 30 | DTS 温度传感器 | [030](adr/ADR-030.md) | 005 | MEASURED | |
+| 30 | DTS 温度传感器 | [030](adr/ADR-030.md) | 005 | MEASURED | **MEASURED**（dts_temp 真机读回 36.19°C） |
 | 31 | LTDC LCD 控制器 | [031](adr/ADR-031.md) | 005, 006, 007, 025 | MEASURED | **PARTIAL** |
 | 32 | GPU2D / DMA2D | [032](adr/ADR-032.md) | 031 | MEASURED | **PARTIAL**（探针真机 MEASURED，DMA2D→SRAM 被 RISAF 阻塞延后） |
 | 33 | DCMIPP 摄像头管线 | [033](adr/ADR-033.md) | 005, 006, 025 | MEASURED | **PARTIAL** |
