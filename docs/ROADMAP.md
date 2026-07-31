@@ -78,6 +78,7 @@
 | 19 | XSPI Flash 启动 | [019](adr/ADR-019.md) | 018 | MEASURED | **PARTIAL**（仅 Renode 回归；真机全程 DEV boot，未 flash-boot 冷启动） |
 | 20 | SDMMC 驱动 | [020](adr/ADR-020.md) | 005, 006, 011 | MEASURED | **DONE** |
 | 21 | FMC 存储控制器 | [021](adr/ADR-021.md) | 005, 006 | MEASURED | |
+| 39 | Flash 启动（FSBL + RISAF） | [039](adr/ADR-039.md) | 018, 019 | MEASURED | **PROPOSED**（路线固化，暂不动手；解锁 029/032/036） |
 
 ## P3: 通信
 
@@ -135,6 +136,12 @@
 >   （SHA-256("abc") 对 NIST 向量）均真机 MEASURED。SAES/CRYP 判定 N/A —
 >   STM32N647X0 硅片不含密码学加速器（`SAES_TypeDef`/`CRYP_TypeDef` 仅存在于
 >   N655/N657 SKU 的 CMSIS 头），非文档缺失。
+> - **039 PROPOSED**：flash-boot + 自定义 FSBL 编程 RISAF 的路线专题。真机
+>   最终产品需掉电持久冷启动（当前全程 DEV boot），且 029/032/036 被 RISAF
+>   内存防火墙拦截的 DMA/NPU→SRAM 功能只能靠 FSBL 授权总线主 CID 解锁。
+>   分阶段（阶段 0 探针 flash-boot 默认 RISAF 策略 → 阶段 1 最小冷启动 →
+>   阶段 2 条件性自定义 FSBL）。可逆、不烧熔丝、有 DFU 砖机安全网。**当前
+>   仅固化路线，待 DEV boot 下可做的 ADR 清完后启动。**
 
 ---
 
@@ -173,6 +180,10 @@ P0                          P1                          P2          P3
               │                                          ┌──────────┤
             019                                        022 ETH    023 USB
             XSPI Boot                                  024 FDCAN
+              │
+              ├──────── 039 Flash 启动 (FSBL + RISAF) ← 018,019
+              │           └─→ 解锁 029 ADC-DMA / 032 DMA2D / 036 NPU
+              │               (RISAF 授权总线主 CID 访问 SRAM)
               │
               └───────── 038 Secure Boot ← 037 Crypto
 
